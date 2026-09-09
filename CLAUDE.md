@@ -17,9 +17,14 @@ company.
 
 ## Current state
 
-The problem is defined; the solution is not. No tech stack, architecture, or solution
-approach has been chosen. Do not assume one — if a task implies a stack decision, surface
-the decision rather than quietly making it.
+The problem is defined; the solution is not. The stack has started to settle — React on the
+front end, Node/TypeScript services, and a file-backed data store that is still an open
+choice between XML and SQLite. See `docs/adr/` for each decision and its reasoning; read the
+relevant ADR before working in an area it touches.
+
+Everything past those three choices is still open: no architecture, module boundaries, or
+solution approach has been settled. Do not assume one — if a task implies a decision that
+isn't already recorded in an ADR, surface it rather than quietly making it.
 
 ## Git workflow — important
 
