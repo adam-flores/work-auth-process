@@ -100,3 +100,20 @@ restricted government contracts** subject to US contract requirements.
   stay `TBD`. This is a business-school deliverable; fabricated numbers are worse than
   blank ones.
 - Keep documents in Markdown, wrapped around 95 characters.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues on `adam-flores/work-auth-process`, via the `gh` CLI.
+See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical triage roles, using their default label strings.
+See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` and `docs/adr/` at the repo root.
+See `docs/agents/domain.md`.
