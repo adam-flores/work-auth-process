@@ -12,6 +12,11 @@ Read [BUSINESS_CASE.md](BUSINESS_CASE.md) before proposing anything substantive.
 the problem, the impact, the desired outcome, and the open questions. It is the source of
 truth for *why* this project exists.
 
+Read [docs/process/work-authorization-flow.md](docs/process/work-authorization-flow.md) for
+*what* the process actually does: the routing, the approval gates, the inputs the form
+collects, and the manual-lookup problem at the centre of it. It is the reference point every
+capability decision is measured against.
+
 This is **not** a real production system and is not affiliated with or endorsed by any
 company.
 
