@@ -63,6 +63,18 @@ data/private/
 !data/sample/*.csv
 !**/fixtures/*.csv
 
+# ---- Source documents ----
+# Working-reference documents from the real process. These carry proprietary and
+# confidential content (legal entities, cost centers, CAGE codes, site locations,
+# CAS/FAR disclosure classifications) and are sensitivity-labelled at source.
+# They stay on disk as local reference and are never committed. Anything the repo
+# needs from them is transcribed by hand, genericised, and reviewed first.
+*.docx
+*.doc
+*.pptx
+*.ppt
+*.pdf
+
 # ---- Build / misc ----
 *.log
 tmp/
