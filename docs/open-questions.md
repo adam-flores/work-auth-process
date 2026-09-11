@@ -43,7 +43,9 @@ now than later.
 ## How to answer
 
 **Effort:** about 45 minutes written, or a one-hour conversation. Section 1 alone is 10 minutes
-and is the one that matters most — if you only answer one section, answer that one.
+and is the one that matters most — if you only answer one section, answer that one. **Section 7
+is the shortest and the second most important**: it is the three decisions we have already built
+on, and it takes about five minutes to agree or push back.
 
 **Answer everything you can.** This is the whole backlog, not a first instalment, and there is no
 second document holding the questions this one left out.
@@ -216,6 +218,16 @@ target itself survives._
 
 >
 
+### When an approver opens an authorization, does that reliably mean they have started work on it?
+
+_Why this matters: we record the moment an approver first opens an authorization, and use it to
+separate time it sat unnoticed from time it spent under consideration — which is where the whole
+cycle-time diagnosis lives. That only holds if opening approximates starting. If your approvers
+open everything each morning and act later, the signal is noise and we should stop collecting
+it. This is separate from whether recording it is acceptable, which is asked above._
+
+>
+
 ### Can anyone other than the submitter pause an authorization?
 
 _Why this matters: we have proposed that a submitter can put an authorization on hold — it
@@ -320,6 +332,24 @@ enough; we only need to know which ones you'd push back on.
 
 >
 
+### The transcribed process flow is accurate.
+
+_Why this matters: `docs/process/work-authorization-flow.md` was transcribed by hand from your
+reference document, and every decision since has been measured against it. Section 4 asks about
+the four discrepancies we already know about — this asks the blanket question. If a stage is
+missing, out of order, or does more than we recorded, we would rather find out now._
+
+>
+
+### A prototype with entirely mocked participants cannot demonstrate that the process improved.
+
+_Why this matters: this is why we are not building an "as-is" version to contrast against, and
+why the ask is a funded pilot rather than a claimed result. Elapsed time in a demo measures how
+fast the operator clicks. If you expected the prototype itself to prove the improvement, we have
+built the wrong thing and should know before it is finished._
+
+>
+
 ### The failure mode is knowledge access, not unwillingness — so better guidance at the point of entry is a viable lever.
 
 >
@@ -342,6 +372,76 @@ consistency argument. If they wouldn't, the expertise problem moves rather than 
 
 ---
 
+## 7. Decisions we have already made
+
+Three decisions are recorded in `docs/bdr/` and the repository has been built on all of them.
+Every one is marked **provisional**, which in this project means *decided on our own judgement
+and not yet confirmed by anyone who runs the process or owns the system*. Section 6 asks about
+the beliefs underneath them; this section puts the decisions themselves up for confirmation.
+
+**Agree, disagree, or "not my call" is enough.** Where you disagree, the useful sentence is
+which part. Each one says what it would cost to reverse, so you can weigh it — none of them is
+expensive to change today, and all three get dearer the longer they stand.
+
+### BDR-0001 — Preserve the flow, rebuild the experience
+
+We model today's approval sequence **exactly as it stands**: same steps, same order, same
+sign-offs. Every improvement comes from the tooling built around it. We are not building a
+digitized copy of today's experience to contrast against a redesigned one, and the prototype is
+not offered as evidence the approach works — its job is to make the capability concrete enough
+to justify a funded pilot.
+
+_Reversing it:_ if it turns out approvers are genuinely busy rather than the form sitting
+unnoticed, the cycle-time target goes and the claim narrows to accuracy alone. If the flow
+itself must change, the sequence is deliberately swappable, so it should cost a configuration
+change and a redraw — not a rebuild.
+[BDR-0001](bdr/0001-preserve-the-flow-rebuild-the-experience.md)
+
+>
+
+### BDR-0002 — Three roles, and open visibility
+
+The ten participants in the flow document collapse to **three roles** — Contributor, Approver,
+Charge Number Admin — separated by what they can do rather than what they are accountable for.
+Every authorization is **readable by anyone** with access, while a queue shows an approver only
+what they need to act. And the role that judges a field **owns that field's written criteria**,
+rather than the criteria being authored by whoever builds the form.
+
+_Reversing it:_ if the labor figures are actuals or anything else is entity-sensitive, open
+visibility is wrong and reverts to need-to-know — moderate, and the roles survive. If criteria
+ownership is rejected, guidance has to be authored centrally and the key-person dependency the
+business case names moves rather than dissolves.
+[BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md)
+
+>
+
+### BDR-0003 — The authorization lifecycle
+
+Five recorded states — Draft, On hold, Completed, Withdrawn, Rejected — with position in the
+relay **derived** rather than stored, so nobody maintains a status by hand. A **denial** returns
+something fixable; a **rejection** refuses on the merits and is terminal. The performing entity
+is a **department with a claimable queue**, not a named person. Every stage records four
+timestamps — arrived, notified, acknowledged, resolved.
+
+_Reversing it:_ if rejection on the merits does not exist, one state disappears and denial
+absorbs it — small. If the performing side is handed to a named person by standing arrangement,
+claiming goes away and the contact becomes mandatory routing — moderate. If acknowledgement
+cannot or should not be recorded, the cycle-time argument survives but loses its diagnosis.
+[BDR-0003](bdr/0003-the-authorization-lifecycle.md)
+
+>
+
+### Is there a decision here you would have expected us to make, and we have not?
+
+_Why this matters: silence is the harder failure to catch. We have deferred every technology
+choice, the shape of the pilot, and the redesign of the approval sequence — deliberately. If
+something you consider settled is missing from this list, it is more likely we have not noticed
+it than that we ruled it out._
+
+>
+
+---
+
 ## Anything else?
 
 What haven't we asked that we should have? In particular: is there anything about this process
@@ -355,9 +455,10 @@ that everyone who works with it knows, that wouldn't appear in any document?
 
 This document accumulates, and it is the **only** collection point — a question that needs a
 stakeholder answer belongs here, whichever role it is aimed at. When a provisional BDR is
-written, add both its *What it assumes* beliefs and its *Question for the product owner* here;
-splitting them across two documents would only work if the two roles were held by different
-people, and on this project they are not.
+written, add three things: its *What it assumes* beliefs, its *Question for the product owner*,
+and **the decision itself to section 7** — the beliefs underneath a decision are not a substitute
+for asking about the decision. Splitting them across two documents would only work if the two
+roles were held by different people, and on this project they are not.
 
 When an answer comes back, record it against the decision it settles — a confirmed BDR moves to
 `final`, an overturned one to `superseded`. Answers are paraphrased into the repo, never pasted
