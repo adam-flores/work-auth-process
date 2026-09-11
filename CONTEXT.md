@@ -205,6 +205,13 @@ submitter, stage, participant, or identifier. Where history is retrieved, since 
 none.
 _Avoid_: search, archive, register, report
 
+**Insights dashboard**:
+The aggregate view of how the process is performing — time in each stage, correction requests,
+held time — computed from the same records the product writes rather than reported separately.
+Restricted to administrators, which makes it the one surface that is not open to everyone. Shows
+no individual: nothing on it attributes time or defects to a named person.
+_Avoid_: analytics, metrics page, reporting, MI
+
 **Notification**:
 A push to a role when an authorization arrives in their queue. The queue is what people are
 told about; the master dashboard is what they go and look at.

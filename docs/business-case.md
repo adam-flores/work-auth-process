@@ -161,10 +161,12 @@ no status for anyone to maintain or forget. When a stage finds something wrong i
 the stage that found it rather than falling into a gap between stages. A correction that changes a
 field an earlier stage depends on returns it there as a **re-review**; changing the performing
 department re-routes from the handover. Time in each stage, decomposed into time the approver held
-it and time it was out for correction, is what turns "most of the elapsed time is idle time" from
-this document's central assumption (§10) into something a pilot can measure.
+it and time it was out for correction, is what lets a pilot say *where* the elapsed time went and
+how much of it was the data being wrong — though not, as §7 sets out, whether the rest of it was
+idle or busy.
 [BDR-0003](bdr/0003-the-authorization-lifecycle.md) ·
-[BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
+[BDR-0005](bdr/0005-correction-in-place-and-revocation.md) ·
+[BDR-0006](bdr/0006-what-the-product-records.md)
 
 **Visibility is asymmetric by design.** What reaches a person is scoped — an approver's queue
 shows the step in front of them, not the whole record. What a person can go and look up is not
@@ -202,23 +204,83 @@ is the first job of the pilot, not an input to it.
 
 ### Measures **[Derived]**
 
-| # | Measure | Baseline | Target | Ties to |
-|---|---|---|---|---|
-| M1 | Share of authorizations completed with zero correction requests | TBD | +25% relative | Errors |
-| M2 | Cycle time from form start to approved authorization | TBD | −50% | Cycle time |
-| M3 | Correction requests per authorization | TBD | −25% | Errors |
-| M4 | SME support interactions per authorization | TBD | Decrease | Expert dependency |
-| M5 | Share of forms completed without SME contact | TBD | Increase | Minimal assistance |
-| M6 | Time-to-competence for a first-time submitter | TBD | Decrease | Training gap |
+| # | Measure | Baseline | Target | Ties to | Source |
+|---|---|---|---|---|---|
+| M1 | Share of authorizations completed with zero correction requests | TBD | +25% relative | Errors | Product |
+| M2 | Cycle time from initiation to completion | TBD | −50% | Cycle time | Product |
+| M3 | Correction requests per authorization | TBD | −25% | Errors | Product |
+| M4 | SME support interactions per authorization | TBD | Decrease | Expert dependency | Pilot survey |
+| M5 | Share of forms completed without SME contact | TBD | Increase | Minimal assistance | Pilot survey |
+| M6 | Time-to-competence for a first-time submitter | TBD | Decrease | Training gap | Pilot survey |
 
-M1–M3 are computable from system data once the product exists — from the time an authorization
-spends in each stage, split into time the approver held it and time it was out for correction
-([BDR-0005](bdr/0005-correction-in-place-and-revocation.md)). That split is what makes M2
-diagnostic rather than merely a total. What counts as an **error** is settled: a correction request
-raised at a stage. A validation failure caught at entry is reported separately as a *prevention*,
-never folded into the error rate — otherwise the number rises as the guidance improves — and a
-re-review is excluded by name, because nobody erred. M4–M6 describe human behaviour that a system
-cannot observe on its own and would need to be gathered alongside the pilot.
+**M1–M3 come from the product.** What it records to make them computable is settled by
+[BDR-0006](bdr/0006-what-the-product-records.md).
+
+**M4–M6 come from a survey run during the pilot, not from the product.** All three ask whether
+a submitter still has to go and find an expert, and a conversation between two colleagues is
+invisible to software. The product makes no attempt to approximate them — counting when a
+submitter opens a field's written guidance was considered as the one honest proxy available and
+deliberately declined as more instrumentation than a prototype needs. They stay in this table
+because they measure the thing §3 identifies as the actual failure mode; the *Source* column is
+there so nobody later assumes the system will supply them.
+
+#### What M2 measures, precisely
+
+The clock starts when a submitter **initiates** — releases a draft into the relay — and stops
+when the charge number completes the authorization. Time spent drafting is not measured, and an
+abandoned draft leaves no trace. The product records nothing about the form-filling experience;
+that is what the pilot survey is for.
+
+Three refinements make the number defensible rather than merely large:
+
+- **Time an authorization is held is excluded** and reported separately. Only the submitter can
+  hold, and nobody is waiting while they do — charging that to an approver would be dishonest.
+  Reporting it separately is the check that holds are not quietly absorbing delay.
+- **Time *awaiting correction* is included**, and recorded as its own interval within the
+  stage. A correction is the process failing while somebody waits, so the days it costs stay
+  attached to the stage that found the defect rather than falling into a gap between stages
+  ([BDR-0005](bdr/0005-correction-in-place-and-revocation.md)).
+- **A stage re-entered as a re-review counts as a separate occurrence.** Its first pass is what
+  is reported per stage; re-review time is a separate line. The rules or the data moved beneath
+  that stage and nobody erred, so it is not charged as though someone had. The end-to-end total
+  still includes every occurrence.
+
+**What M2 can show:** which stage the elapsed time accumulated in, and how much of it was the
+data being wrong rather than the approver being slow.
+
+**What M2 cannot show:** whether the time an approver held an authorization was spent
+considering it or spent with it sitting unopened. Separating those would mean recording when an
+individual approver first opens an authorization, which was ruled out on two independent
+grounds — that time in queue per stage is sufficient, and that opening an authorization does
+not reliably indicate work has begun. The 50% target is unaffected; the ability to explain
+*why* the number moved is narrower than originally claimed. This is stated rather than glossed
+because an earlier draft of this section asserted the stronger version.
+
+#### What counts as an error
+
+Settled by [BDR-0005](bdr/0005-correction-in-place-and-revocation.md). Four things could be
+counted and they are not the same:
+
+| | Counted as an error? | |
+|---|---|---|
+| **Correction request** at a stage | **Yes** | a defect got past entry and cost days downstream |
+| **Validation failure** at entry | Reported separately | the product did its job; nothing reached an approver |
+| **Re-review** | No | the rules or the data moved beneath a stage; nobody erred |
+| **Revocation** | No | the ask died; not a defect |
+
+Entry catches are reported as a **prevention count**, never folded into the error rate —
+otherwise the number would rise as the guidance improved, which is exactly when the product is
+working. It is also the stronger argument: *n defects were caught at entry and m still got
+through* beats reporting only the survivors.
+
+#### Where the measures are seen
+
+An **insights dashboard** presents them, restricted to administrators. Because the prototype is
+pre-pilot and has no real history, it runs over a seeded set of authorizations with full
+transition histories, so the screen shows what it would show in service rather than sitting
+empty. Every figure is computed from the same records the live product writes — nothing on it
+is hardcoded — which means the dashboard being right is itself evidence that the
+instrumentation is right ([ADR-0006](adr/0006-insights-from-seeded-transition-history.md)).
 
 ---
 
@@ -273,7 +335,11 @@ pilot, and a pilot is what stage 1 buys.
 
 1. **Most of today's elapsed time is idle time and rework, not work.** This is load-bearing. The
    entire cycle-time target rests on it, because the approval sequence is unchanged. If the six
-   steps are genuinely busy end to end, the 50% target is unreachable.
+   steps are genuinely busy end to end, the 50% target is unreachable. It also stays an
+   *assumption*: the product deliberately does not record when an approver first opens an
+   authorization, so a pilot can show which stage the time built up in and how much of it was
+   rework, but not whether the remainder was idle
+   ([BDR-0006](bdr/0006-what-the-product-records.md)).
 2. The form is a legitimate and necessary control; the goal is to make it easier to complete
    correctly, not to eliminate it.
 3. The information needed to complete the form correctly is knowable at the time of submission.
