@@ -44,6 +44,76 @@ _Avoid_: step, phase, level
 A stage that occurs only when its condition holds. Two exist: Contracts and Global Trade.
 _Avoid_: conditional step, checkpoint
 
+## The lifecycle
+
+Five states are recorded. Where an authorization sits in the relay is **not** one of them — it
+is read from the relay, so there is no status anyone maintains by hand.
+
+**Draft**:
+An authorization its submitter has created but not yet initiated. Visible like any other, in its
+submitter's queue and on the master dashboard. Deleted by its submitter, or by the system two
+weeks after it was last modified.
+_Avoid_: unsubmitted, work in progress, incomplete
+
+**Initiation**:
+The submitter releasing a draft into the relay. The audit trail starts here; nothing before it
+is preserved.
+_Avoid_: submission, kickoff, launch
+
+**On hold**:
+An initiated authorization paused by its submitter. In nobody's queue while held, and it resumes
+at the stage it left. Only the submitter holds it and only the submitter releases it.
+_Avoid_: paused, suspended, parked, frozen
+
+**Completed**:
+The terminal state reached when the Charge Number Admin mints the charge number. Caused by a
+value existing, not by a final judgement.
+_Avoid_: approved, closed, done, finished
+
+**Withdrawn**:
+An initiated authorization killed by its submitter. Terminal.
+_Avoid_: cancelled, abandoned, deleted, killed
+
+**Transition**:
+One recorded change to an authorization, carrying who caused it, what kind it was, and when.
+Transitions are appended and never altered; current state is read from them.
+_Avoid_: event, update, status change, history entry
+
+**Claim**:
+A contributor in the performing entity taking an unclaimed authorization from their department's
+queue, which is what names them as that authorization's performing contributor. A submitter may
+name a performing-side contact, but that only adds a notification — the department queue stays
+authoritative.
+_Avoid_: assignment, pickup, allocation
+
+**Acknowledgement**:
+An approver first opening an authorization that has arrived at them. Separates time it sat
+unopened from time it spent under consideration.
+_Avoid_: viewed, read, seen, opened
+
+**Denial**:
+An approver returning an authorization to its submitter over something **fixable**. Always
+carries a comment addressed to them. Not terminal: correcting and resubmitting is the only
+appeal there is. Distinct from a **rejection**.
+_Avoid_: rejection, refusal, bounce, kickback
+
+**Rejection**:
+An approver refusing an authorization on **the merits of the ask** rather than over a fixable
+defect. Terminal — there is no path back out of it, and an authorization rejected in error is
+replaced by a new one, not reopened.
+_Avoid_: denial, refusal, decline
+
+**Resubmission**:
+An authorization sent back into the relay by the submitter after a denial, carrying the
+submitter's comment.
+_Avoid_: resubmittal, revision, re-review
+
+**Re-review**:
+An authorization returning to an approver who already acted on it, because the relay's
+configuration changed beneath it. Shown as a re-review rather than as a fresh arrival, so the
+approver knows what changed is the rules and not the request.
+_Avoid_: re-approval, recheck, second pass
+
 ## The cast
 
 Three roles, distinguished by what they can do rather than by what they are accountable for.
@@ -78,9 +148,10 @@ _Avoid_: role, responsibility, remit, discipline
 ## What people see
 
 **Queue**:
-A role's list of authorizations that have arrived at them and are waiting on their action now.
-An authorization enters on arrival and leaves when they act, re-entering on resubmission. It
-holds live work only.
+A list of authorizations waiting on someone's action — whatever put them there: arrival at their
+stage, their own unfinished draft, or a denial returned to them. An authorization leaves when
+they act and re-enters on resubmission. It holds live work only, so an authorization **on hold**
+is in nobody's queue. A department's queue distinguishes **claimed** from unclaimed.
 _Avoid_: inbox, worklist, backlog, task list
 
 **Master dashboard**:
@@ -105,16 +176,6 @@ _Avoid_: rules, validation rules, requirements
 The written explanation attached to a field, authored by the role that owns its criteria,
 stating what is needed and why.
 _Avoid_: help text, tooltip, hint, documentation
-
-**Denial**:
-An approver returning an authorization instead of accepting it. Always carries a comment
-addressed to the submitter.
-_Avoid_: rejection, refusal, bounce, kickback
-
-**Resubmission**:
-An authorization sent back into the relay by the submitter after a denial, carrying the
-submitter's comment.
-_Avoid_: resubmittal, revision, re-review
 
 ## Project roles
 
