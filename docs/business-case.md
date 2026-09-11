@@ -1,7 +1,7 @@
 # Business Case v2: Improving the Internal Work Authorization Process
 
 **Status:** Draft — problem framed, solution direction set
-**Last updated:** 2026-09-10
+**Last updated:** 2026-09-11
 **Supersedes:** [BUSINESS_CASE.md](source/BUSINESS_CASE.md), which is kept unchanged as the original
 
 > **Why there are two.** The original business case was written to be solution-agnostic, before
@@ -107,7 +107,8 @@ engineers proceed with contract work sooner.
 
 ## 6. Solution Direction
 
-Recorded in full as [BDR-0001](bdr/0001-preserve-the-flow-rebuild-the-experience.md).
+Recorded in full as [BDR-0001](bdr/0001-preserve-the-flow-rebuild-the-experience.md) and
+[BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md).
 
 **The approval flow is preserved exactly as it stands.** Same steps, same order, same sign-offs.
 We are not proposing changes to who approves what. In a business whose authorizations touch cost
@@ -122,11 +123,26 @@ good information together and makes the path through the process a manageable on
 |---|---|
 | Digital form with field validation | Errors caught at entry rather than discovered downstream |
 | Derived and pre-populated fields | The nine fields currently read off a picture of an org chart |
-| Queue position visible to **all** parties | The originator can see where their form sits without asking |
-| Per-role dashboards over a batch of work | Approvers work a queue in one sitting, not one interruption at a time |
+| Criteria and guidance owned by the role that judges the field | Each approver's unwritten lens becomes explicit, so a form that satisfies one does not fail the next |
+| A queue of what has arrived | Approvers work a batch in one sitting, not one interruption at a time |
+| Notification the moment an authorization arrives | A form stops sitting because nobody knew it was waiting |
+| An open master record of every authorization | Anyone can see where any authorization sits, without asking a person |
 
 In priority order, the claims are: **fewer mistakes**, then **less waiting**, then **less effort
 per form**.
+
+**Who does what is settled**, in
+[BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md). The ten participants named in the
+current process are three roles — a **Contributor** fills a section, an **Approver** accepts
+or denies at one stage, and a **Charge Number Admin** completes the authorization. What
+separates two approvers is not what they can do but what they judge. The vocabulary the rest
+of this project uses is in [`CONTEXT.md`](../CONTEXT.md).
+
+**Visibility is asymmetric by design.** What reaches a person is scoped — an approver's queue
+shows the step in front of them, not the whole record. What a person can go and look up is not
+scoped at all: every authorization is readable by anyone, which is what lets a submitter chase
+their own work without asking around. This rests on the form carrying *average* labor rates
+rather than actual compensation, so there is nothing on it to protect — see §10.
 
 ### What this deliberately does not do
 
@@ -200,10 +216,10 @@ pilot, and a pilot is what stage 1 buys.
 
 | Stakeholder | Interest in the process |
 |---|---|
-| Submitting employees / engineers | Complete the form correctly and start work without delay |
+| Submitters | Complete the authorization correctly and start work without delay |
 | Subject-matter experts | Stop absorbing repetitive one-on-one support requests |
-| Approvers / department managers | Receive complete, accurate forms, and see everything waiting on them |
-| Performing admin | Issue charge numbers against authorizations that are already correct |
+| Approvers | Receive complete, accurate authorizations, and see everything waiting on them at once |
+| Charge Number Admin | Mint charge numbers against authorizations that are already correct |
 | Finance / cost accounting | Correct cost allocation across legal entities and reporting systems |
 | Contracts / compliance | Costs tracked within US contract requirements, controls unchanged |
 
@@ -230,6 +246,15 @@ pilot, and a pilot is what stage 1 buys.
 4. Improving guidance at the point of entry is a viable lever, because the failure mode is
    knowledge access rather than unwillingness.
 5. Preserving the existing sign-off sequence is welcome rather than merely tolerated.
+6. **The labor figures on the authorization are average rates, not actual compensation, and
+   nothing else on it is sensitive between legal entities.** Load-bearing for the open master
+   record in §6: if actual pay appears on an authorization, or one entity would object to
+   another reading its cost estimate, then open access is wrong and visibility has to be scoped
+   instead. [BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md)
+7. **Approvers will write down what they check for, and keep it current.** The criteria-and-
+   guidance capability in §6 assumes the expertise this project is trying to spread is willing
+   to be written down. That is a behavioural bet, not a technical one, and it is the weakest
+   joint in the consistency argument.
 
 ---
 
@@ -238,25 +263,52 @@ pilot, and a pilot is what stage 1 buys.
 - Changing the underlying cost-accounting or contract-compliance requirements
 - Replacing the legal entities' existing reporting systems
 - **Redesigning the approval sequence** — parked, not rejected; see §6
+- **Escalating a stale authorization** — notifying someone when an authorization has sat too
+  long needs an age threshold, and every baseline in §7 is `TBD`. Setting one now would mean
+  inventing a number. Deferred until the pilot produces real timings, not rejected.
+  [BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md)
 - Handling real company data, forms, contract identifiers, or personnel information
 
 ---
 
 ## 12. Open Questions
 
-To be resolved with the process owner. The first three are the ones that would change the
-direction in §6 if answered unexpectedly.
+To be resolved with the process owner. Every question a provisional decision depends on
+collects here, grouped by what it would change.
+
+### Would change the solution direction in §6
+
+From [BDR-0001](bdr/0001-preserve-the-flow-rebuild-the-experience.md).
 
 1. **When an authorization takes a long time, where does the time actually go** — approvers
    working through it, or the form sitting unnoticed and coming back for correction?
 2. **Is preserving the existing sign-off sequence a requirement, a preference, or habit?**
 3. **Would you rather have a tool that makes today's process work well, or a proposal for a
    different process?**
-4. What is the current volume of authorizations per period, and the current error rate?
-5. Which fields drive the majority of errors?
-6. What is the cost of a single rework cycle, in SME time and in schedule delay?
-7. Which requirements are compliance-mandated versus organizational convention?
-8. What distinguishes a foreign restricted government contract submission from a standard one?
+
+### Would change who sees what, and how consistency is achieved
+
+From [BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md).
+
+4. **Are the labor figures on the form average rates or actual compensation? And is there
+   anything on an authorization one legal entity would not want another to read?** The open
+   master record in §6 depends on both answers.
+5. **What does the requesting finance approver actually approve?** The budget hours and labor
+   rate arrive later, from the performing side, so at their step there is no budget on the form
+   yet.
+6. **When an approver denies an authorization today, do they give a written reason, and does it
+   reliably reach the person who submitted it?**
+7. **Would your approvers write down what they check for, and keep it up to date?** If not, the
+   consistency capability in §6 has no mechanism behind it.
+8. **Is the employee assigned to the work ever involved before the charge number exists?**
+
+### Needed to size and target the work
+
+9. What is the current volume of authorizations per period, and the current error rate?
+10. Which fields drive the majority of errors?
+11. What is the cost of a single rework cycle, in SME time and in schedule delay?
+12. Which requirements are compliance-mandated versus organizational convention?
+13. What distinguishes a foreign restricted government contract submission from a standard one?
 
 ---
 
