@@ -1,0 +1,2109 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CAS classification — prototype</title>
+<!--
+  PROTOTYPE — throwaway. Issue #9, "Resolving a CAS classification".
+  https://github.com/adam-flores/work-auth-process/issues/9
+
+  Question: how does a user arrive at the correct CAS classification without reading
+  a chart of the company?
+
+  Three variants of the same task on one page, switchable via ?variant=A|B|C and the
+  floating bar at the bottom. Open this file directly in a browser — no build, no server.
+
+  Deliberately framework-free. This map defers technology (ADR-0003 is open), so the
+  prototype must not smuggle a stack choice in. Plain HTML/CSS/JS, data inlined below.
+
+  Data: docs/reference/cas-hierarchy.json, flattened. Entirely fictional (issue #8).
+-->
+<style>
+  :root{
+    --bg:#14161a; --panel:#1c1f25; --panel2:#23272f; --line:#333945;
+    --ink:#e7eaef; --dim:#98a1b0; --dimmer:#6d7684;
+    --accent:#6ea8fe; --warn:#f0b849; --bad:#f08a7a; --ok:#7fcf9a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.5 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;
+    padding-bottom:78px}
+  h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.2px}
+  h2{font-size:13px;margin:0 0 10px;font-weight:600;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--dim)}
+  h3{font-size:14px;margin:0 0 6px;font-weight:600}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  input{font:inherit}
+
+  header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);
+    position:sticky;top:0;z-index:20}
+  .tag{font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    background:var(--warn);color:#14161a;padding:2px 7px;border-radius:3px;font-weight:700}
+  .spacer{flex:1}
+  .sidepick{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .sidepick button{padding:6px 12px;font-size:13px;color:var(--dim)}
+  .sidepick button[aria-pressed="true"]{background:var(--accent);color:#0e1116;font-weight:600}
+
+  main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;
+    padding:20px;align-items:start;max-width:1500px}
+  @media (max-width:1000px){main{grid-template-columns:1fr}}
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;min-height:520px}
+  .side-note{color:var(--dim);font-size:13px;margin:0 0 16px;max-width:70ch}
+
+  /* record panel */
+  aside{position:sticky;top:66px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:16px}
+  .fieldrow{display:grid;grid-template-columns:130px minmax(0,1fr);gap:8px;
+    padding:7px 0;border-bottom:1px solid #282d36;align-items:baseline}
+  .fieldrow:last-of-type{border-bottom:none}
+  .flabel{color:var(--dim);font-size:12px}
+  .fval{font-size:13px;word-break:break-word}
+  .fval.empty{color:var(--dimmer);font-style:italic}
+  .amb{color:var(--warn);cursor:help;font-weight:700}
+  .free{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)}
+
+  .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+  .chip{font-size:11px;padding:2px 7px;border-radius:999px;border:1px solid var(--line);
+    color:var(--dim);background:var(--panel2)}
+  .chip.foreign{border-color:var(--bad);color:var(--bad)}
+  .chip.shared{border-color:var(--warn);color:var(--warn)}
+  .chip.unknown{border-color:var(--bad);color:var(--bad);background:#2a1d1c}
+  .chip.ds{border-color:var(--accent);color:var(--accent)}
+
+  /* A */
+  .search{width:100%;padding:11px 13px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:8px;color:var(--ink);font-size:15px}
+  .count{color:var(--dim);font-size:12px;margin:10px 0}
+  .results{max-height:560px;overflow:auto;margin:0 -6px}
+  .res{width:100%;text-align:left;padding:9px 10px;border-radius:7px;display:block}
+  .res:hover{background:var(--panel2)}
+  .res[aria-current="true"]{background:#23324a;box-shadow:inset 0 0 0 1px var(--accent)}
+  .res .top{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+  .res .path{color:var(--dimmer);font-size:11px;margin-top:2px}
+  .badge{font-size:10px;letter-spacing:.06em;padding:1px 6px;border-radius:3px;
+    background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
+  details.grp{margin:2px 0}
+  details.grp>summary{cursor:pointer;padding:6px 8px;border-radius:6px;color:var(--dim);font-size:13px}
+  details.grp>summary:hover{background:var(--panel2)}
+  details.grp .inner{padding-left:14px;border-left:1px solid var(--line);margin-left:10px}
+
+  /* B */
+  .idcard{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+  .who{display:flex;gap:12px;align-items:center}
+  .av{width:38px;height:38px;border-radius:50%;background:var(--accent);color:#0e1116;
+    display:grid;place-items:center;font-weight:700}
+  .derived{border:1px solid var(--accent);border-radius:10px;padding:14px;margin-top:14px;background:#1a2231}
+  .btnrow{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .btn{padding:8px 14px;border-radius:7px;border:1px solid var(--line);background:var(--panel2);font-size:13px}
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:var(--accent);color:#0e1116;border-color:var(--accent);font-weight:600}
+  .dir{display:grid;gap:6px;margin-top:10px;max-height:360px;overflow:auto}
+  .dirrow{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:7px;
+    border:1px solid transparent;width:100%;text-align:left}
+  .dirrow:hover{background:var(--panel2);border-color:var(--line)}
+
+  /* C */
+  .q{margin-bottom:18px}
+  .q.done{opacity:.55}
+  .qtext{font-size:15px;margin-bottom:9px}
+  .opts{display:flex;gap:8px;flex-wrap:wrap}
+  .opt{padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);font-size:13px}
+  .opt:hover{border-color:var(--accent)}
+  .opt[aria-pressed="true"]{background:var(--accent);color:#0e1116;border-color:var(--accent);font-weight:600}
+  .narrow{font-size:12px;color:var(--dim);margin-top:8px}
+  .narrow b{color:var(--ink)}
+  .escape{margin-top:12px;font-size:12px;color:var(--dimmer)}
+
+  /* switcher */
+  .switch{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:50;
+    display:flex;align-items:center;gap:4px;background:#f2f4f8;color:#14161a;
+    border-radius:999px;padding:5px 6px;box-shadow:0 6px 26px rgba(0,0,0,.55)}
+  .switch button{width:30px;height:30px;border-radius:50%;font-size:16px;line-height:1;color:#14161a}
+  .switch button:hover{background:#d9dde5}
+  .switch .lbl{padding:0 12px;font-size:13px;font-weight:600;white-space:nowrap}
+  .switch .kbd{font-size:10px;color:#5b6472;padding-right:8px}
+</style>
+
+<header>
+  <span class="tag">Prototype</span>
+  <h1>CAS classification &mdash; how a user gets the nine lookup fields right</h1>
+  <span class="spacer"></span>
+  <span style="color:var(--dim);font-size:12px">Filling the</span>
+  <div class="sidepick" id="sidepick">
+    <button data-side="requesting" aria-pressed="true">Requesting block</button>
+    <button data-side="performing" aria-pressed="false">Performing block</button>
+  </div>
+</header>
+
+<main>
+  <section class="stage" id="stage"></section>
+  <aside id="record"></aside>
+</main>
+
+<div class="switch">
+  <button id="prev" title="Previous variant">&#8592;</button>
+  <span class="lbl" id="vlabel"></span>
+  <button id="next" title="Next variant">&#8594;</button>
+  <span class="kbd">&#8592; &#8594;</span>
+</div>
+
+<script id="data" type="application/json">{
+  "charts": [
+    {
+      "id": "CSG",
+      "name": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "layout": "segment-columns",
+      "codeScheme": "ga"
+    },
+    {
+      "id": "CAL",
+      "name": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "layout": "bracket-tree",
+      "codeScheme": "letter-prefixed"
+    },
+    {
+      "id": "STD",
+      "name": "Calderis Aerospace Standalone CAS Segments and Unaffiliated Supply Units & Service Centers",
+      "affiliation": "standalone",
+      "layout": "standalone-list",
+      "codeScheme": "ga"
+    }
+  ],
+  "encodings": {
+    "note": "In the source, several attributes are carried ONLY by formatting - never by text. A reader has to decode a colour or an icon to know the answer. Reproduced here as explicit fields so a prototype can work with them, with the original visual carrier recorded alongside.",
+    "fill": [
+      {
+        "value": "blue-grey",
+        "means": "full",
+        "label": "Full CAS coverage; unit files its own Disclosure Statement"
+      },
+      {
+        "value": "yellow",
+        "means": "modified",
+        "label": "Modified CAS coverage"
+      },
+      {
+        "value": "white",
+        "means": "exempt",
+        "label": "CAS-exempt"
+      },
+      {
+        "value": "tan",
+        "means": "covered-by-other",
+        "label": "No Disclosure Statement of its own; practices disclosed in another segment's DS"
+      },
+      {
+        "value": "grey",
+        "means": null,
+        "label": "Segment header box, not a selectable unit"
+      }
+    ],
+    "textColour": [
+      {
+        "value": "black",
+        "means": "domestic",
+        "label": "Domestic entity"
+      },
+      {
+        "value": "red",
+        "means": "foreign",
+        "label": "Foreign entity"
+      }
+    ],
+    "costCentreColour": [
+      {
+        "value": "black",
+        "means": "sole",
+        "label": "Cost center belongs to this unit alone"
+      },
+      {
+        "value": "orange",
+        "means": "shared",
+        "label": "Cost center is shared with another segment"
+      }
+    ],
+    "icons": [
+      {
+        "value": "home-office-dot",
+        "label": "Included in the Home Office Disclosure Statement, Parts I and V-VIII"
+      },
+      {
+        "value": "star",
+        "label": "Offshore shared-service center. Costs are allocated, not charged direct"
+      }
+    ],
+    "footnoteMarkers": [
+      {
+        "value": "*",
+        "ref": "fn-1"
+      },
+      {
+        "value": "**",
+        "ref": "fn-2"
+      }
+    ]
+  },
+  "footnotes": [
+    {
+      "id": "fn-1",
+      "marker": "*",
+      "text": "Unit does not file its own Disclosure Statement. Its cost accounting practices are disclosed in the named segment's DS."
+    },
+    {
+      "id": "fn-2",
+      "marker": "**",
+      "text": "Foreign affiliate permitted to contract directly with segments outside its own group. This is the exception to the normal rule that a unit contracts within its own segment."
+    },
+    {
+      "id": "fn-3",
+      "marker": null,
+      "text": "Unit's costs are excluded from government rate pools."
+    }
+  ],
+  "units": [
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Thermal Systems",
+      "groupingCode": "CSG-THS",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Ridgeway",
+        "region": "KS",
+        "country": "US"
+      },
+      "legalName": "Heat Exchange Products",
+      "heritage": "AV",
+      "code": "12.GA1",
+      "costCentres": [
+        {
+          "code": "20514",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "modified",
+      "fill": "yellow",
+      "textColour": "black",
+      "icons": [
+        "home-office-dot"
+      ],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Thermal Systems",
+      "groupingCode": "CSG-THS",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Ridgeway",
+        "region": "KS",
+        "country": "US"
+      },
+      "legalName": "Thermal Coatings",
+      "heritage": "AV",
+      "code": "13.GA1",
+      "costCentres": [
+        {
+          "code": "20514",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "full",
+      "fill": "blue-grey",
+      "textColour": "black",
+      "icons": [
+        "home-office-dot"
+      ],
+      "footnotes": [],
+      "note": "Shares cost center 20514 with two sibling units; the cost center does not identify the unit."
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Thermal Systems",
+      "groupingCode": "CSG-THS",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Ridgeway",
+        "region": "KS",
+        "country": "US"
+      },
+      "legalName": "Cryogenic Handling",
+      "heritage": "AV",
+      "code": "19.GA1",
+      "costCentres": [
+        {
+          "code": "20514",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "full",
+      "fill": "blue-grey",
+      "textColour": "black",
+      "icons": [
+        "home-office-dot"
+      ],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Thermal Systems",
+      "groupingCode": "CSG-THS",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Ridgeway",
+        "region": "KS",
+        "country": "US"
+      },
+      "legalName": "Burnwell Overhaul & Repair",
+      "heritage": "AV",
+      "code": "T.GA1",
+      "costCentres": [
+        {
+          "code": "20514",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "modified",
+      "fill": "yellow",
+      "textColour": "black",
+      "icons": [
+        "home-office-dot"
+      ],
+      "footnotes": [],
+      "note": "CAS code is non-numeric where every sibling's is numeric."
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Thermal Systems",
+      "groupingCode": "CSG-THS",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Ridgeway",
+        "region": "KS",
+        "country": "US"
+      },
+      "legalName": "Thermal Defense Products",
+      "heritage": "AV",
+      "code": "27.GA1",
+      "costCentres": [
+        {
+          "code": "61237",
+          "sharing": "sole"
+        },
+        {
+          "code": "4BQX7",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "full",
+      "fill": "blue-grey",
+      "textColour": "black",
+      "icons": [
+        "home-office-dot"
+      ],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Thermal Systems",
+      "groupingCode": "CSG-THS",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Ridgeway",
+        "region": "KS",
+        "country": "US"
+      },
+      "legalName": "Thermal Commercial Ent.",
+      "heritage": "AV",
+      "code": "88.GA1",
+      "costCentres": [
+        {
+          "code": "61237",
+          "sharing": "sole"
+        },
+        {
+          "code": "4BQX7",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "exempt",
+      "fill": "white",
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": "Identical cost-center pair to Thermal Defense Products, but a different disclosure treatment."
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Rotor Assemblies",
+      "groupingCode": "CSG-ROT",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Belmont Falls",
+        "region": "IN",
+        "country": "US"
+      },
+      "legalName": "Rotor Hubs",
+      "heritage": "TK",
+      "code": "1560.GA1",
+      "costCentres": [
+        {
+          "code": "33806",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "covered-by-other",
+      "fill": "tan",
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [
+        "fn-1"
+      ],
+      "note": "Disclosed in the Rotor Assemblies DS."
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Rotor Assemblies",
+      "groupingCode": "CSG-ROT",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Belmont Falls",
+        "region": "IN",
+        "country": "US"
+      },
+      "legalName": "Rotor Hubs - Pacific",
+      "heritage": "TK",
+      "code": "1571.GA1",
+      "costCentres": [],
+      "country": "SG",
+      "foreign": true,
+      "disclosureStatement": "exempt",
+      "fill": "white",
+      "textColour": "red",
+      "icons": [],
+      "footnotes": [],
+      "note": "No cost center on the chart."
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Rotor Assemblies",
+      "groupingCode": "CSG-ROT",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Belmont Falls",
+        "region": "IN",
+        "country": "US"
+      },
+      "legalName": "Rotor Hubs - U.K.",
+      "heritage": "TK",
+      "code": "1574.GA1",
+      "costCentres": [],
+      "country": "GB",
+      "foreign": true,
+      "disclosureStatement": "exempt",
+      "fill": "white",
+      "textColour": "red",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Rotor Assemblies",
+      "groupingCode": "CSG-ROT",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Belmont Falls",
+        "region": "IN",
+        "country": "US"
+      },
+      "legalName": "Rotor Shafts Continental",
+      "heritage": "TK",
+      "code": "1588.GA1",
+      "costCentres": [],
+      "country": "PL",
+      "foreign": true,
+      "disclosureStatement": "exempt",
+      "fill": "white",
+      "textColour": "red",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Rotor Assemblies",
+      "groupingCode": "CSG-ROT",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Belmont Falls",
+        "region": "IN",
+        "country": "US"
+      },
+      "legalName": "Rotor Shaft Corp",
+      "heritage": "TK",
+      "code": "1602.GA1",
+      "costCentres": [
+        {
+          "code": "7TRV1",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "full",
+      "fill": "blue-grey",
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": "Singular 'Shaft' where siblings use plural 'Shafts'."
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Rotor Assemblies",
+      "groupingCode": "CSG-ROT",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Belmont Falls",
+        "region": "IN",
+        "country": "US"
+      },
+      "legalName": "Rotor Shafts Aldenmoor",
+      "heritage": "TK",
+      "code": "1617.GA1",
+      "costCentres": [
+        {
+          "code": "58HJ0",
+          "sharing": "sole"
+        }
+      ],
+      "country": "MX",
+      "foreign": true,
+      "disclosureStatement": "covered-by-other",
+      "fill": "tan",
+      "textColour": "red",
+      "icons": [],
+      "footnotes": [
+        "fn-1"
+      ],
+      "note": "Disclosed in the Rotor Assemblies DS."
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Rotor Assemblies",
+      "groupingCode": "CSG-ROT",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Belmont Falls",
+        "region": "IN",
+        "country": "US"
+      },
+      "legalName": "Rotor Shafts Northline G&A",
+      "heritage": "TK",
+      "code": "1617a.GA1",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "covered-by-other",
+      "fill": "tan",
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [
+        "fn-1"
+      ],
+      "note": "CAS code is a lettered suffix of a sibling's code, implying a relationship the chart never states."
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Cabin Equipment",
+      "groupingCode": "CSG-CAB",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Harrow Creek",
+        "region": "TN",
+        "country": "US"
+      },
+      "legalName": "Seat Track Assemblies",
+      "heritage": "OR",
+      "code": "1720.GA1",
+      "costCentres": [
+        {
+          "code": "1WMF4",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "exempt",
+      "fill": "white",
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Cabin Equipment",
+      "groupingCode": "CSG-CAB",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Harrow Creek",
+        "region": "TN",
+        "country": "US"
+      },
+      "legalName": "Cabin Equipment - Central Engineering",
+      "heritage": "OR",
+      "code": null,
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": "white",
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": "No CAS code, no cost center, no disclosure treatment. A function, not an entity - but it sits in the chart as a selectable box."
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Cabin Equipment",
+      "groupingCode": "CSG-CAB",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Harrow Creek",
+        "region": "TN",
+        "country": "US"
+      },
+      "legalName": "Service Module Products",
+      "heritage": "OR",
+      "code": "2840.GA1",
+      "costCentres": [
+        {
+          "code": "40928",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "full",
+      "fill": "blue-grey",
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Cabin Equipment",
+      "groupingCode": "CSG-CAB",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Harrow Creek",
+        "region": "TN",
+        "country": "US"
+      },
+      "legalName": "Cabin Lighting Products",
+      "heritage": "OR",
+      "code": "2856.GA1",
+      "costCentres": [
+        {
+          "code": "12663",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "exempt",
+      "fill": "white",
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Cabin Equipment",
+      "groupingCode": "CSG-CAB",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Harrow Creek",
+        "region": "TN",
+        "country": "US"
+      },
+      "legalName": "Cabin Lighting Systems - Military",
+      "heritage": "OR",
+      "code": "1733.GA1",
+      "costCentres": [
+        {
+          "code": "84501",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "modified",
+      "fill": "yellow",
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": "Near-duplicate of 'Cabin Lighting Products' in the same segment, different treatment."
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Navigation Products",
+      "groupingCode": "CSG-NAV",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Linden Park",
+        "region": "MN",
+        "country": "US"
+      },
+      "legalName": "Inertial Reference Systems",
+      "heritage": "AV",
+      "code": "NV410.GA1",
+      "costCentres": [
+        {
+          "code": "6DZN3",
+          "sharing": "sole"
+        },
+        {
+          "code": "29LK5",
+          "sharing": "sole"
+        },
+        {
+          "code": "70CV8",
+          "sharing": "sole"
+        },
+        {
+          "code": "3XQB6",
+          "sharing": "sole"
+        },
+        {
+          "code": "55702",
+          "sharing": "shared"
+        },
+        {
+          "code": "18349",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "full",
+      "fill": "blue-grey",
+      "textColour": "black",
+      "icons": [
+        "home-office-dot"
+      ],
+      "footnotes": [],
+      "note": "Six cost centers on one unit, one of them shared with another segment and marked only by ink colour."
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Navigation Products",
+      "groupingCode": "CSG-NAV",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Linden Park",
+        "region": "MN",
+        "country": "US"
+      },
+      "legalName": "Beacon Switching Products Ltd",
+      "heritage": "NM",
+      "code": "2915.GA1",
+      "costCentres": [],
+      "country": "GB",
+      "foreign": true,
+      "disclosureStatement": "exempt",
+      "fill": "white",
+      "textColour": "red",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Navigation Products",
+      "groupingCode": "CSG-NAV",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Linden Park",
+        "region": "MN",
+        "country": "US"
+      },
+      "legalName": "Harrowgate Navigation Ltd",
+      "heritage": "NM",
+      "code": "3360.GA1",
+      "costCentres": [],
+      "country": "GB",
+      "foreign": true,
+      "disclosureStatement": "full",
+      "fill": "blue-grey",
+      "textColour": "red",
+      "icons": [
+        "home-office-dot"
+      ],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Navigation Products",
+      "groupingCode": "CSG-NAV",
+      "groupingKind": "segment",
+      "site": {
+        "city": "Linden Park",
+        "region": "MN",
+        "country": "US"
+      },
+      "legalName": "Harrowgate Navigation Ltd (Southbay)",
+      "heritage": "NM",
+      "code": "3374.GA1",
+      "costCentres": [],
+      "country": "GB",
+      "foreign": true,
+      "disclosureStatement": "modified",
+      "fill": "yellow",
+      "textColour": "red",
+      "icons": [],
+      "footnotes": [],
+      "note": "Distinguished from the unit above only by a parenthesised site and a different CAS code."
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Unaffiliated Supply Units & Service Centers",
+      "groupingCode": "CSG-UNA",
+      "groupingKind": "segment",
+      "site": null,
+      "legalName": "Shared Services Vantara",
+      "heritage": null,
+      "code": null,
+      "costCentres": [],
+      "country": "IN",
+      "foreign": true,
+      "disclosureStatement": null,
+      "fill": "white",
+      "textColour": "black",
+      "icons": [
+        "star"
+      ],
+      "footnotes": [],
+      "note": "Allocated, not charged direct."
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Unaffiliated Supply Units & Service Centers",
+      "groupingCode": "CSG-UNA",
+      "groupingKind": "segment",
+      "site": null,
+      "legalName": "Enterprise Engineering - Adriatic",
+      "heritage": null,
+      "code": null,
+      "costCentres": [],
+      "country": "IT",
+      "foreign": true,
+      "disclosureStatement": null,
+      "fill": "white",
+      "textColour": "red",
+      "icons": [
+        "star"
+      ],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Unaffiliated Supply Units & Service Centers",
+      "groupingCode": "CSG-UNA",
+      "groupingKind": "segment",
+      "site": null,
+      "legalName": "Enterprise Engineering - Westmoor",
+      "heritage": null,
+      "code": null,
+      "costCentres": [],
+      "country": "IE",
+      "foreign": true,
+      "disclosureStatement": null,
+      "fill": "white",
+      "textColour": "red",
+      "icons": [
+        "star"
+      ],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Unaffiliated Supply Units & Service Centers",
+      "groupingCode": "CSG-UNA",
+      "groupingKind": "segment",
+      "site": null,
+      "legalName": "Additive Mfg. Calder Point",
+      "heritage": null,
+      "code": null,
+      "costCentres": [
+        {
+          "code": "2GHP9",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": "white",
+      "textColour": "black",
+      "icons": [
+        "star"
+      ],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Unaffiliated Supply Units & Service Centers",
+      "groupingCode": "CSG-UNA",
+      "groupingKind": "segment",
+      "site": null,
+      "legalName": "Crosstrade",
+      "heritage": null,
+      "code": null,
+      "costCentres": [],
+      "country": null,
+      "foreign": null,
+      "disclosureStatement": null,
+      "fill": "white",
+      "textColour": "black",
+      "icons": [
+        "star"
+      ],
+      "footnotes": [],
+      "note": "One word, no code, no country. Unresolvable from the chart alone."
+    },
+    {
+      "chart": "CSG",
+      "chartName": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Unaffiliated Supply Units & Service Centers",
+      "groupingCode": "CSG-UNA",
+      "groupingKind": "segment",
+      "site": null,
+      "legalName": "Additive Mfg. - Pacific",
+      "heritage": null,
+      "code": null,
+      "costCentres": [],
+      "country": "SG",
+      "foreign": true,
+      "disclosureStatement": null,
+      "fill": "white",
+      "textColour": "red",
+      "icons": [
+        "star"
+      ],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Labs",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "Thermal Cycling Lab",
+      "heritage": null,
+      "code": "L740",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Labs",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "Vibration Lab",
+      "heritage": null,
+      "code": "L741",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Labs",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "Emissions Lab",
+      "heritage": null,
+      "code": "L742",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Repair Service Centers",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "Northline Service Center",
+      "heritage": null,
+      "code": "S318",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Repair Service Centers",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "Calder Point Service Center",
+      "heritage": null,
+      "code": "S319",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Other Services or Products",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "Technical Documentation & CAD Services",
+      "heritage": null,
+      "code": null,
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [
+        "star"
+      ],
+      "footnotes": [],
+      "note": "No code. Three distinct services in one box."
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Other Services or Products",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "Aldenmoor Operations",
+      "heritage": null,
+      "code": null,
+      "costCentres": [],
+      "country": "MX",
+      "foreign": true,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "red",
+      "icons": [],
+      "footnotes": [
+        "fn-3"
+      ],
+      "note": "Not included in Govt rates."
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Other Services or Products",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "Vantara Design Center (Vantara, Selkirk)",
+      "heritage": null,
+      "code": "D204, D209, D216",
+      "costCentres": [],
+      "country": "IN",
+      "foreign": true,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "red",
+      "icons": [],
+      "footnotes": [],
+      "note": "Two cities and three codes in a single box."
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Other Services or Products",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "Engineering & Technology",
+      "heritage": null,
+      "code": "L755",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Other Services or Products",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "Harrier Lab",
+      "heritage": null,
+      "code": "L768",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": "Filed under 'Other Services', not under 'Labs'."
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Other Services or Products",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "Facilities",
+      "heritage": null,
+      "code": null,
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Other Services or Products",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "Quality",
+      "heritage": null,
+      "code": null,
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Centers of Excellence",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "CAL OPS Ridgeway",
+      "heritage": null,
+      "code": "C902",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Centers of Excellence",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "CAL OPS Process",
+      "heritage": null,
+      "code": "C903",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Centers of Excellence",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "CAL OPS Linden Wire Center",
+      "heritage": null,
+      "code": "C904",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Centers of Excellence",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "CAL Belmont",
+      "heritage": null,
+      "code": "C911",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Centers of Excellence",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "CAL Harrow Creek",
+      "heritage": null,
+      "code": "C915",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Centers of Excellence",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "CAL Westmoor",
+      "heritage": null,
+      "code": "C920",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Centers of Excellence",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "CAL Westmoor Next Gen Display",
+      "heritage": null,
+      "code": "C921",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": "Near-identical to CAL Westmoor."
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Centers of Excellence",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "CAL Harrow Creek COE2",
+      "heritage": null,
+      "code": "C927",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": "Near-identical to CAL Harrow Creek."
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Allocated Functions",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "Allocated Function",
+      "heritage": null,
+      "code": "various cost centers",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": "The code field literally reads 'various cost centers'. Unresolvable."
+    },
+    {
+      "chart": "CAL",
+      "chartName": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "grouping": "Manufacturing Centers",
+      "groupingCode": null,
+      "groupingKind": "category",
+      "site": null,
+      "legalName": "Standard Manufacturing",
+      "heritage": null,
+      "code": "various cost centers",
+      "costCentres": [],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": null,
+      "fill": null,
+      "textColour": "black",
+      "icons": [],
+      "footnotes": [],
+      "note": "Unresolvable."
+    },
+    {
+      "chart": "STD",
+      "chartName": "Calderis Aerospace Standalone CAS Segments and Unaffiliated Supply Units & Service Centers",
+      "affiliation": "standalone",
+      "grouping": "Standalone Segments",
+      "groupingCode": "STD-ALL",
+      "groupingKind": "segment",
+      "site": null,
+      "legalName": "Surface Treatment Technologies",
+      "heritage": "NM",
+      "code": "5120.GA1",
+      "costCentres": [
+        {
+          "code": "47NR2",
+          "sharing": "sole"
+        },
+        {
+          "code": "OQB13",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "full",
+      "fill": "blue-grey",
+      "textColour": "black",
+      "icons": [
+        "home-office-dot"
+      ],
+      "footnotes": [],
+      "note": "Cost center 'OQB13' begins with a letter O that is easily read as a zero."
+    },
+    {
+      "chart": "STD",
+      "chartName": "Calderis Aerospace Standalone CAS Segments and Unaffiliated Supply Units & Service Centers",
+      "affiliation": "standalone",
+      "grouping": "Standalone Segments",
+      "groupingCode": "STD-ALL",
+      "groupingKind": "segment",
+      "site": null,
+      "legalName": "Signal Analytics Corp",
+      "heritage": "NM",
+      "code": "5133.GA1",
+      "costCentres": [
+        {
+          "code": "803M7",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "modified",
+      "fill": "yellow",
+      "textColour": "black",
+      "icons": [
+        "home-office-dot"
+      ],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "STD",
+      "chartName": "Calderis Aerospace Standalone CAS Segments and Unaffiliated Supply Units & Service Centers",
+      "affiliation": "standalone",
+      "grouping": "Standalone Segments",
+      "groupingCode": "STD-ALL",
+      "groupingKind": "segment",
+      "site": null,
+      "legalName": "Secure Software & Services",
+      "heritage": "NM",
+      "code": "5158.GA1",
+      "costCentres": [
+        {
+          "code": "91604",
+          "sharing": "shared"
+        },
+        {
+          "code": "26TY8",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "full",
+      "fill": "blue-grey",
+      "textColour": "black",
+      "icons": [
+        "home-office-dot"
+      ],
+      "footnotes": [],
+      "note": null
+    },
+    {
+      "chart": "STD",
+      "chartName": "Calderis Aerospace Standalone CAS Segments and Unaffiliated Supply Units & Service Centers",
+      "affiliation": "standalone",
+      "grouping": "Standalone Segments",
+      "groupingCode": "STD-ALL",
+      "groupingKind": "segment",
+      "site": null,
+      "legalName": "Mission Assurance Solutions",
+      "heritage": "NM",
+      "code": "5147.GA1",
+      "costCentres": [
+        {
+          "code": "50WK4",
+          "sharing": "sole"
+        },
+        {
+          "code": "77BD2",
+          "sharing": "sole"
+        },
+        {
+          "code": "91604",
+          "sharing": "shared"
+        },
+        {
+          "code": "13FS5",
+          "sharing": "sole"
+        }
+      ],
+      "country": "US",
+      "foreign": false,
+      "disclosureStatement": "full",
+      "fill": "blue-grey",
+      "textColour": "black",
+      "icons": [
+        "home-office-dot"
+      ],
+      "footnotes": [],
+      "note": "Shares cost center 91604 with Secure Software & Services."
+    },
+    {
+      "chart": "STD",
+      "chartName": "Calderis Aerospace Standalone CAS Segments and Unaffiliated Supply Units & Service Centers",
+      "affiliation": "standalone",
+      "grouping": "Standalone Segments",
+      "groupingCode": "STD-ALL",
+      "groupingKind": "segment",
+      "site": null,
+      "legalName": "Calderis Deutschland GmbH",
+      "heritage": "NM",
+      "code": "2471.GA1",
+      "costCentres": [
+        {
+          "code": "K3027",
+          "sharing": "sole"
+        }
+      ],
+      "country": "DE",
+      "foreign": true,
+      "disclosureStatement": "modified",
+      "fill": "yellow",
+      "textColour": "red",
+      "icons": [],
+      "footnotes": [
+        "fn-2"
+      ],
+      "note": "Permitted to contract outside its own segment."
+    },
+    {
+      "chart": "STD",
+      "chartName": "Calderis Aerospace Standalone CAS Segments and Unaffiliated Supply Units & Service Centers",
+      "affiliation": "standalone",
+      "grouping": "Standalone Segments",
+      "groupingCode": "STD-ALL",
+      "groupingKind": "segment",
+      "site": null,
+      "legalName": "Calderis Australia Pty Ltd",
+      "heritage": "NM",
+      "code": "2483.GA1",
+      "costCentres": [
+        {
+          "code": "V8140",
+          "sharing": "sole"
+        }
+      ],
+      "country": "AU",
+      "foreign": true,
+      "disclosureStatement": "exempt",
+      "fill": "white",
+      "textColour": "red",
+      "icons": [],
+      "footnotes": [
+        "fn-2"
+      ],
+      "note": "Permitted to contract outside its own segment."
+    },
+    {
+      "chart": "STD",
+      "chartName": "Calderis Aerospace Standalone CAS Segments and Unaffiliated Supply Units & Service Centers",
+      "affiliation": "standalone",
+      "grouping": "Standalone Segments",
+      "groupingCode": "STD-ALL",
+      "groupingKind": "segment",
+      "site": null,
+      "legalName": "Calderis Canada, Inc.",
+      "heritage": "NM",
+      "code": "2496.GA1",
+      "costCentres": [
+        {
+          "code": "P5729",
+          "sharing": "sole"
+        }
+      ],
+      "country": "CA",
+      "foreign": true,
+      "disclosureStatement": "exempt",
+      "fill": "white",
+      "textColour": "red",
+      "icons": [],
+      "footnotes": [
+        "fn-2"
+      ],
+      "note": "Permitted to contract outside its own segment."
+    },
+    {
+      "chart": "STD",
+      "chartName": "Calderis Aerospace Standalone CAS Segments and Unaffiliated Supply Units & Service Centers",
+      "affiliation": "standalone",
+      "grouping": "Standalone Segments",
+      "groupingCode": "STD-ALL",
+      "groupingKind": "segment",
+      "site": null,
+      "legalName": "Calderis UK Limited",
+      "heritage": "NM",
+      "code": "2508.GA1",
+      "costCentres": [
+        {
+          "code": "R6913",
+          "sharing": "sole"
+        }
+      ],
+      "country": "GB",
+      "foreign": true,
+      "disclosureStatement": "modified",
+      "fill": "yellow",
+      "textColour": "red",
+      "icons": [],
+      "footnotes": [
+        "fn-2"
+      ],
+      "note": "Permitted to contract outside its own segment."
+    }
+  ]
+}
+</script>
+<script>
+const DATA = JSON.parse(document.getElementById('data').textContent);
+const UNITS = DATA.units.map((u,i)=>({...u,id:i}));
+const CHART = Object.fromEntries(DATA.charts.map(c=>[c.id,c]));
+const FN = Object.fromEntries(DATA.footnotes.map(f=>[f.id,f.text]));
+const DS_LABEL = Object.fromEntries((DATA.encodings.fill||[]).map(f=>[f.means||f.value,f.label]));
+
+const state = {
+  variant: (new URLSearchParams(location.search).get('variant')||'A').toUpperCase(),
+  side: 'requesting',
+  picked: null,
+  A:{q:''},
+  B:{confirmed:false, target:null, fallback:false},
+  C:{answers:{}}
+};
+if(!['A','B','C'].includes(state.variant)) state.variant='A';
+
+/* ---------- mock people, so "derive from identity" has something to derive from ---------- */
+const ME = {name:'Dana Okoro', initials:'DO', unitId: UNITS.findIndex(u=>u.legalName==='Thermal Coatings')};
+const DIRECTORY = [
+  {name:'Priya Raman',   initials:'PR', role:'Lab manager',        unit:'Thermal Cycling Lab'},
+  {name:'Marc Feldt',    initials:'MF', role:'Repair supervisor',  unit:null, hint:'Repair Service Centers'},
+  {name:'Ayesha Kwan',   initials:'AK', role:'Program engineer',   unit:'Rotor Hubs - Pacific'},
+  {name:'Tomas Lindqvist',initials:'TL',role:'Ops lead',           unit:null, hint:'Centers of Excellence'}
+].map(p=>({...p, unitId: p.unit ? UNITS.findIndex(u=>u.legalName===p.unit) : null}));
+
+/* ---------- helpers ---------- */
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const unit = id => id==null||id<0 ? null : UNITS[id];
+const ccList = u => (u.costCentres||[]).map(c=>c.code).join(', ') || '—';
+const isShared = u => (u.costCentres||[]).some(c=>c.sharing && c.sharing!=='sole')
+  || UNITS.some(o=>o.id!==u.id && (o.costCentres||[]).some(c=>(u.costCentres||[]).some(d=>d.code===c.code)));
+
+function chips(u){
+  const out=[];
+  if(u.disclosureStatement) out.push(`<span class="chip ds" title="${esc(DS_LABEL[u.disclosureStatement]||'')}">DS: ${esc(u.disclosureStatement)}</span>`);
+  if(u.foreign) out.push(`<span class="chip foreign">Foreign entity</span>`);
+  if(!u.country) out.push(`<span class="chip unknown">Country not on the chart</span>`);
+  else out.push(`<span class="chip">${esc(u.country)}</span>`);
+  if(isShared(u)) out.push(`<span class="chip shared">Cost centre shared</span>`);
+  (u.footnotes||[]).forEach(f=>out.push(`<span class="chip" title="${esc(FN[f]||'')}">note</span>`));
+  return `<div class="chips">${out.join('')}</div>`;
+}
+
+/* ---------- the record panel: the nine lookup fields, and what is still ambiguous ---------- */
+const AMB = {
+  group:'Issue #16: the form asks for "group selection" on the requesting side only. Nothing on the chart obviously answers it.',
+  casGroup:'Issue #16: is "CAS group" the chart tab? Two of the three tabs are affiliated groups; the third is a standalone collection, which is a different kind of thing.',
+  sbu:'Issue #16: the form asks for both CAS SBU and legal entity, but the chart has one leaf. Does the unit answer both?'
+};
+function renderRecord(){
+  const u = unit(state.picked);
+  const el = document.getElementById('record');
+  const f = (label, val, ambKey) => {
+    const a = ambKey ? ` <span class="amb" title="${esc(AMB[ambKey])}">?</span>` : '';
+    return `<div class="fieldrow"><div class="flabel">${label}${a}</div>
+      <div class="fval${val?'':' empty'}">${val?esc(val):'not resolved'}</div></div>`;
+  };
+  const segLabel = u && u.groupingKind==='category'
+    ? `${u.grouping} <span class="amb" title="On this chart the level is a function category, not a CAS segment. Same form field, different kind of thing.">?</span>`
+    : (u ? esc(u.grouping) : '');
+  el.innerHTML = `
+    <h2>${state.side} block</h2>
+    ${state.side==='requesting' ? f('Group selection', u?CHART[u.chart].name.split(' - ')[0]:'', 'group') : ''}
+    ${f('CAS group', u?u.chart:'', 'casGroup')}
+    <div class="fieldrow"><div class="flabel">CAS segment</div>
+      <div class="fval${u?'':' empty'}">${u?segLabel:'not resolved'}</div></div>
+    ${f('CAS SBU', u?u.legalName:'', 'sbu')}
+    ${f('Legal entity', u?u.legalName:'')}
+    ${u ? `<div class="free">
+      <h2 style="margin-bottom:8px">Comes free with the pick</h2>
+      ${f('CAS code', u.code||'')}
+      ${f('Cost centre(s)', ccList(u))}
+      ${f('Location type', u.country ? (u.country==='US'?'Domestic':'International') : '')}
+      ${f('Disclosure', u.disclosureStatement||'not on this chart')}
+      ${chips(u)}
+      ${!u.country ? `<p class="side-note" style="margin:12px 0 0;color:var(--bad)">
+        This unit carries no country on the chart. The Global Trade gate asks whether the two
+        sites are in different countries — it cannot be derived here.</p>`:''}
+      ${u.note ? `<p class="side-note" style="margin:10px 0 0;font-size:12px">${esc(u.note)}</p>`:''}
+    </div>`:''}`;
+}
+
+/* ---------- Variant A: search and browse the whole tree ---------- */
+function haystack(u){
+  return [u.legalName,u.code,u.grouping,u.chart,u.chartName,u.country,u.heritage,
+    ...(u.costCentres||[]).map(c=>c.code)].join(' ').toLowerCase();
+}
+function renderA(){
+  const q = state.A.q.trim().toLowerCase();
+  const hits = q ? UNITS.filter(u=>haystack(u).includes(q)) : UNITS;
+  let body;
+  if(q){
+    const byChart = {};
+    hits.forEach(u=>(byChart[u.chart] ||= []).push(u));
+    body = Object.entries(byChart).map(([c,us])=>`
+      <div style="margin:14px 0 4px"><span class="badge">${esc(c)}</span>
+        <span style="color:var(--dimmer);font-size:12px;margin-left:6px">${us.length} match${us.length===1?'':'es'}</span></div>
+      ${us.map(resRow).join('')}`).join('');
+  } else {
+    body = DATA.charts.map(c=>{
+      const us = UNITS.filter(u=>u.chart===c.id);
+      const groups = [...new Set(us.map(u=>u.grouping))];
+      return `<details class="grp"><summary><b>${esc(c.id)}</b> — ${esc(c.name.split(' - ')[0])}
+        <span style="color:var(--dimmer)"> · ${us.length} units · ${esc(c.layout)}</span></summary>
+        <div class="inner">${groups.map(g=>{
+          const gu = us.filter(u=>u.grouping===g);
+          return `<details class="grp"><summary>${esc(g)}
+            <span style="color:var(--dimmer)"> · ${gu.length}</span></summary>
+            <div class="inner">${gu.map(resRow).join('')}</div></details>`;
+        }).join('')}</div></details>`;
+    }).join('');
+  }
+  document.getElementById('stage').innerHTML = `
+    <h2>A — Search the whole hierarchy</h2>
+    <p class="side-note">The same task as today, with a tool instead of a screenshot. One box
+      over all three charts: legal name, CAS code, cost centre, segment. Everything the chart
+      says in colour is spelled out in words.</p>
+    <input class="search" id="q" placeholder="Try &quot;rotor&quot;, &quot;20514&quot;, &quot;GB&quot;, &quot;L740&quot;…"
+      value="${esc(state.A.q)}" autocomplete="off">
+    <p class="count">${q?`${hits.length} of ${UNITS.length} units`:`Browsing all ${UNITS.length} units across ${DATA.charts.length} charts`}</p>
+    <div class="results">${body || '<p class="count">Nothing matches.</p>'}</div>`;
+  const inp = document.getElementById('q');
+  inp.addEventListener('input', e=>{ state.A.q = e.target.value; renderA();
+    const n=document.getElementById('q'); n.focus(); n.setSelectionRange(n.value.length,n.value.length); });
+  wireRows();
+}
+function resRow(u){
+  return `<button class="res" data-unit="${u.id}" aria-current="${state.picked===u.id}">
+    <div class="top"><b>${esc(u.legalName)}</b> <code class="mono" style="color:var(--dim)">${esc(u.code||'—')}</code></div>
+    <div class="path">${esc(u.chart)} › ${esc(u.grouping)} · cc ${esc(ccList(u))}</div>
+    ${chips(u)}</button>`;
+}
+
+/* ---------- Variant B: derived from identity, confirmed not classified ---------- */
+function renderB(){
+  const mine = unit(ME.unitId);
+  let body;
+  if(state.side==='requesting'){
+    body = `
+      <div class="idcard">
+        <div class="who"><div class="av">${ME.initials}</div>
+          <div><h3>${ME.name}</h3><div style="color:var(--dim);font-size:12px">signed in · requesting side</div></div></div>
+      </div>
+      <p class="side-note">You are classifying <b>yourself</b>. The organisation already knows
+        which unit you sit in, so the question is not "what are you?" but "is this still right?"</p>
+      <div class="derived">
+        <div style="color:var(--accent);font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Your classification</div>
+        <h3>${esc(mine.legalName)}</h3>
+        <div style="color:var(--dim);font-size:13px">${esc(mine.chart)} › ${esc(mine.grouping)} · <code class="mono">${esc(mine.code)}</code></div>
+        ${chips(mine)}
+        <div class="btnrow">
+          <button class="btn primary" data-unit="${mine.id}">${state.B.confirmed?'✓ Confirmed':'That’s right — use it'}</button>
+          <button class="btn" id="bwrong">That’s not my unit</button>
+        </div>
+      </div>
+      ${state.B.fallback?fallbackSearch():''}`;
+  } else {
+    const t = unit(state.B.target);
+    body = `
+      <p class="side-note">The performing entity is <b>someone else</b>. Nothing about your own
+        identity answers it, so derivation has to hop through a person: name who is doing the
+        work, and their classification comes with them. This is the half the requesting-side
+        answer does not cover.</p>
+      <h3 style="margin-top:16px">Who is doing the work?</h3>
+      <div class="dir">${DIRECTORY.map((p,i)=>`
+        <button class="dirrow" data-person="${i}">
+          <span class="av" style="background:var(--panel2);color:var(--dim);border:1px solid var(--line)">${p.initials}</span>
+          <span><b>${esc(p.name)}</b><br>
+            <span style="color:var(--dim);font-size:12px">${esc(p.role)} ·
+            ${p.unit?esc(p.unit):'<span style="color:var(--warn)">unit not recorded — only '+esc(p.hint)+'</span>'}</span></span>
+        </button>`).join('')}</div>
+      ${t?`<div class="derived">
+        <div style="color:var(--accent);font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Derived from them</div>
+        <h3>${esc(t.legalName)}</h3>
+        <div style="color:var(--dim);font-size:13px">${esc(t.chart)} › ${esc(t.grouping)} · <code class="mono">${esc(t.code||'—')}</code></div>
+        ${chips(t)}
+        <div class="btnrow"><button class="btn primary" data-unit="${t.id}">Use this classification</button></div>
+      </div>`:''}
+      ${state.B.fallback?fallbackSearch():''}
+      <p class="escape">Two of the four have no unit on file. Derivation degrades to search the
+        moment the directory is incomplete — which is the interesting case, not the edge case.</p>`;
+  }
+  document.getElementById('stage').innerHTML = `
+    <h2>B — Derived from who you are</h2>${body}`;
+  const w = document.getElementById('bwrong');
+  if(w) w.onclick = ()=>{ state.B.fallback = true; renderB(); };
+  document.querySelectorAll('[data-person]').forEach(el=>el.onclick=()=>{
+    const p = DIRECTORY[+el.dataset.person];
+    if(p.unitId==null||p.unitId<0){ state.B.target=null; state.B.fallback=true; }
+    else { state.B.target=p.unitId; state.B.fallback=false; }
+    renderB();
+  });
+  wireRows();
+}
+function fallbackSearch(){
+  const q = state.A.q.trim().toLowerCase();
+  const hits = q ? UNITS.filter(u=>haystack(u).includes(q)).slice(0,12) : [];
+  return `<div style="margin-top:18px;padding-top:14px;border-top:1px dashed var(--line)">
+    <h3>Then you are back to looking it up</h3>
+    <input class="search" id="q" placeholder="Search units…" value="${esc(state.A.q)}" autocomplete="off">
+    <div class="results" style="max-height:300px">${hits.map(resRow).join('')}</div></div>`;
+}
+
+/* ---------- Variant C: guided narrowing, questions a person can actually answer ---------- */
+const WORK_KINDS = {
+  'Testing or a lab':        u=>/Lab/i.test(u.grouping),
+  'Repair or overhaul':      u=>/Repair|Overhaul/i.test(u.grouping+' '+u.legalName),
+  'Making a part':           u=>/Manufacturing|Thermal Systems|Rotor|Cabin|Navigation/i.test(u.grouping),
+  'Engineering or expertise':u=>/Centers of Excellence|Other Services/i.test(u.grouping),
+  'Something else':          ()=>true
+};
+const QUESTIONS = [
+  { key:'affiliation', text:'Is the team part of the company, or an outside / shared service centre?',
+    opts:{ 'Part of the company': u=>u.affiliation==='affiliated' && !/Unaffiliated/i.test(u.grouping),
+           'Outside or shared':   u=>u.affiliation==='standalone' || /Unaffiliated/i.test(u.grouping) } },
+  { key:'where', text:'Where are they?',
+    opts:{ 'In the US': u=>u.country==='US', 'Outside the US': u=>!!u.country && u.country!=='US',
+           'I don’t know': ()=>true } },
+  { key:'work', text:'What kind of work is it?', opts:WORK_KINDS }
+];
+function renderC(){
+  let pool = UNITS.slice();
+  const blocks = QUESTIONS.map((q,i)=>{
+    const before = pool.length;
+    const ans = state.C.answers[q.key];
+    const answered = ans!=null;
+    if(answered) pool = pool.filter(q.opts[ans]);
+    const shown = i===0 || state.C.answers[QUESTIONS[i-1].key]!=null;
+    if(!shown) return '';
+    const poolBefore = answered ? UNITS.filter(u=>QUESTIONS.slice(0,i).every(p=>{
+      const a2=state.C.answers[p.key]; return a2==null || p.opts[a2](u); })) : pool;
+    return `<div class="q${answered?' done':''}">
+      <div class="qtext">${esc(q.text)}</div>
+      <div class="opts">${Object.keys(q.opts).map(o=>{
+        const n = poolBefore.filter(q.opts[o]).length;
+        return `<button class="opt" data-q="${q.key}" data-o="${esc(o)}" aria-pressed="${ans===o}"
+          ${n===0?'disabled style="opacity:.35;cursor:not-allowed"':''}
+          title="${n} unit${n===1?'':'s'} match this answer">${esc(o)}
+          <span style="opacity:.6;font-size:11px">${n}</span></button>`;}).join('')}</div>
+      ${answered?`<div class="narrow">Narrowed <b>${before}</b> → <b>${pool.length}</b> units</div>`:''}
+    </div>`;
+  }).join('');
+  const allAnswered = QUESTIONS.every(q=>state.C.answers[q.key]!=null);
+  const list = allAnswered
+    ? (pool.length
+        ? `<h3>${pool.length} unit${pool.length===1?'':'s'} left — pick one</h3>
+           <div class="results">${pool.map(resRow).join('')}</div>`
+        : `<h3 style="color:var(--bad)">Nothing left</h3>
+           <p class="side-note">The answers were individually reasonable and together impossible.
+             A narrowing flow has to be able to back out, and it has to say which answer it
+             doubts — otherwise it is a dead end with no explanation.</p>`)
+    : '';
+  document.getElementById('stage').innerHTML = `
+    <h2>C — Answer questions you can actually answer</h2>
+    <p class="side-note">None of these questions mention CAS, segments, or charts. They ask
+      about the work and the people, which the user knows, and resolve to a node the user
+      could not have found unaided.</p>
+    ${blocks}
+    ${list}
+    ${allAnswered?`<p class="escape">Watch the counts on the options. "What kind of work" is
+      answered from the grouping names, and those groupings mean different things on different
+      charts — one groups by CAS segment, one by function, one not at all. Outside the
+      affiliated chart every work-kind answer is empty and only "something else" survives, so
+      for a third of the hierarchy this question cannot narrow anything. The flow is only as
+      good as the level it filters on, which is exactly what issue #16 is about.</p>`:''}
+    <div class="btnrow"><button class="btn" id="creset">Start over</button></div>`;
+  document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{
+    const k=b.dataset.q;
+    state.C.answers[k] = state.C.answers[k]===b.dataset.o ? null : b.dataset.o;
+    const i = QUESTIONS.findIndex(q=>q.key===k);
+    QUESTIONS.slice(i+1).forEach(q=>state.C.answers[q.key]=null);
+    state.picked=null; render();
+  });
+  document.getElementById('creset').onclick=()=>{ state.C.answers={}; state.picked=null; render(); };
+  wireRows();
+}
+
+/* ---------- shell ---------- */
+function wireRows(){
+  document.querySelectorAll('[data-unit]').forEach(el=>el.onclick=()=>{
+    state.picked = +el.dataset.unit;
+    if(state.variant==='B') state.B.confirmed = true;
+    render();
+  });
+  const q = document.getElementById('q');
+  if(q && state.variant==='B'){
+    q.addEventListener('input', e=>{ state.A.q=e.target.value; renderB();
+      const n=document.getElementById('q'); n.focus(); n.setSelectionRange(n.value.length,n.value.length); });
+  }
+}
+const NAMES = {A:'Search the hierarchy', B:'Derived from identity', C:'Guided narrowing'};
+function render(){
+  document.getElementById('vlabel').textContent = `${state.variant} · ${NAMES[state.variant]}`;
+  document.querySelectorAll('#sidepick button').forEach(b=>
+    b.setAttribute('aria-pressed', String(b.dataset.side===state.side)));
+  ({A:renderA,B:renderB,C:renderC})[state.variant]();
+  renderRecord();
+}
+function setVariant(v){
+  state.variant=v; state.picked=null;
+  const p=new URLSearchParams(location.search); p.set('variant',v);
+  history.replaceState({}, '', location.pathname+'?'+p);
+  render();
+}
+const ORDER=['A','B','C'];
+const cycle = d => setVariant(ORDER[(ORDER.indexOf(state.variant)+d+3)%3]);
+document.getElementById('prev').onclick=()=>cycle(-1);
+document.getElementById('next').onclick=()=>cycle(1);
+document.addEventListener('keydown', e=>{
+  if(/^(INPUT|TEXTAREA)$/.test(e.target.tagName) || e.target.isContentEditable) return;
+  if(e.key==='ArrowLeft') cycle(-1);
+  if(e.key==='ArrowRight') cycle(1);
+});
+document.querySelectorAll('#sidepick button').forEach(b=>b.onclick=()=>{
+  state.side=b.dataset.side; state.picked=null; state.B.target=null;
+  state.B.confirmed=false; state.B.fallback=false; render();
+});
+render();
+</script>
