@@ -1,16 +1,34 @@
-# Source documents
+# Source material
 
-Working-reference documents from the real process. **Nothing in this directory is committed**
-except this file and the `.gitignore` beside it.
+What this project was built from. Two kinds of thing live here, and the difference matters.
 
-These documents are sensitivity-labelled at source and carry proprietary content — legal
-entities, cost centers, CAGE codes, site locations, and CAS/FAR disclosure classifications.
-They stay on local disk as reference material.
+## Committed
+
+- [`BUSINESS_CASE.md`](BUSINESS_CASE.md) — the original business case, written before any
+  solution decision was taken. Superseded by the live business case but kept unchanged, so it
+  stays visible what was believed before those decisions were made. Its Appendix A holds the
+  original project overview, altered only to remove the organization's name.
+
+Safe to commit because it was genericised at the point it was written.
+
+## Never committed
+
+The working-reference documents from the real process — currently a spreadsheet of the
+company chart and the flowchart the process document was transcribed from.
+
+These are sensitivity-labelled at source and carry proprietary content: legal entities, cost
+centers, CAGE codes, site locations, and CAS/FAR disclosure classifications. They stay on local
+disk. The repository's root `.gitignore` excludes them by extension (`*.xlsx`, `*.doc*`,
+`*.ppt*`, `*.pdf`).
+
+**If you add a source document in a format the root `.gitignore` does not already cover, add
+the pattern before you save the file here.** That file list is the only thing standing between
+these documents and a public repository.
 
 ## How they are used
 
-Anything the repository needs from them is **transcribed by hand, genericised, and reviewed**
-before it is committed. Two artifacts came from them this way:
+Anything the repository needs from the never-committed documents is **transcribed by hand,
+genericised, and reviewed** before it is committed. Two artifacts came from them this way:
 
 - [`docs/process/work-authorization-flow.md`](../process/work-authorization-flow.md) — the
   relay, the gates, and the input inventory, with a *Transcription notes* section recording

@@ -21,7 +21,7 @@ The goal is a process where employees complete the form accurately with minimal 
 
 **Full framing, solution direction, targets, and the ask:
 [docs/BUSINESS_CASE_V2.md](docs/BUSINESS_CASE_V2.md).** The original solution-agnostic framing
-is preserved unchanged in [docs/BUSINESS_CASE.md](docs/BUSINESS_CASE.md).
+is preserved unchanged in [docs/source/BUSINESS_CASE.md](docs/source/BUSINESS_CASE.md).
 
 ---
 
@@ -67,13 +67,13 @@ is judgment before `git add`.
 ├── CLAUDE.md               Working agreements and context for Claude Code
 ├── docs/
 │   ├── BUSINESS_CASE_V2.md Current: problem, solution direction, targets, the ask
-│   ├── BUSINESS_CASE.md    Original: solution-agnostic framing, kept unchanged
 │   ├── bdr/                Business decision records — what the system should do, and why
 │   ├── adr/                Architecture decision records — how it is built, and why
 │   ├── process/            The work authorization flow as it stands today
 │   ├── reference/          Synthetic fixtures — fictional data of a realistic shape
 │   ├── agents/             How agent skills map onto this repo's tools and conventions
-│   └── source/             Real source documents — local only, never committed
+│   └── source/             What this was built from — the original business case,
+│                           plus real reference documents that are never committed
 └── .gitignore
 ```
 

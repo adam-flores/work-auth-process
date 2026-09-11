@@ -2,7 +2,7 @@
 
 **Status:** Draft — problem framed, solution direction set
 **Last updated:** 2026-09-10
-**Supersedes:** [BUSINESS_CASE.md](BUSINESS_CASE.md), which is kept unchanged as the original
+**Supersedes:** [BUSINESS_CASE.md](source/BUSINESS_CASE.md), which is kept unchanged as the original
 
 > **Why there are two.** The original business case was written to be solution-agnostic, before
 > any decision about what to build. This version keeps the problem framing intact and adds what
@@ -263,5 +263,5 @@ direction in §6 if answered unexpectedly.
 ## Appendix
 
 The original project overview, reproduced with the organization's name genericised, is
-[Appendix A of the original business case](BUSINESS_CASE.md#appendix-a-original-project-overview).
+[Appendix A of the original business case](source/BUSINESS_CASE.md#appendix-a-original-project-overview).
 It is not duplicated here so that the two copies cannot drift.

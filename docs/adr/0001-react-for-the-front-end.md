@@ -4,7 +4,7 @@
 
 The core lever this project is betting on is guidance at the point of entry: the business
 case frames the failure mode as knowledge access, not employee unwillingness
-(BUSINESS_CASE.md §3, §8). That means the form has to be interactive — per-field help that
+(`docs/source/BUSINESS_CASE.md` §3, §8). That means the form has to be interactive — per-field help that
 appears as a field is focused, conditional sections that appear only when they apply,
 validation that fires before submission rather than after an approver rejects it. We are
 building that UI in React.
