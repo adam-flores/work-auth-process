@@ -24,12 +24,30 @@ reverse.
 Every BDR carries exactly one status.
 
 - **`provisional`** — decided by us, on our own judgement, without confirmation from the
-  process owner. Good enough to build on, not good enough to assert. Every provisional BDR
+  product owner. Good enough to build on, not good enough to assert. Every provisional BDR
   states the question we would put to the product owner.
 - **`final`** — confirmed with the product owner. The decision stands as written.
 - **`superseded`** — we were wrong, or the product owner decided otherwise. The record stays,
   with a pointer to the BDR that replaced it. We do not rewrite a provisional decision in
   place; what we assumed, and why it was wrong, is the most useful part of the record.
+
+### Who confirms what
+
+A BDR carries two things that need confirming, and they answer to different roles. See *Project
+roles* in [`CONTEXT.md`](../../CONTEXT.md).
+
+| Section | Holds | Answers to |
+|---|---|---|
+| *What it assumes* | Beliefs about how the process works today | The **process owner** |
+| *Question for the product owner* | The decision itself | The **product owner** |
+
+The status reflects the decision only. A BDR reaches `final` when the product owner confirms
+it, even if an assumption underneath it turned out to be wrong — a wrong assumption that did
+not change the decision is a finding to record, not a reason to reopen. The two stay distinct
+because the answers can move independently, not because they are asked separately: **on this
+project both roles are played by the same person**, and both kinds of question go to them
+together in [`docs/open-questions.md`](../open-questions.md), which is the single collection
+point for anything needing a stakeholder answer.
 
 ## The two waves
 
