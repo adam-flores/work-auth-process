@@ -1,0 +1,737 @@
+{
+  "fiction": {
+    "notice": "EVERY NAME, CODE, SITE AND FIGURE IN THIS FILE IS INVENTED. Calderis Aerospace does not exist. No entity name, cost-center code, CAS code, site, or disclosure classification here is copied, derived from, or decodable back to any real organization. Any resemblance to a real company is coincidental.",
+    "purpose": "A synthetic stand-in for the classification chart the work authorization form's nine manual-lookup fields are read from. It exists so that 'how does a user arrive at the correct classification' can be argued against a concrete tree instead of an abstract one.",
+    "ticket": "https://github.com/adam-flores/work-auth-process/issues/8"
+  },
+
+  "provenance": {
+    "method": "Shape transcribed by hand from a working reference document; content invented outright.",
+    "whatWasTaken": "Structural properties only: the number of charts, their differing layouts and code schemes, the depth of nesting, the shape of the code formats, which attributes are encoded visually rather than textually, and the kinds of irregularity present.",
+    "whatWasNotTaken": "No real entity names, cost-center codes, CAS codes, CAGE codes, site locations, disclosure classifications, or footnote text. The source is sensitivity-labelled, is not in this repository, and never will be.",
+    "sourceCharacteristics": "The source workbook holds three chart tabs whose entire content is embedded screenshots; the whole file contains five unique text strings. There is no machine-readable data in it at all."
+  },
+
+  "readMeFirst": {
+    "theShapeIsThePoint": "This file is deliberately awkward. The irregularities below are reproduced on purpose, because a picker built against a clean tree would prove nothing about the real problem.",
+    "format": "JSON was chosen for readability at this stage. It is NOT a persistence decision and does not touch ADR-0003 (data store: XML or SQLite), which covers authorization lifecycle state, not static reference data. Re-serializing sixty records is trivial.",
+    "levels": ["chart", "segment", "unit"],
+    "levelNote": "The form asks for four levels - group, segment, SBU, legal entity - but the source chart does not cleanly supply four. 'Chart' is the top grouping, 'segment' is the CAS segment, and 'unit' (supply unit / service center) is the leaf that carries the legal entity, the cost centers, and the disclosure treatment. Whether 'unit' answers the form's SBU field, its legal-entity field, or both is an open question and is deliberately NOT answered here."
+  },
+
+  "encodings": {
+    "note": "In the source, several attributes are carried ONLY by formatting - never by text. A reader has to decode a colour or an icon to know the answer. Reproduced here as explicit fields so a prototype can work with them, with the original visual carrier recorded alongside.",
+    "fill": [
+      { "value": "blue-grey", "means": "full", "label": "Full CAS coverage; unit files its own Disclosure Statement" },
+      { "value": "yellow", "means": "modified", "label": "Modified CAS coverage" },
+      { "value": "white", "means": "exempt", "label": "CAS-exempt" },
+      { "value": "tan", "means": "covered-by-other", "label": "No Disclosure Statement of its own; practices disclosed in another segment's DS" },
+      { "value": "grey", "means": null, "label": "Segment header box, not a selectable unit" }
+    ],
+    "textColour": [
+      { "value": "black", "means": "domestic", "label": "Domestic entity" },
+      { "value": "red", "means": "foreign", "label": "Foreign entity" }
+    ],
+    "costCentreColour": [
+      { "value": "black", "means": "sole", "label": "Cost center belongs to this unit alone" },
+      { "value": "orange", "means": "shared", "label": "Cost center is shared with another segment" }
+    ],
+    "icons": [
+      { "value": "home-office-dot", "label": "Included in the Home Office Disclosure Statement, Parts I and V-VIII" },
+      { "value": "star", "label": "Offshore shared-service center. Costs are allocated, not charged direct" }
+    ],
+    "footnoteMarkers": [
+      { "value": "*", "ref": "fn-1" },
+      { "value": "**", "ref": "fn-2" }
+    ]
+  },
+
+  "footnotes": [
+    {
+      "id": "fn-1",
+      "marker": "*",
+      "text": "Unit does not file its own Disclosure Statement. Its cost accounting practices are disclosed in the named segment's DS."
+    },
+    {
+      "id": "fn-2",
+      "marker": "**",
+      "text": "Foreign affiliate permitted to contract directly with segments outside its own group. This is the exception to the normal rule that a unit contracts within its own segment."
+    },
+    {
+      "id": "fn-3",
+      "marker": null,
+      "text": "Unit's costs are excluded from government rate pools."
+    }
+  ],
+
+  "charts": [
+    {
+      "id": "CSG",
+      "name": "Calderis Structures Group - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "layout": "segment-columns",
+      "codeScheme": "ga",
+      "codeSchemeExample": "12.GA1",
+      "segments": [
+        {
+          "code": "CSG-THS",
+          "name": "Thermal Systems",
+          "homeOfficeLevel": true,
+          "site": { "city": "Ridgeway", "region": "KS", "country": "US" },
+          "icons": ["home-office-dot"],
+          "units": [
+            {
+              "legalName": "Heat Exchange Products",
+              "heritage": "AV",
+              "casCode": "12.GA1",
+              "costCentres": [{ "code": "20514", "sharing": "sole" }],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "modified",
+              "fill": "yellow",
+              "textColour": "black",
+              "icons": ["home-office-dot"],
+              "footnotes": [],
+              "note": null
+            },
+            {
+              "legalName": "Thermal Coatings",
+              "heritage": "AV",
+              "casCode": "13.GA1",
+              "costCentres": [{ "code": "20514", "sharing": "sole" }],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "full",
+              "fill": "blue-grey",
+              "textColour": "black",
+              "icons": ["home-office-dot"],
+              "footnotes": [],
+              "note": "Shares cost center 20514 with two sibling units; the cost center does not identify the unit."
+            },
+            {
+              "legalName": "Cryogenic Handling",
+              "heritage": "AV",
+              "casCode": "19.GA1",
+              "costCentres": [{ "code": "20514", "sharing": "sole" }],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "full",
+              "fill": "blue-grey",
+              "textColour": "black",
+              "icons": ["home-office-dot"],
+              "footnotes": [],
+              "note": null
+            },
+            {
+              "legalName": "Burnwell Overhaul & Repair",
+              "heritage": "AV",
+              "casCode": "T.GA1",
+              "costCentres": [{ "code": "20514", "sharing": "sole" }],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "modified",
+              "fill": "yellow",
+              "textColour": "black",
+              "icons": ["home-office-dot"],
+              "footnotes": [],
+              "note": "CAS code is non-numeric where every sibling's is numeric."
+            },
+            {
+              "legalName": "Thermal Defense Products",
+              "heritage": "AV",
+              "casCode": "27.GA1",
+              "costCentres": [
+                { "code": "61237", "sharing": "sole" },
+                { "code": "4BQX7", "sharing": "sole" }
+              ],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "full",
+              "fill": "blue-grey",
+              "textColour": "black",
+              "icons": ["home-office-dot"],
+              "footnotes": [],
+              "note": null
+            },
+            {
+              "legalName": "Thermal Commercial Ent.",
+              "heritage": "AV",
+              "casCode": "88.GA1",
+              "costCentres": [
+                { "code": "61237", "sharing": "sole" },
+                { "code": "4BQX7", "sharing": "sole" }
+              ],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "exempt",
+              "fill": "white",
+              "textColour": "black",
+              "icons": [],
+              "footnotes": [],
+              "note": "Identical cost-center pair to Thermal Defense Products, but a different disclosure treatment."
+            }
+          ]
+        },
+        {
+          "code": "CSG-ROT",
+          "name": "Rotor Assemblies",
+          "homeOfficeLevel": true,
+          "site": { "city": "Belmont Falls", "region": "IN", "country": "US" },
+          "icons": ["home-office-dot"],
+          "units": [
+            {
+              "legalName": "Rotor Hubs",
+              "heritage": "TK",
+              "casCode": "1560.GA1",
+              "costCentres": [{ "code": "33806", "sharing": "sole" }],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "covered-by-other",
+              "fill": "tan",
+              "textColour": "black",
+              "icons": [],
+              "footnotes": ["fn-1"],
+              "note": "Disclosed in the Rotor Assemblies DS."
+            },
+            {
+              "legalName": "Rotor Hubs - Pacific",
+              "heritage": "TK",
+              "casCode": "1571.GA1",
+              "costCentres": [],
+              "country": "SG",
+              "foreign": true,
+              "disclosureStatement": "exempt",
+              "fill": "white",
+              "textColour": "red",
+              "icons": [],
+              "footnotes": [],
+              "note": "No cost center on the chart."
+            },
+            {
+              "legalName": "Rotor Hubs - U.K.",
+              "heritage": "TK",
+              "casCode": "1574.GA1",
+              "costCentres": [],
+              "country": "GB",
+              "foreign": true,
+              "disclosureStatement": "exempt",
+              "fill": "white",
+              "textColour": "red",
+              "icons": [],
+              "footnotes": [],
+              "note": null
+            },
+            {
+              "legalName": "Rotor Shafts Continental",
+              "heritage": "TK",
+              "casCode": "1588.GA1",
+              "costCentres": [],
+              "country": "PL",
+              "foreign": true,
+              "disclosureStatement": "exempt",
+              "fill": "white",
+              "textColour": "red",
+              "icons": [],
+              "footnotes": [],
+              "note": null
+            },
+            {
+              "legalName": "Rotor Shaft Corp",
+              "heritage": "TK",
+              "casCode": "1602.GA1",
+              "costCentres": [{ "code": "7TRV1", "sharing": "sole" }],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "full",
+              "fill": "blue-grey",
+              "textColour": "black",
+              "icons": [],
+              "footnotes": [],
+              "note": "Singular 'Shaft' where siblings use plural 'Shafts'."
+            },
+            {
+              "legalName": "Rotor Shafts Aldenmoor",
+              "heritage": "TK",
+              "casCode": "1617.GA1",
+              "costCentres": [{ "code": "58HJ0", "sharing": "sole" }],
+              "country": "MX",
+              "foreign": true,
+              "disclosureStatement": "covered-by-other",
+              "fill": "tan",
+              "textColour": "red",
+              "icons": [],
+              "footnotes": ["fn-1"],
+              "note": "Disclosed in the Rotor Assemblies DS."
+            },
+            {
+              "legalName": "Rotor Shafts Northline G&A",
+              "heritage": "TK",
+              "casCode": "1617a.GA1",
+              "costCentres": [],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "covered-by-other",
+              "fill": "tan",
+              "textColour": "black",
+              "icons": [],
+              "footnotes": ["fn-1"],
+              "note": "CAS code is a lettered suffix of a sibling's code, implying a relationship the chart never states."
+            }
+          ]
+        },
+        {
+          "code": "CSG-CAB",
+          "name": "Cabin Equipment",
+          "homeOfficeLevel": true,
+          "site": { "city": "Harrow Creek", "region": "TN", "country": "US" },
+          "icons": [],
+          "units": [
+            {
+              "legalName": "Seat Track Assemblies",
+              "heritage": "OR",
+              "casCode": "1720.GA1",
+              "costCentres": [{ "code": "1WMF4", "sharing": "sole" }],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "exempt",
+              "fill": "white",
+              "textColour": "black",
+              "icons": [],
+              "footnotes": [],
+              "note": null
+            },
+            {
+              "legalName": "Cabin Equipment - Central Engineering",
+              "heritage": "OR",
+              "casCode": null,
+              "costCentres": [],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": null,
+              "fill": "white",
+              "textColour": "black",
+              "icons": [],
+              "footnotes": [],
+              "note": "No CAS code, no cost center, no disclosure treatment. A function, not an entity - but it sits in the chart as a selectable box."
+            },
+            {
+              "legalName": "Service Module Products",
+              "heritage": "OR",
+              "casCode": "2840.GA1",
+              "costCentres": [{ "code": "40928", "sharing": "sole" }],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "full",
+              "fill": "blue-grey",
+              "textColour": "black",
+              "icons": [],
+              "footnotes": [],
+              "note": null
+            },
+            {
+              "legalName": "Cabin Lighting Products",
+              "heritage": "OR",
+              "casCode": "2856.GA1",
+              "costCentres": [{ "code": "12663", "sharing": "sole" }],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "exempt",
+              "fill": "white",
+              "textColour": "black",
+              "icons": [],
+              "footnotes": [],
+              "note": null
+            },
+            {
+              "legalName": "Cabin Lighting Systems - Military",
+              "heritage": "OR",
+              "casCode": "1733.GA1",
+              "costCentres": [{ "code": "84501", "sharing": "sole" }],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "modified",
+              "fill": "yellow",
+              "textColour": "black",
+              "icons": [],
+              "footnotes": [],
+              "note": "Near-duplicate of 'Cabin Lighting Products' in the same segment, different treatment."
+            }
+          ]
+        },
+        {
+          "code": "CSG-NAV",
+          "name": "Navigation Products",
+          "homeOfficeLevel": true,
+          "site": { "city": "Linden Park", "region": "MN", "country": "US" },
+          "icons": ["home-office-dot"],
+          "units": [
+            {
+              "legalName": "Inertial Reference Systems",
+              "heritage": "AV",
+              "casCode": "NV410.GA1",
+              "costCentres": [
+                { "code": "6DZN3", "sharing": "sole" },
+                { "code": "29LK5", "sharing": "sole" },
+                { "code": "70CV8", "sharing": "sole" },
+                { "code": "3XQB6", "sharing": "sole" },
+                { "code": "55702", "sharing": "shared" },
+                { "code": "18349", "sharing": "sole" }
+              ],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "full",
+              "fill": "blue-grey",
+              "textColour": "black",
+              "icons": ["home-office-dot"],
+              "footnotes": [],
+              "note": "Six cost centers on one unit, one of them shared with another segment and marked only by ink colour."
+            },
+            {
+              "legalName": "Beacon Switching Products Ltd",
+              "heritage": "NM",
+              "casCode": "2915.GA1",
+              "costCentres": [],
+              "country": "GB",
+              "foreign": true,
+              "disclosureStatement": "exempt",
+              "fill": "white",
+              "textColour": "red",
+              "icons": [],
+              "footnotes": [],
+              "note": null
+            },
+            {
+              "legalName": "Harrowgate Navigation Ltd",
+              "heritage": "NM",
+              "casCode": "3360.GA1",
+              "costCentres": [],
+              "country": "GB",
+              "foreign": true,
+              "disclosureStatement": "full",
+              "fill": "blue-grey",
+              "textColour": "red",
+              "icons": ["home-office-dot"],
+              "footnotes": [],
+              "note": null
+            },
+            {
+              "legalName": "Harrowgate Navigation Ltd (Southbay)",
+              "heritage": "NM",
+              "casCode": "3374.GA1",
+              "costCentres": [],
+              "country": "GB",
+              "foreign": true,
+              "disclosureStatement": "modified",
+              "fill": "yellow",
+              "textColour": "red",
+              "icons": [],
+              "footnotes": [],
+              "note": "Distinguished from the unit above only by a parenthesised site and a different CAS code."
+            }
+          ]
+        },
+        {
+          "code": "CSG-UNA",
+          "name": "Unaffiliated Supply Units & Service Centers",
+          "homeOfficeLevel": false,
+          "site": null,
+          "note": "Rendered as a separate red column, not a segment. Units here belong to no segment.",
+          "icons": [],
+          "units": [
+            {
+              "legalName": "Shared Services Vantara",
+              "heritage": null,
+              "casCode": null,
+              "costCentres": [],
+              "country": "IN",
+              "foreign": true,
+              "disclosureStatement": null,
+              "fill": "white",
+              "textColour": "black",
+              "icons": ["star"],
+              "footnotes": [],
+              "note": "Allocated, not charged direct."
+            },
+            {
+              "legalName": "Enterprise Engineering - Adriatic",
+              "heritage": null,
+              "casCode": null,
+              "costCentres": [],
+              "country": "IT",
+              "foreign": true,
+              "disclosureStatement": null,
+              "fill": "white",
+              "textColour": "red",
+              "icons": ["star"],
+              "footnotes": [],
+              "note": null
+            },
+            {
+              "legalName": "Enterprise Engineering - Westmoor",
+              "heritage": null,
+              "casCode": null,
+              "costCentres": [],
+              "country": "IE",
+              "foreign": true,
+              "disclosureStatement": null,
+              "fill": "white",
+              "textColour": "red",
+              "icons": ["star"],
+              "footnotes": [],
+              "note": null
+            },
+            {
+              "legalName": "Additive Mfg. Calder Point",
+              "heritage": null,
+              "casCode": null,
+              "costCentres": [{ "code": "2GHP9", "sharing": "sole" }],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": null,
+              "fill": "white",
+              "textColour": "black",
+              "icons": ["star"],
+              "footnotes": [],
+              "note": null
+            },
+            {
+              "legalName": "Crosstrade",
+              "heritage": null,
+              "casCode": null,
+              "costCentres": [],
+              "country": null,
+              "foreign": null,
+              "disclosureStatement": null,
+              "fill": "white",
+              "textColour": "black",
+              "icons": ["star"],
+              "footnotes": [],
+              "note": "One word, no code, no country. Unresolvable from the chart alone."
+            },
+            {
+              "legalName": "Additive Mfg. - Pacific",
+              "heritage": null,
+              "casCode": null,
+              "costCentres": [],
+              "country": "SG",
+              "foreign": true,
+              "disclosureStatement": null,
+              "fill": "white",
+              "textColour": "red",
+              "icons": ["star"],
+              "footnotes": [],
+              "note": null
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "CAL",
+      "name": "Calderis Avionics Ltd - CAS Segments and Affiliated Supply Units & Service Centers",
+      "affiliation": "affiliated",
+      "layout": "bracket-tree",
+      "codeScheme": "letter-prefixed",
+      "codeSchemeExample": "L740",
+      "layoutNote": "This chart shares no layout and no code scheme with CSG. It groups by function rather than by segment, and its codes are letter-prefixed rather than GA-suffixed. A user who has learned to read CSG has to learn this one separately.",
+      "categories": [
+        {
+          "name": "Labs",
+          "units": [
+            { "legalName": "Thermal Cycling Lab", "code": "L740", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": null },
+            { "legalName": "Vibration Lab", "code": "L741", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": null },
+            { "legalName": "Emissions Lab", "code": "L742", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": null }
+          ]
+        },
+        {
+          "name": "Repair Service Centers",
+          "units": [
+            { "legalName": "Northline Service Center", "code": "S318", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": null },
+            { "legalName": "Calder Point Service Center", "code": "S319", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": null }
+          ]
+        },
+        {
+          "name": "Other Services or Products",
+          "units": [
+            { "legalName": "Technical Documentation & CAD Services", "code": null, "country": "US", "foreign": false, "textColour": "black", "icons": ["star"], "footnotes": [], "note": "No code. Three distinct services in one box." },
+            { "legalName": "Aldenmoor Operations", "code": null, "country": "MX", "foreign": true, "textColour": "red", "icons": [], "footnotes": ["fn-3"], "note": "Not included in Govt rates." },
+            { "legalName": "Vantara Design Center (Vantara, Selkirk)", "code": "D204, D209, D216", "country": "IN", "foreign": true, "textColour": "red", "icons": [], "footnotes": [], "note": "Two cities and three codes in a single box." },
+            { "legalName": "Engineering & Technology", "code": "L755", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": null },
+            { "legalName": "Harrier Lab", "code": "L768", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": "Filed under 'Other Services', not under 'Labs'." },
+            { "legalName": "Facilities", "code": null, "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": null },
+            { "legalName": "Quality", "code": null, "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": null }
+          ]
+        },
+        {
+          "name": "Centers of Excellence",
+          "units": [
+            { "legalName": "CAL OPS Ridgeway", "code": "C902", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": null },
+            { "legalName": "CAL OPS Process", "code": "C903", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": null },
+            { "legalName": "CAL OPS Linden Wire Center", "code": "C904", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": null },
+            { "legalName": "CAL Belmont", "code": "C911", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": null },
+            { "legalName": "CAL Harrow Creek", "code": "C915", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": null },
+            { "legalName": "CAL Westmoor", "code": "C920", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": null },
+            { "legalName": "CAL Westmoor Next Gen Display", "code": "C921", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": "Near-identical to CAL Westmoor." },
+            { "legalName": "CAL Harrow Creek COE2", "code": "C927", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": "Near-identical to CAL Harrow Creek." }
+          ]
+        },
+        {
+          "name": "Allocated Functions",
+          "units": [
+            { "legalName": "Allocated Function", "code": "various cost centers", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": "The code field literally reads 'various cost centers'. Unresolvable." }
+          ]
+        },
+        {
+          "name": "Manufacturing Centers",
+          "units": [
+            { "legalName": "Standard Manufacturing", "code": "various cost centers", "country": "US", "foreign": false, "textColour": "black", "icons": [], "footnotes": [], "note": "Unresolvable." }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "STD",
+      "name": "Calderis Aerospace Standalone CAS Segments and Unaffiliated Supply Units & Service Centers",
+      "affiliation": "standalone",
+      "layout": "standalone-list",
+      "codeScheme": "ga",
+      "codeSchemeExample": "5120.GA1",
+      "segments": [
+        {
+          "code": "STD-ALL",
+          "name": "Standalone Segments",
+          "homeOfficeLevel": false,
+          "site": null,
+          "icons": [],
+          "units": [
+            {
+              "legalName": "Surface Treatment Technologies",
+              "heritage": "NM",
+              "casCode": "5120.GA1",
+              "costCentres": [
+                { "code": "47NR2", "sharing": "sole" },
+                { "code": "OQB13", "sharing": "sole" }
+              ],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "full",
+              "fill": "blue-grey",
+              "textColour": "black",
+              "icons": ["home-office-dot"],
+              "footnotes": [],
+              "note": "Cost center 'OQB13' begins with a letter O that is easily read as a zero."
+            },
+            {
+              "legalName": "Signal Analytics Corp",
+              "heritage": "NM",
+              "casCode": "5133.GA1",
+              "costCentres": [{ "code": "803M7", "sharing": "sole" }],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "modified",
+              "fill": "yellow",
+              "textColour": "black",
+              "icons": ["home-office-dot"],
+              "footnotes": [],
+              "note": null
+            },
+            {
+              "legalName": "Secure Software & Services",
+              "heritage": "NM",
+              "casCode": "5158.GA1",
+              "costCentres": [
+                { "code": "91604", "sharing": "shared" },
+                { "code": "26TY8", "sharing": "sole" }
+              ],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "full",
+              "fill": "blue-grey",
+              "textColour": "black",
+              "icons": ["home-office-dot"],
+              "footnotes": [],
+              "note": null
+            },
+            {
+              "legalName": "Mission Assurance Solutions",
+              "heritage": "NM",
+              "casCode": "5147.GA1",
+              "costCentres": [
+                { "code": "50WK4", "sharing": "sole" },
+                { "code": "77BD2", "sharing": "sole" },
+                { "code": "91604", "sharing": "shared" },
+                { "code": "13FS5", "sharing": "sole" }
+              ],
+              "country": "US",
+              "foreign": false,
+              "disclosureStatement": "full",
+              "fill": "blue-grey",
+              "textColour": "black",
+              "icons": ["home-office-dot"],
+              "footnotes": [],
+              "note": "Shares cost center 91604 with Secure Software & Services."
+            },
+            {
+              "legalName": "Calderis Deutschland GmbH",
+              "heritage": "NM",
+              "casCode": "2471.GA1",
+              "costCentres": [{ "code": "K3027", "sharing": "sole" }],
+              "country": "DE",
+              "foreign": true,
+              "disclosureStatement": "modified",
+              "fill": "yellow",
+              "textColour": "red",
+              "icons": [],
+              "footnotes": ["fn-2"],
+              "note": "Permitted to contract outside its own segment."
+            },
+            {
+              "legalName": "Calderis Australia Pty Ltd",
+              "heritage": "NM",
+              "casCode": "2483.GA1",
+              "costCentres": [{ "code": "V8140", "sharing": "sole" }],
+              "country": "AU",
+              "foreign": true,
+              "disclosureStatement": "exempt",
+              "fill": "white",
+              "textColour": "red",
+              "icons": [],
+              "footnotes": ["fn-2"],
+              "note": "Permitted to contract outside its own segment."
+            },
+            {
+              "legalName": "Calderis Canada, Inc.",
+              "heritage": "NM",
+              "casCode": "2496.GA1",
+              "costCentres": [{ "code": "P5729", "sharing": "sole" }],
+              "country": "CA",
+              "foreign": true,
+              "disclosureStatement": "exempt",
+              "fill": "white",
+              "textColour": "red",
+              "icons": [],
+              "footnotes": ["fn-2"],
+              "note": "Permitted to contract outside its own segment."
+            },
+            {
+              "legalName": "Calderis UK Limited",
+              "heritage": "NM",
+              "casCode": "2508.GA1",
+              "costCentres": [{ "code": "R6913", "sharing": "sole" }],
+              "country": "GB",
+              "foreign": true,
+              "disclosureStatement": "modified",
+              "fill": "yellow",
+              "textColour": "red",
+              "icons": [],
+              "footnotes": ["fn-2"],
+              "note": "Permitted to contract outside its own segment."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
