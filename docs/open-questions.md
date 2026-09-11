@@ -1,21 +1,27 @@
-# Questions for the process owner
+# Open questions
+
+Every question this project needs answered, in one place.
 
 **Purpose:** Every decision made on this project so far has been made on our own judgement,
-without confirmation from anyone who actually runs the process. Those decisions are recorded as
-`provisional` and each one states the question it depends on. This document collects all of
-them, plus the questions the source material left open, so they can be answered in one pass
-instead of accumulating unasked.
+without confirmation from anyone who actually runs the process or owns the system. Those
+decisions are recorded as `provisional` and each one states the question it depends on. This
+document collects all of them, plus the questions the source material left open, so they can be
+answered in one pass instead of accumulating unasked.
 
-**From:** Adam Flores &nbsp;·&nbsp; **To:** the process owner &nbsp;·&nbsp; **How your answers
-will be used:** to confirm or overturn the provisional decisions in `docs/bdr/`, fill the `TBD`
-baselines in the business case, and correct the transcribed process document.
+**From:** Adam Flores &nbsp;·&nbsp; **To:** the process owner and product owner &nbsp;·&nbsp;
+**How your answers will be used:** to confirm or overturn the provisional decisions in
+`docs/bdr/`, fill the `TBD` baselines in the business case, and correct the transcribed process
+document.
 
-**Two roles, probably one person.** The *process owner* is accountable for achieving the
-objectives the process serves and is the source of truth for how it works today. The *product
-owner* is accountable for the design of the system that facilitates it. Almost everything below
-is a question about how the process actually works, which is why it is addressed to the process
-owner — the handful that ask for a direction rather than a fact are marked **[product owner]**.
-If the two are the same person, answer straight through and ignore the marking.
+**Two roles, one person.** The *process owner* is accountable for achieving the objectives the
+process serves and is the source of truth for how it works today. The *product owner* is
+accountable for the design of the system that facilitates it. On this project both are played by
+the same person, so this document carries the complete set for both — every question either role
+needs to answer, with nothing held back for a separate conversation.
+
+A few questions are marked **[product owner]** where they ask for a direction rather than a fact.
+That is a note about what kind of answer is wanted, not an instruction to skip anything: answer
+straight through.
 
 ---
 
@@ -38,6 +44,9 @@ now than later.
 
 **Effort:** about 45 minutes written, or a one-hour conversation. Section 1 alone is 10 minutes
 and is the one that matters most — if you only answer one section, answer that one.
+
+**Answer everything you can.** This is the whole backlog, not a first instalment, and there is no
+second document holding the questions this one left out.
 
 **Partial answers are useful.** So is "I don't know" and so is "nobody knows, it's folklore."
 A recorded reason a question cannot be answered is a real result; a skipped question is not.
@@ -296,8 +305,13 @@ that everyone who works with it knows, that wouldn't appear in any document?
 
 ## For maintainers
 
-This document accumulates. When a provisional BDR is written, add its stated question here; when
-an answer comes back, record it against the decision it settles — a confirmed BDR moves to
+This document accumulates, and it is the **only** collection point — a question that needs a
+stakeholder answer belongs here, whichever role it is aimed at. When a provisional BDR is
+written, add both its *What it assumes* beliefs and its *Question for the product owner* here;
+splitting them across two documents would only work if the two roles were held by different
+people, and on this project they are not.
+
+When an answer comes back, record it against the decision it settles — a confirmed BDR moves to
 `final`, an overturned one to `superseded`. Answers are paraphrased into the repo, never pasted
 verbatim, and nothing from a reply that names a real entity, code, or person enters version
 control.
