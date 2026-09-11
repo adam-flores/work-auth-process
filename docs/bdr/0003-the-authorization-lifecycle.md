@@ -36,8 +36,25 @@ silently omitted.
 anything else. Its submitter may delete it, and the system deletes it two weeks after it was
 last modified.
 
-The full transition table and the vocabulary are in [`CONTEXT.md`](../../CONTEXT.md). How this
-is represented and routed is [ADR-0004](../adr/0004-transition-log-and-global-relay-config.md).
+The vocabulary is in [`CONTEXT.md`](../../CONTEXT.md). How this is represented and routed is
+[ADR-0004](../adr/0004-transition-log-and-global-relay-config.md).
+
+### Who causes what
+
+| Actor | Transitions |
+|---|---|
+| **Submitter** | create a draft · delete a draft · initiate · hold · release · resubmit · withdraw · transfer ownership |
+| **Contributor** | claim (performing side) · complete a contribution stage |
+| **Approver** | acknowledge · accept · deny *(fixable)* · reject *(on the merits)* |
+| **Charge Number Admin** | mint the charge number, which completes the authorization |
+| **System** | arrive · notify · skip a gate, recording the value that decided it · delete a draft two weeks after last modification · return an authorization to a stage whose configuration changed, flagged as a re-review |
+
+Two of these are worth calling out because they are easy to mis-model. **Completion is not an
+approval** — the Charge Number Admin supplies a *value*, and the authorization completes because
+a charge number exists, not because a final judgement was rendered. **Transferring ownership is
+not an advance** — it changes who the submitter is without moving the authorization along the
+relay, and it is the one transition that rewrites a fact about the record rather than its
+position.
 
 ## Why this, and not the alternatives
 
