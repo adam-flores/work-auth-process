@@ -2,13 +2,17 @@
 
 **Status:** Draft — problem framed, solution direction set
 **Last updated:** 2026-09-11
-**Supersedes:** [BUSINESS_CASE.md](source/BUSINESS_CASE.md), which is kept unchanged as the original
+**Supersedes:** the first-draft business case, retired once this version carried everything it held
 
-> **Why there are two.** The original business case was written to be solution-agnostic, before
-> any decision about what to build. This version keeps the problem framing intact and adds what
-> has since been decided: the direction of the solution, the targets we hold ourselves to, and
-> the shape of the ask. The original is preserved rather than edited so it stays visible what we
-> believed before those decisions were made.
+> **This is the business case.** An earlier draft was written to be solution-agnostic, before any
+> decision about what to build. This version keeps its problem framing intact and adds what has
+> since been decided: the direction of the solution, the targets we hold ourselves to, and the
+> shape of the ask. The draft was retired once it held nothing this one does not. What was
+> believed before those decisions were made is recorded where it belongs — in [`docs/bdr/`](bdr/),
+> against each decision.
+>
+> The primary source both versions were written from is
+> [`docs/source/project-overview.md`](source/project-overview.md).
 >
 > Sections marked **[Derived]** were inferred rather than stated by the process owner and have
 > not been validated. Decisions carried in here are recorded in full in [`docs/bdr/`](bdr/),
@@ -315,5 +319,5 @@ From [BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md).
 ## Appendix
 
 The original project overview, reproduced with the organization's name genericised, is
-[Appendix A of the original business case](source/BUSINESS_CASE.md#appendix-a-original-project-overview).
+[`docs/source/project-overview.md`](source/project-overview.md).
 It is not duplicated here so that the two copies cannot drift.

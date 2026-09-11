@@ -54,8 +54,8 @@ unchanged has no release implication and should not hold one up.
 
 [`docs/business-case.md`](../business-case.md) is the **live argument** — the standing case a
 product owner or an assessor actually reads. It is not a snapshot, and it is not source
-material; the original it superseded is history, kept at
-[`docs/source/BUSINESS_CASE.md`](../source/BUSINESS_CASE.md).
+material; the source it was written from is
+[`docs/source/project-overview.md`](../source/project-overview.md).
 
 **A BDR is not finished until the business case reflects it.** The BDR holds the reasoning and
 the alternatives; the business case states the resulting position, in one or two sentences, and

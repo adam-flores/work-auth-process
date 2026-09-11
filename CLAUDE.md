@@ -8,9 +8,13 @@ A prototype for an MBA course project: improving a large aerospace manufacturer'
 **internal work authorization process** — the form completed when an employee supports work for another
 department.
 
-Read [BUSINESS_CASE.md](docs/source/BUSINESS_CASE.md) before proposing anything substantive. It defines
-the problem, the impact, the desired outcome, and the open questions. It is the source of
-truth for *why* this project exists.
+Read [docs/business-case.md](docs/business-case.md) before proposing anything substantive. It is
+the live argument: the problem, the impact, the desired outcome, the solution direction, the
+targets, and the open questions. It is the source of truth for *why* this project exists.
+
+The brief it was written from is [docs/source/project-overview.md](docs/source/project-overview.md)
+— the primary source, unaltered except for the organization's name. Read it when you need to
+know what was actually stated rather than what has since been inferred from it.
 
 Read [docs/process/work-authorization-flow.md](docs/process/work-authorization-flow.md) for
 *what* the process actually does: the routing, the approval gates, the inputs the form
@@ -101,11 +105,12 @@ restricted government contracts** subject to US contract requirements.
 
 ## Writing conventions
 
-- **BUSINESS_CASE.md** stays solution-agnostic. It describes the problem and the target
-  outcome, not the implementation. Content inferred rather than stated by the user is
-  tagged **[Derived]** — preserve that convention, and tag new inferences the same way.
-- Appendix A of BUSINESS_CASE.md holds the original project overview, altered only to
-  remove the organization's name. Don't edit it further.
+- **docs/source/project-overview.md** is the primary source, altered only to remove the
+  organization's name. Don't edit it — quote it.
+- **docs/business-case.md** is the live business case and the one to update. Content inferred
+  rather than stated by the user is tagged **[Derived]** — preserve that convention, and tag new
+  inferences the same way. A decision recorded in `docs/bdr/` is not finished until the business
+  case reflects it.
 - Don't invent metrics, baselines, dollar figures, or stakeholder names. Unknown baselines
   stay `TBD`. This is a business-school deliverable; fabricated numbers are worse than
   blank ones.

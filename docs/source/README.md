@@ -4,12 +4,17 @@ What this project was built from. Two kinds of thing live here, and the differen
 
 ## Committed
 
-- [`BUSINESS_CASE.md`](BUSINESS_CASE.md) — the original business case, written before any
-  solution decision was taken. Superseded by the live business case but kept unchanged, so it
-  stays visible what was believed before those decisions were made. Its Appendix A holds the
-  original project overview, altered only to remove the organization's name.
+- [`project-overview.md`](project-overview.md) — the **primary source**: the brief this whole
+  project was written from, altered only to remove the organization's name. Everything else in
+  the repository derives from it, which is why it is the one source document that is committed.
 
 Safe to commit because it was genericised at the point it was written.
+
+A first-draft business case also lived here, kept for a while so it stayed visible what was
+believed before any solution decision was taken. It was retired once
+[`docs/business-case.md`](../business-case.md) held everything it did, and once that history had
+a better home: each provisional decision in [`docs/bdr/`](../bdr/) records what we assumed and
+why, which is more useful than a superseded draft nobody re-reads.
 
 ## Never committed
 
