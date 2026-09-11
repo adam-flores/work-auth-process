@@ -21,7 +21,7 @@ The goal is a process where employees complete the form accurately with minimal 
 
 **Full framing, solution direction, targets, and the ask:
 [docs/business-case.md](docs/business-case.md).** The original solution-agnostic framing
-is preserved unchanged in [docs/source/BUSINESS_CASE.md](docs/source/BUSINESS_CASE.md).
+is preserved unchanged in [docs/source/project-overview.md](docs/source/project-overview.md).
 
 ---
 

@@ -13,14 +13,14 @@ so the prototype stays self-contained with nothing to provision.
 
 - **An authorization has a lifecycle**, not just a shape: drafted, submitted, corrected,
   resubmitted, approved. Something has to hold state transitions and who made them.
-- **The candidate success measures are queries** (`docs/source/BUSINESS_CASE.md` §6): first-pass
+- **The candidate success measures are queries** (`docs/business-case.md` §7): first-pass
   acceptance rate, cycle time, resubmissions per authorization, SME interactions. If the
   prototype is meant to demonstrate M1–M6, the store has to answer aggregate questions.
 - **Only synthetic data ever lands in it** (CLAUDE.md, Data handling), so durability,
   concurrency at scale, and backup are not real constraints here.
 - **A real deployment would not use either one.** Whichever we pick is a prototype stand-in
   for whatever system of record the organization already runs, and the legal entities
-  involved use different reporting systems (`docs/source/BUSINESS_CASE.md` §8). The prototype must not
+  involved use different reporting systems (`docs/business-case.md` §10). The prototype must not
   assume it owns the data.
 
 ## Considered options
