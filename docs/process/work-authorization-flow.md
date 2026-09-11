@@ -13,6 +13,12 @@ changed in transcription.
 steps a future system preserves, merges, automates, or removes is an open question and belongs
 in a decision record, not here.
 
+**Corrections.** The description of the reference chart in *The manual lookup problem* was
+corrected on 2026-09-10, after the source workbook was inspected directly for the first time.
+It previously described a single four-level hierarchy with one colour encoding. That was this
+document's own inference from the form's field names, not a transcription of the source, and
+it was wrong on both counts.
+
 ## The flow
 
 ```mermaid
@@ -113,15 +119,28 @@ The nine fields marked **manual lookup** are the ones the source document highli
 with the note that they *"come from special company chart but must be manually analyzed and
 entered by the user."*
 
-That chart is a spreadsheet whose entire content is embedded screenshots — a four-level
-hierarchy of group → segment → SBU → entity, where each leaf additionally carries a cost
-center code, a foreign-entity marker, a disclosure-statement type conveyed only by fill
-colour, and footnoted exceptions. There is no machine-readable data in it.
+That chart is not one chart. It is three, held as separate tabs of a spreadsheet whose entire
+content is embedded screenshots. The three share no layout and no code scheme — one arranges
+segments as columns, one is a bracket tree grouped by function, one is a flat list — so a
+user must first know which of the three to open. Nothing on the form tells them. Each supplies
+three levels, chart → segment → unit, where the unit is the leaf carrying the legal entity,
+its cost center codes, and its disclosure treatment. The inputs list above asks for four
+lookup levels against the chart's three; which field each level answers is open (issue #16).
 
-So filling in the CAS block means a person visually parsing a picture of an org chart,
-decoding a colour, and hand-transcribing the result — on **both** sides of every form. This is
-the single largest source of manual effort and transcription error in the process as it
-stands.
+Each leaf also carries a foreign-entity marker, a disclosure-statement type, and footnoted
+exceptions. Three of those attributes are conveyed by colour alone, on three independent
+channels: fill gives the disclosure-statement type, text colour marks a foreign entity, and
+the ink colour of an individual cost center code marks that code as shared with another
+segment. The chart carries no legend for any of them. There is no machine-readable data in it.
+
+A further trap: a cost center code does not identify a unit. Several units can share one code,
+and two units can share an identical set of codes while carrying different disclosure
+treatments.
+
+So filling in the CAS block means a person choosing among three differently-shaped charts,
+visually parsing a picture of an org chart, decoding three unlabelled colour channels, and
+hand-transcribing the result — on **both** sides of every form. This is the single largest
+source of manual effort and transcription error in the process as it stands.
 
 ## Discrepancies in the source document
 
