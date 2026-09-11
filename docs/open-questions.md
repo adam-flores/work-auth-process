@@ -193,6 +193,54 @@ process._
 
 >
 
+### Do approvers ever refuse an authorization outright, rather than returning it for correction?
+
+_Why this matters: we have split the two. A **denial** concerns something fixable — you correct
+it and resubmit, and that is the only appeal there is. A **rejection** concerns the merits of
+the ask and ends the authorization for good. If in practice everything is a correction request
+and a dead authorization is simply one nobody resubmits, then one of those two states has no
+cause and we should drop it. If both do happen, what makes an approver do one rather than the
+other?_
+
+>
+
+### Would it be acceptable to record when an individual approver first opens an authorization?
+
+_Why this matters: this is the one question here that is about your organization rather than
+your process. Our whole cycle-time case rests on most of the elapsed time being idle rather than
+busy — and the only way to show that rather than assert it is to record when an authorization
+arrived, when the approver was notified, when they first opened it, and when they acted. That
+also makes individual approvers visible on how quickly they respond. If that would make this
+harder to sell internally, say so: we lose the ability to tell waiting from working, but the
+target itself survives._
+
+>
+
+### Can anyone other than the submitter pause an authorization?
+
+_Why this matters: we have proposed that a submitter can put an authorization on hold — it
+leaves everyone's queue, and resumes at the stage it left. We have assumed nobody else can do
+that. If an approver, a program manager, or a finance lead can legitimately suspend work, we
+have the wrong model._
+
+>
+
+### When work reaches a performing department, is there a queue anyone there can pick from, or is it handed to a named person by prior arrangement?
+
+_Why this matters: at the moment the authorization is handed over, no performing-side person is
+named on it — every performing name is a field that side fills in afterwards. We have proposed a
+shared department queue that anyone there can claim from. If instead it goes to a specific person
+by standing arrangement, the handover works differently._
+
+>
+
+### Is two weeks the right life for an untouched draft?
+
+_Why this matters: we have proposed that a half-filled draft nobody has touched for two weeks is
+deleted. That number is ours, with nothing behind it, and it deletes rather than archives._
+
+>
+
 ---
 
 ## 4. Discrepancies in the source document

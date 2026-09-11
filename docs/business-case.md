@@ -111,8 +111,9 @@ engineers proceed with contract work sooner.
 
 ## 6. Solution Direction
 
-Recorded in full as [BDR-0001](bdr/0001-preserve-the-flow-rebuild-the-experience.md) and
-[BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md).
+Recorded in full as [BDR-0001](bdr/0001-preserve-the-flow-rebuild-the-experience.md),
+[BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md), and
+[BDR-0003](bdr/0003-the-authorization-lifecycle.md).
 
 **The approval flow is preserved exactly as it stands.** Same steps, same order, same sign-offs.
 We are not proposing changes to who approves what. In a business whose authorizations touch cost
@@ -131,6 +132,8 @@ good information together and makes the path through the process a manageable on
 | A queue of what has arrived | Approvers work a batch in one sitting, not one interruption at a time |
 | Notification the moment an authorization arrives | A form stops sitting because nobody knew it was waiting |
 | An open master record of every authorization | Anyone can see where any authorization sits, without asking a person |
+| A department queue anyone on the performing side can claim from | An authorization stops waiting on one named person being available |
+| Every stage timestamped four times over | Where the time went becomes a fact the pilot can read off, not a claim |
 
 In priority order, the claims are: **fewer mistakes**, then **less waiting**, then **less effort
 per form**.
@@ -141,6 +144,16 @@ current process are three roles — a **Contributor** fills a section, an **Appr
 or denies at one stage, and a **Charge Number Admin** completes the authorization. What
 separates two approvers is not what they can do but what they judge. The vocabulary the rest
 of this project uses is in [`CONTEXT.md`](../CONTEXT.md).
+
+**The lifecycle is explicit, and the record is what happened rather than where it is.** Five
+states are recorded — **Draft**, **On hold**, **Completed**, **Withdrawn**, **Rejected**. Where
+an authorization sits in the relay is *derived* from the relay itself rather than stored, so
+there is no status for anyone to maintain or forget. A **denial** is an approver returning
+something *fixable*, and correcting and resubmitting is the appeal; a **rejection** is a refusal
+on the merits of the ask and is terminal. Every stage records when the authorization arrived,
+when the approver was notified, when they first opened it, and when they acted — which is what
+turns "most of the elapsed time is idle time" from this document's central assumption (§10) into
+something a pilot can measure. [BDR-0003](bdr/0003-the-authorization-lifecycle.md)
 
 **Visibility is asymmetric by design.** What reaches a person is scoped — an approver's queue
 shows the step in front of them, not the whole record. What a person can go and look up is not
@@ -187,8 +200,11 @@ is the first job of the pilot, not an input to it.
 | M5 | Share of forms completed without SME contact | TBD | Increase | Minimal assistance |
 | M6 | Time-to-competence for a first-time submitter | TBD | Decrease | Training gap |
 
-M1–M3 are computable from system data once the product exists. M4–M6 describe human behaviour
-that a system cannot observe on its own and would need to be gathered alongside the pilot.
+M1–M3 are computable from system data once the product exists — specifically from the four
+timestamps every stage records ([BDR-0003](bdr/0003-the-authorization-lifecycle.md)), which is
+what makes M2 separable into time an authorization sat unopened and time it spent under
+consideration. M4–M6 describe human behaviour that a system cannot observe on its own and would
+need to be gathered alongside the pilot. Exactly what each measure counts is still open.
 
 ---
 
@@ -259,6 +275,17 @@ pilot, and a pilot is what stage 1 buys.
    guidance capability in §6 assumes the expertise this project is trying to spread is willing
    to be written down. That is a behavioural bet, not a technical one, and it is the weakest
    joint in the consistency argument.
+8. **Recording when an individual approver first opens an authorization is acceptable.**
+   Separating time an authorization sat unopened from time it spent under consideration is what
+   lets assumption 1 be tested rather than asserted — and it makes approvers individually
+   visible on responsiveness. That is an organizational question, not a technical one. If the
+   answer is no, the measure collapses to a single arrival-to-action interval and the
+   cycle-time argument keeps its target but loses its diagnosis.
+   [BDR-0003](bdr/0003-the-authorization-lifecycle.md)
+9. **Approvers sometimes refuse an authorization outright, rather than only returning it for
+   correction.** The distinction between a denial and a rejection in §6 assumes both acts exist
+   in practice. If every refusal is really a correction request, one state has no cause.
+   [BDR-0003](bdr/0003-the-authorization-lifecycle.md)
 
 ---
 
@@ -271,6 +298,10 @@ pilot, and a pilot is what stage 1 buys.
   long needs an age threshold, and every baseline in §7 is `TBD`. Setting one now would mean
   inventing a number. Deferred until the pilot produces real timings, not rejected.
   [BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md)
+- **Appealing a rejection.** A denial is already the route back for anything fixable; an appeal
+  against a refusal on the merits would need an adjudicator the process has no role for, and a
+  way out of a terminal state. A rejection made in error is answered with a new authorization.
+  [BDR-0003](bdr/0003-the-authorization-lifecycle.md)
 - Handling real company data, forms, contract identifiers, or personnel information
 
 ---
@@ -306,13 +337,30 @@ From [BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md).
    consistency capability in §6 has no mechanism behind it.
 8. **Is the employee assigned to the work ever involved before the charge number exists?**
 
+### Would change what the product records, and what it can later measure
+
+From [BDR-0003](bdr/0003-the-authorization-lifecycle.md).
+
+9. **What actually separates a denial from a rejection in your process?** We have modelled a
+   denial as concerning something fixable and a rejection as concerning the merits of the ask.
+   Do approvers ever refuse outright — and if so, what makes them do one rather than the other?
+10. **Is it acceptable to record when an individual approver first opens an authorization?**
+    It is what separates idle time from review time, and it makes approvers individually
+    visible on responsiveness.
+11. **Can anyone other than the submitter pause an authorization** — an approver, a program
+    manager, a finance lead? We have assumed not.
+12. **When work reaches a performing department, is there a queue anyone there can pick from,
+    or is it handed to a named person by prior arrangement?**
+13. **Is two weeks the right life for an untouched draft?** Chosen as a policy value with no
+    evidence behind it, and it deletes the draft rather than archiving it.
+
 ### Needed to size and target the work
 
-9. What is the current volume of authorizations per period, and the current error rate?
-10. Which fields drive the majority of errors?
-11. What is the cost of a single rework cycle, in SME time and in schedule delay?
-12. Which requirements are compliance-mandated versus organizational convention?
-13. What distinguishes a foreign restricted government contract submission from a standard one?
+14. What is the current volume of authorizations per period, and the current error rate?
+15. Which fields drive the majority of errors?
+16. What is the cost of a single rework cycle, in SME time and in schedule delay?
+17. Which requirements are compliance-mandated versus organizational convention?
+18. What distinguishes a foreign restricted government contract submission from a standard one?
 
 ---
 
