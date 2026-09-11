@@ -13,8 +13,8 @@ answered in one pass instead of accumulating unasked.
 `docs/bdr/`, fill the `TBD` baselines in the business case, and correct the transcribed process
 document.
 
-**Two roles, one person.** The *process owner* is accountable for achieving the objectives the
-process serves and is the source of truth for how it works today. The *product owner* is
+**Two roles, one person.** The _process owner_ is accountable for achieving the objectives the
+process serves and is the source of truth for how it works today. The _product owner_ is
 accountable for the design of the system that facilitates it. On this project both are played by
 the same person, so this document carries the complete set for both — every question either role
 needs to answer, with nothing held back for a separate conversation.
@@ -61,6 +61,12 @@ number, an order of magnitude or a range is entirely sufficient — "tens per mo
 them," "a few days." Where you need to name something to make the answer clear, describe it
 generically.
 
+**How your answers are recorded.** The blockquoted answers below are **our summary of what you
+told us, in our words — not a transcript**. We capture what an answer establishes and drop the
+phrasing, so nothing you write here is quoted back at you. Answer roughly and in shorthand; that
+is what this document is for. If a summary has lost or twisted your meaning, say so and we will
+fix it — that is the only thing worth checking them for.
+
 ---
 
 ## 1. The classification lookup
@@ -78,7 +84,7 @@ legal entities — one box holds three services, another holds two cities, anoth
 legal entity. None of those is a department, and no department name appears on the chart
 anywhere. So we don't know what the task actually is._
 
->
+> The task is to identify the department the work is being requested **from**. Departments sit under divisions, and divisions under legal entities. A single request can ask for several resources from the same department.
 
 ### Does a given department always map to the same chart unit, or can it vary?
 
@@ -87,22 +93,22 @@ fixed, we build the lookup table once and nobody ever opens the chart again. If 
 the work, the funding, or the site, then it is a judgement and the product has to help someone
 reason rather than help them search._
 
->
+> Legal entities, divisions and departments are relatively static, but restructures and acquisitions do change them — so an admin function is needed to manage them.
 
 ### If the mapping is fixed — does that table exist anywhere today?
 
->
+> Build it ourselves, for this project's purposes.
 
 ### The form asks for four lookup levels (group, CAS group, CAS segment, CAS SBU, legal entity). The chart supplies three (chart, segment, unit). Which form field does each chart level answer?
 
 _Why this matters: we have four labels and three things to put in them, and we cannot tell
 whether "unit" answers the SBU field, the legal-entity field, or both at once._
 
->
+> Use **legal entity, division and department**. CAS terminology is meaningful inside the company and carries no meaning outside it.
 
 ### Is "group selection" — asked on the requesting side only — the same thing as "CAS group," or a different field entirely?
 
->
+> Different fields, and the two sides may never match — that should be a validation rule. The requesting side identifies its own department *and* the department it is asking. On the prototype: blend variants **A and C** — filter on attributes you are certain of, then search what remains.
 
 ### How does someone currently know which of the three charts to open?
 
@@ -110,11 +116,11 @@ _Why this matters: the three charts share no layout and no code scheme, and noth
 says which one applies. We can't tell whether this is genuinely ambiguous or whether everyone
 just knows._
 
->
+> It varies. People generally know their own department's name, but similar names mean they still have to be careful to pick the US entity rather than a foreign one, so filters help even there. For other departments, they filter by attributes.
 
 ### When someone gets this wrong today, what goes wrong downstream, and who catches it?
 
->
+> It usually lands in the wrong team's queue, and takes a few days to be routed where it should have gone.
 
 ---
 
@@ -129,22 +135,22 @@ than work. This is the most load-bearing assumption in the project.
 _Why this matters: if the six approval steps are genuinely busy end to end, the cycle-time target
 is unreachable and our central decision was wrong. We would rather find that out now._
 
->
+> All three. End to end it generally takes more than two weeks. Data problems cost an approver time and effort helping the submitter get what they need and reach the right person.
 
 ### Is preserving the existing sign-off sequence a requirement, a preference, or simply how it has always been? **[product owner]**
 
->
+> Maintain the current sequence.
 
 ### Would you rather have a tool that makes today's process work well, or a proposal for a different process? **[product owner]**
 
 _Why this matters: we assumed the first and parked the second. Both are legitimate projects, but
 they are different projects._
 
->
+> Focus on streamlining the experience of the existing process.
 
 ### Roughly how long does an authorization take end to end today — and how long does it take when it goes badly?
 
->
+> Answered above.
 
 ---
 
@@ -158,29 +164,29 @@ see only what they need to act. Both rest on assumptions about sensitivity.
 _Why this matters: we have assumed averages. If actual pay appears on an authorization, then
 making every record openly readable is wrong and visibility has to be restricted instead._
 
->
+> Averages.
 
 ### Is there anything else on an authorization that one legal entity would not want another to read?
 
 _Why this matters: cost allocation between entities is exactly the kind of thing business units
 can be guarded about. We have assumed nothing here is sensitive, which may be naive._
 
->
+> No.
 
 ### When an approver denies an authorization today, do they give a written reason — and does it reliably reach the person who submitted it?
 
 _Why this matters: we have assumed a written comment is mandatory and always reaches the
 submitter. If it doesn't today, that gap may be a large part of the rework problem._
 
->
+> The process is **administrative record-keeping rather than approval**. There are no rejections — effort is approved or denied through other mechanisms entirely. Its purpose is to make sure financials are routed to the right place, and the sign-offs exist so nothing is auto-assigned to an area without someone there acknowledging it.
 
 ### When something is denied, does it go back to the start, or resume where it stopped?
 
->
+> It is fixed, and continues forward.
 
 ### Can a later approver reject something an earlier approver already passed?
 
->
+> Not applicable.
 
 ### What does the requesting finance approver actually approve?
 
@@ -189,11 +195,11 @@ labor rate are entered by the performing side at stage 2 — so at their step, t
 on the form yet. We have assumed they are confirming funds against something held outside this
 process._
 
->
+> That funding exists for the requested work and ties back to the original project. The assumption is correct.
 
 ### Is the employee assigned to the work ever involved before the charge number exists?
 
->
+> No — it is forward-looking, not back-dated.
 
 ### Do approvers ever refuse an authorization outright, rather than returning it for correction?
 
@@ -204,7 +210,7 @@ and a dead authorization is simply one nobody resubmits, then one of those two s
 cause and we should drop it. If both do happen, what makes an approver do one rather than the
 other?_
 
->
+> Not really.
 
 ### Would it be acceptable to record when an individual approver first opens an authorization?
 
@@ -216,7 +222,7 @@ also makes individual approvers visible on how quickly they respond. If that wou
 harder to sell internally, say so: we lose the ability to tell waiting from working, but the
 target itself survives._
 
->
+> Time in queue at each stage is sufficient. A historical log of who an authorization passed between *within* a stage would be useful, but should not be reported on.
 
 ### When an approver opens an authorization, does that reliably mean they have started work on it?
 
@@ -226,7 +232,7 @@ cycle-time diagnosis lives. That only holds if opening approximates starting. If
 open everything each morning and act later, the signal is noise and we should stop collecting
 it. This is separate from whether recording it is acceptable, which is asked above._
 
->
+> No. Approvers are generally requesting a resource they need, and the wider initiative is already underway.
 
 ### Can anyone other than the submitter pause an authorization?
 
@@ -235,7 +241,7 @@ leaves everyone's queue, and resumes at the stage it left. We have assumed nobod
 that. If an approver, a program manager, or a finance lead can legitimately suspend work, we
 have the wrong model._
 
->
+> Not needed. They might revoke it, but nothing beyond that.
 
 ### How does the receiving department know the ask is for them?
 
@@ -248,7 +254,7 @@ right, the system has to introduce something the paper process never had, and we
 the performing side until we know what. Please describe what actually happens between "I need
 another department to do this" and that department knowing about it._
 
->
+> The submitter messages them directly. They generally already know the person who represents the department they want work from.
 
 ### When work reaches a performing department, is there a queue anyone there can pick from, or is it handed to a named person by prior arrangement?
 
@@ -257,14 +263,14 @@ named on it — every performing name is a field that side fills in afterwards. 
 shared department queue that anyone there can claim from. If instead it goes to a specific person
 by standing arrangement, the handover works differently._
 
->
+> It goes to a representative of the department — usually one, sometimes a few. The submitter should be able to name a specific representative, or leave it in a general department queue.
 
 ### Is two weeks the right life for an untouched draft?
 
 _Why this matters: we have proposed that a half-filled draft nobody has touched for two weeks is
 deleted. That number is ours, with nothing behind it, and it deletes rather than archives._
 
->
+> Make it a month.
 
 ---
 
@@ -276,19 +282,19 @@ but we would rather confirm than assume. Quick yes/no answers are fine.
 
 ### The performing entity's legal-entity field is labelled "Requesting Legal Entity" — the same string as the requesting block. Copy-paste error, or does the performing side genuinely record the requesting entity there?
 
->
+> The question was not clear as asked.
 
 ### The stage numbering runs 1, 2, 3, 4, 4, 5. Are Global Trade and Performing Admin one stage or two?
 
->
+> Two stages, as indicated.
 
 ### Global Trade validates an export classification "selected by the originator," but no such field appears in the form's inputs. Where does that selection actually happen?
 
->
+> The determination is made from a combination of existing fields — give them all the attributes.
 
 ### The Contracts gate names three funding types — Commercial, FAR 12, FAR 15 — but no routing difference between them. Do all three follow the same review path?
 
->
+> Deferred — the product owner will come back to this.
 
 ---
 
@@ -299,36 +305,36 @@ fine; we are not going to publish precise figures.
 
 ### Roughly how many authorizations are raised per month?
 
->
+> TBD
 
 ### Roughly what share of them come back for correction at least once?
 
->
+> TBD
 
 ### Which fields drive the majority of errors?
 
 _Why this matters: we have assumed it's the nine lookup fields. If it's actually the budget
 figures or the approver names, the solution is aimed at the wrong target._
 
->
+> Getting the departments right.
 
 ### What does a single rework cycle cost, in expert time and in schedule delay?
 
->
+> Hours to days per issue.
 
 ### How much of an expert's week goes to answering questions about this form?
 
->
+> TBD.
 
 ### Which requirements on the form are compliance-mandated, and which are organizational convention?
 
 _Why this matters: it tells us what genuinely cannot be changed versus what merely has not been._
 
->
+> All fields are required.
 
 ### What distinguishes a foreign restricted government contract submission from a standard one, from the submitter's point of view?
 
->
+> It depends on the government contract the work is associated with, which can carry restrictions on how and where the work is performed.
 
 ---
 
@@ -339,11 +345,11 @@ enough; we only need to know which ones you'd push back on.
 
 ### The form is a legitimate and necessary control. The goal is to make it easier to complete correctly, not to eliminate it.
 
->
+> Correct.
 
 ### Everything needed to complete the form correctly is knowable at the time of submission.
 
->
+> Correct.
 
 ### The transcribed process flow is accurate.
 
@@ -352,7 +358,7 @@ reference document, and every decision since has been measured against it. Secti
 the four discrepancies we already know about — this asks the blanket question. If a stage is
 missing, out of order, or does more than we recorded, we would rather find out now._
 
->
+> Correct.
 
 ### A prototype with entirely mocked participants cannot demonstrate that the process improved.
 
@@ -361,11 +367,11 @@ why the ask is a funded pilot rather than a claimed result. Elapsed time in a de
 fast the operator clicks. If you expected the prototype itself to prove the improvement, we have
 built the wrong thing and should know before it is finished._
 
->
+> Correct.
 
 ### The failure mode is knowledge access, not unwillingness — so better guidance at the point of entry is a viable lever.
 
->
+> Correct.
 
 ### Your approvers would write down what they check for, and keep it current.
 
@@ -373,11 +379,11 @@ _Why this matters: we have proposed that each approver owns the written criteria
 they judge. That is a behavioural bet, not a technical one, and it is the weakest joint in our
 consistency argument. If they wouldn't, the expertise problem moves rather than dissolves._
 
->
+> Correct.
 
 ### The employee assigned to the work is a name on a form, not a participant — they take no action in the process.
 
->
+> Correct.
 
 ### Legal entities use different reporting systems, so no single common system of record can be assumed.
 
@@ -388,8 +394,8 @@ consistency argument. If they wouldn't, the expertise problem moves rather than 
 ## 7. Decisions we have already made
 
 Three decisions are recorded in `docs/bdr/` and the repository has been built on all of them.
-Every one is marked **provisional**, which in this project means *decided on our own judgement
-and not yet confirmed by anyone who runs the process or owns the system*. Section 6 asks about
+Every one is marked **provisional**, which in this project means _decided on our own judgement
+and not yet confirmed by anyone who runs the process or owns the system_. Section 6 asks about
 the beliefs underneath them; this section puts the decisions themselves up for confirmation.
 
 **Agree, disagree, or "not my call" is enough.** Where you disagree, the useful sentence is
@@ -410,7 +416,7 @@ itself must change, the sequence is deliberately swappable, so it should cost a 
 change and a redraw — not a rebuild.
 [BDR-0001](bdr/0001-preserve-the-flow-rebuild-the-experience.md)
 
->
+> Nothing stands out
 
 ### BDR-0002 — Three roles, and open visibility
 
@@ -426,7 +432,7 @@ ownership is rejected, guidance has to be authored centrally and the key-person 
 business case names moves rather than dissolves.
 [BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md)
 
->
+> Nothing stands out
 
 ### BDR-0003 — The authorization lifecycle
 
@@ -442,7 +448,7 @@ claiming goes away and the contact becomes mandatory routing — moderate. If ac
 cannot or should not be recorded, the cycle-time argument survives but loses its diagnosis.
 [BDR-0003](bdr/0003-the-authorization-lifecycle.md)
 
->
+> Nothing stands out
 
 ### Is there a decision here you would have expected us to make, and we have not?
 
@@ -451,7 +457,7 @@ choice, the shape of the pilot, and the redesign of the approval sequence — de
 something you consider settled is missing from this list, it is more likely we have not noticed
 it than that we ruled it out._
 
->
+> Nothing stands out
 
 ---
 
@@ -460,7 +466,7 @@ it than that we ruled it out._
 What haven't we asked that we should have? In particular: is there anything about this process
 that everyone who works with it knows, that wouldn't appear in any document?
 
->
+> Nothing stands out
 
 ---
 
@@ -468,7 +474,7 @@ that everyone who works with it knows, that wouldn't appear in any document?
 
 This document accumulates, and it is the **only** collection point — a question that needs a
 stakeholder answer belongs here, whichever role it is aimed at. When a provisional BDR is
-written, add three things: its *What it assumes* beliefs, its *Question for the product owner*,
+written, add three things: its _What it assumes_ beliefs, its _Question for the product owner_,
 and **the decision itself to section 7** — the beliefs underneath a decision are not a substitute
 for asking about the decision. Splitting them across two documents would only work if the two
 roles were held by different people, and on this project they are not.

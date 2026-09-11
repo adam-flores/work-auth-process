@@ -16,18 +16,46 @@ supply and the approvals it collects. Full name *internal work authorization*, a
 *IWA*.
 _Avoid_: form, request, ticket
 
-**Requesting entity**:
+**Requesting department**:
 The department that needs the work done and creates the authorization.
-_Avoid_: requester, originating department, customer
+_Avoid_: requesting entity, requester, originating department, customer
 
-**Performing entity**:
-The department whose employee does the work and books time against it.
-_Avoid_: provider, supplier, supplying department
+**Performing department**:
+The department whose employee does the work and books time against it. Named on the
+authorization by the submitter, not discovered later.
+_Avoid_: performing entity, provider, supplier, supplying department
 
 **Charge number**:
 The code the performing team books time against, minted at the final stage. Until it exists,
 no work can be booked against the authorization.
 _Avoid_: cost code, job number, charge code
+
+## The organization
+
+Three levels identify any department. Settled by
+[BDR-0004](docs/bdr/0004-the-classification-is-three-levels.md), which retired the CAS
+vocabulary the source form used — *group*, *CAS group*, *CAS segment*, *CAS SBU*, *chart* and
+*segment* name nothing in this system.
+
+**Legal entity**:
+The outermost level, and the one that separates otherwise similar departments — notably a US
+department from a foreign one. Holds divisions.
+_Avoid_: entity, company, SBU, CAS SBU
+
+**Division**:
+The level between a legal entity and its departments. An organizational grouping, carrying no
+cost-accounting meaning of its own.
+_Avoid_: segment, CAS segment, group, business unit
+
+**Department**:
+The level work is requested from and performed by, and the only one a user is really looking
+for — the two levels above it exist to disambiguate it. Belongs to exactly one division.
+_Avoid_: team, unit, supply unit, service center, cost center
+
+**Classification**:
+Identifying a department by its three levels. Performed by the submitter for **both** sides,
+and the two sides may never be the same.
+_Avoid_: CAS classification, lookup, coding
 
 ## The relay
 
@@ -80,7 +108,7 @@ Transitions are appended and never altered; current state is read from them.
 _Avoid_: event, update, status change, history entry
 
 **Claim**:
-A contributor in the performing entity taking an unclaimed authorization from their department's
+A contributor in the performing department taking an unclaimed authorization from their
 queue, which is what names them as that authorization's performing contributor. A submitter may
 name a performing-side contact, but that only adds a notification — the department queue stays
 authoritative.
@@ -126,7 +154,7 @@ _Avoid_: originator, issuer, requester, owner
 
 **Contributor**:
 A role that fills a section of an authorization. The submitter is the requesting-side
-contributor; the performing entity supplies its own.
+contributor; the performing department supplies its own.
 _Avoid_: originator, data entry, filler
 
 **Approver**:

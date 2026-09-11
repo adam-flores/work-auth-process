@@ -127,7 +127,7 @@ good information together and makes the path through the process a manageable on
 | Capability | What it fixes |
 |---|---|
 | Digital form with field validation | Errors caught at entry rather than discovered downstream |
-| Derived and pre-populated fields | The nine fields currently read off a picture of an org chart |
+| Guided classification — filter on what you know, search what remains | The nine fields currently read off a picture of an org chart. **[Derived]** Settled as three levels per side — legal entity, division, department — in [BDR-0004](bdr/0004-the-classification-is-three-levels.md) |
 | Criteria and guidance owned by the role that judges the field | Each approver's unwritten lens becomes explicit, so a form that satisfies one does not fail the next |
 | A queue of what has arrived | Approvers work a batch in one sitting, not one interruption at a time |
 | Notification the moment an authorization arrives | A form stops sitting because nobody knew it was waiting |
