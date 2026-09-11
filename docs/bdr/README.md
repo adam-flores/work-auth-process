@@ -10,14 +10,19 @@ Two records folders, one boundary:
 
 | | `docs/bdr/` | `docs/adr/` |
 |---|---|---|
-| **Answers** | What should the system do, and why? | How is the system built, and why? |
+| **Holds** | Functional and feature requirements driven by business need | Architectural and design decisions |
+| **Answers** | What must the system do, and why does the business need it? | How is the system designed and built to do it? |
 | **Owned by** | The business — ultimately the product owner | The engineering team |
-| **Examples** | When a charge number is issued; whether rework returns to the originator or to a field; which measures the prototype reports | Data store choice; front-end framework; diagram format |
+| **Examples** | When a charge number is issued; whether rework returns to the originator or to a field; which measures the prototype reports | Data store choice; front-end framework; how the relay is represented and routed; diagram format |
 
-If a decision would still matter to someone who never sees the code, it's a BDR. If it only
-matters to someone reading the code, it's an ADR. When a decision is genuinely both, write the
-BDR and let the ADR reference it — the business reason drives the technical one, not the
-reverse.
+A BDR is driven by a business need, and it would still stand if the system were built some
+other way. An ADR is a decision about architecture or design — it is where a requirement gets
+turned into a shape, and it survives whatever the business asks for next. "Does someone who
+never reads the code care?" is *not* the test: plenty of design decisions are invisible to the
+business and still shape everything built on them.
+
+When a decision is genuinely both, write the BDR and let the ADR reference it — the business
+need drives the design, not the reverse.
 
 ## Status
 
@@ -99,7 +104,9 @@ argued out, and it is closed and archived as the effort completes. BDRs are the 
 surface: what the group and the final deliverable actually read.
 
 To keep one canonical text, a ticket's resolution comment states the decision in a line and
-links to its BDR for the reasoning. The BDR holds the detail; nothing restates it.
+links to the record that holds the reasoning — a BDR, an ADR, or one of each where the ticket
+settled both a requirement and the shape it takes. The record holds the detail; nothing
+restates it.
 
 ## Conventions
 
