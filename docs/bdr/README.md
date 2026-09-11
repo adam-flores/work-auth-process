@@ -45,8 +45,34 @@ unchanged has no release implication and should not hold one up.
 
 1. A decision is reached — usually by resolving a wayfinder ticket.
 2. Write the BDR as `provisional`, including the question for the product owner.
-3. Put that question to the product owner when access allows.
-4. Confirmed → `final`. Overturned → `superseded`, and a new BDR carries the replacement.
+3. **Update [`docs/business-case.md`](../business-case.md) to match** — see below. This is
+   part of making the decision, not a follow-up.
+4. Put that question to the product owner when access allows.
+5. Confirmed → `final`. Overturned → `superseded`, and a new BDR carries the replacement.
+
+## Relationship to the business case
+
+[`docs/business-case.md`](../business-case.md) is the **live argument** — the standing case a
+product owner or an assessor actually reads. It is not a snapshot, and it is not source
+material; the original it superseded is history, kept at
+[`docs/source/BUSINESS_CASE.md`](../source/BUSINESS_CASE.md).
+
+**A BDR is not finished until the business case reflects it.** The BDR holds the reasoning and
+the alternatives; the business case states the resulting position, in one or two sentences, and
+links to the BDR. Where a decision lands there varies:
+
+| What the decision did | Where it shows up |
+|---|---|
+| Changed what the product does | §6 Solution Direction |
+| Rested on a belief about the process | §10 Assumptions — say it is load-bearing if it is |
+| Ruled something out, or deferred it | §11 Out of Scope, with the reason |
+| Produced a question for the product owner | §12 Open Questions |
+
+A decision that changes nothing in any of those is worth a second look: either it is smaller
+than it seemed, or the business case is missing a section it should have.
+
+Terms the decision settles go to [`CONTEXT.md`](../../CONTEXT.md) instead. The business case
+argues; the glossary defines; the BDR explains. Nothing is restated in two of them.
 
 ## Relationship to the wayfinder map
 
