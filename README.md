@@ -19,7 +19,9 @@ concentrates critical process knowledge in a few heads.
 
 The goal is a process where employees complete the form accurately with minimal assistance.
 
-**Full framing, impact, success measures, and open questions: [BUSINESS_CASE.md](BUSINESS_CASE.md).**
+**Full framing, solution direction, targets, and the ask: [BUSINESS_CASE_V2.md](BUSINESS_CASE_V2.md).**
+The original solution-agnostic framing is preserved unchanged in
+[BUSINESS_CASE.md](BUSINESS_CASE.md).
 
 ---
 
@@ -27,12 +29,13 @@ The goal is a process where employees complete the form accurately with minimal 
 
 | | |
 |---|---|
-| **Phase** | Initialization — problem defined, solution not yet designed |
-| **Solution approach** | Not yet chosen |
-| **Tech stack** | Not yet chosen |
+| **Phase** | Direction set — capability decisions in progress |
+| **Solution approach** | Preserve today's approval flow; rebuild the experience around it ([BDR-0001](docs/bdr/0001-preserve-the-flow-rebuild-the-experience.md)) |
+| **Tech stack** | React front end, Node services; data store still open (see [`docs/adr/`](docs/adr/)) |
 
-The business case is deliberately solution-agnostic. Nothing about the implementation has
-been decided yet.
+Decisions about *what the system should do* are recorded in [`docs/bdr/`](docs/bdr/) and are
+`provisional` until confirmed with the process owner. Decisions about *how it is built* are in
+[`docs/adr/`](docs/adr/).
 
 ---
 
@@ -59,9 +62,14 @@ is judgment before `git add`.
 
 ```
 .
-├── README.md          You are here
-├── BUSINESS_CASE.md   Problem, impact, desired outcome, success measures
-├── CLAUDE.md          Working agreements and context for Claude Code
+├── README.md             You are here
+├── BUSINESS_CASE_V2.md   Current: problem, solution direction, targets, the ask
+├── BUSINESS_CASE.md      Original: solution-agnostic framing, kept unchanged
+├── CLAUDE.md             Working agreements and context for Claude Code
+├── docs/
+│   ├── bdr/              Business decision records — what the system should do, and why
+│   ├── adr/              Architecture decision records — how it is built, and why
+│   └── process/          The work authorization flow as it stands today
 └── .gitignore
 ```
 
