@@ -47,10 +47,10 @@ fixture should not quietly make a modelling decision.
 
 - **That three levels are sufficient to identify a department unambiguously.** The product owner
   described exactly this shape, but did not say whether two divisions under different legal
-  entities can hold same-named departments. They did say department names are *"sometimes
-  similar,"* which suggests collisions are near-misses rather than exact duplicates.
-- **That the hierarchy is stable enough to be treated as reference data.** Stated as *"relatively
-  static,"* subject to change through restructures and acquisitions. The consequences of it moving
+  entities can hold same-named departments. They did say department names are sometimes similar,
+  which suggests collisions are near-misses rather than exact duplicates.
+- **That the hierarchy is stable enough to be treated as reference data.** Described as relatively
+  static, but subject to change through restructures and acquisitions. The consequences of it moving
   are [#30](https://github.com/adam-flores/work-auth-process/issues/30)'s to settle, not this
   record's.
 - **That "division" carries no accounting meaning.** We have taken it as an organizational layer.

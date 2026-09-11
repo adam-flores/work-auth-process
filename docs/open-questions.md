@@ -61,6 +61,12 @@ number, an order of magnitude or a range is entirely sufficient — "tens per mo
 them," "a few days." Where you need to name something to make the answer clear, describe it
 generically.
 
+**How your answers are recorded.** The blockquoted answers below are **our summary of what you
+told us, in our words — not a transcript**. We capture what an answer establishes and drop the
+phrasing, so nothing you write here is quoted back at you. Answer roughly and in shorthand; that
+is what this document is for. If a summary has lost or twisted your meaning, say so and we will
+fix it — that is the only thing worth checking them for.
+
 ---
 
 ## 1. The classification lookup
@@ -78,7 +84,7 @@ legal entities — one box holds three services, another holds two cities, anoth
 legal entity. None of those is a department, and no department name appears on the chart
 anywhere. So we don't know what the task actually is._
 
-> They need the department of the team they are requesting work from. Each department is part of a division and each division has a legal entity. There can be one-to-many resources being requested from the same department on each request.
+> The task is to identify the department the work is being requested **from**. Departments sit under divisions, and divisions under legal entities. A single request can ask for several resources from the same department.
 
 ### Does a given department always map to the same chart unit, or can it vary?
 
@@ -87,22 +93,22 @@ fixed, we build the lookup table once and nobody ever opens the chart again. If 
 the work, the funding, or the site, then it is a judgement and the product has to help someone
 reason rather than help them search._
 
-> All of the initial legal entities, divisions, and departments are relatively static. However, with restructures and acquisitions, they are subject to change. You'll need an admin function that can manage these.
+> Legal entities, divisions and departments are relatively static, but restructures and acquisitions do change them — so an admin function is needed to manage them.
 
 ### If the mapping is fixed — does that table exist anywhere today?
 
-> For this classes purpose, we should build it ourselves.
+> Build it ourselves, for this project's purposes.
 
 ### The form asks for four lookup levels (group, CAS group, CAS segment, CAS SBU, legal entity). The chart supplies three (chart, segment, unit). Which form field does each chart level answer?
 
 _Why this matters: we have four labels and three things to put in them, and we cannot tell
 whether "unit" answers the SBU field, the legal-entity field, or both at once._
 
-> To simplify things, let's use legal entity, division, and department. CAS has a meaning inside the company but wouldn't otherwise mean anything outside of it.
+> Use **legal entity, division and department**. CAS terminology is meaningful inside the company and carries no meaning outside it.
 
 ### Is "group selection" — asked on the requesting side only — the same thing as "CAS group," or a different field entirely?
 
-> Both sides, would never be the same (that should be a data validation). The requesting side would identify their own department and would need to identify the other department. From the CAS prototype, options A and C blended together would be ideal. Allow someone to filter on attributes they know for sure and then search amongst what remains.
+> Different fields, and the two sides may never match — that should be a validation rule. The requesting side identifies its own department *and* the department it is asking. On the prototype: blend variants **A and C** — filter on attributes you are certain of, then search what remains.
 
 ### How does someone currently know which of the three charts to open?
 
@@ -110,11 +116,11 @@ _Why this matters: the three charts share no layout and no code scheme, and noth
 says which one applies. We can't tell whether this is genuinely ambiguous or whether everyone
 just knows._
 
-> It varies. For themselves, they usually know their own department name. But sometimes department names can be similar and they need to make sure they select the US entity vs a foreign entity so the filters still help. For the other departments, they use attributes to filter down.
+> It varies. People generally know their own department's name, but similar names mean they still have to be careful to pick the US entity rather than a foreign one, so filters help even there. For other departments, they filter by attributes.
 
 ### When someone gets this wrong today, what goes wrong downstream, and who catches it?
 
-> Most of the time if it gets into the wrong team's queue it takes a few days to get it routed to where it should have gone to begin with.
+> It usually lands in the wrong team's queue, and takes a few days to be routed where it should have gone.
 
 ---
 
@@ -129,7 +135,7 @@ than work. This is the most load-bearing assumption in the project.
 _Why this matters: if the six approval steps are genuinely busy end to end, the cycle-time target
 is unreachable and our central decision was wrong. We would rather find that out now._
 
-> All the above. It generally takes 2+ weeks end-to-end today. When there are data issues, it takes time and energy by an approver to help them get what they need and routed to the right person.
+> All three. End to end it generally takes more than two weeks. Data problems cost an approver time and effort helping the submitter get what they need and reach the right person.
 
 ### Is preserving the existing sign-off sequence a requirement, a preference, or simply how it has always been? **[product owner]**
 
@@ -140,11 +146,11 @@ is unreachable and our central decision was wrong. We would rather find that out
 _Why this matters: we assumed the first and parked the second. Both are legitimate projects, but
 they are different projects._
 
-> We should focus on streamlining the experience of the existing process.
+> Focus on streamlining the experience of the existing process.
 
 ### Roughly how long does an authorization take end to end today — and how long does it take when it goes badly?
 
-> Already answered.
+> Answered above.
 
 ---
 
@@ -172,15 +178,15 @@ can be guarded about. We have assumed nothing here is sensitive, which may be na
 _Why this matters: we have assumed a written comment is mandatory and always reaches the
 submitter. If it doesn't today, that gap may be a large part of the rework problem._
 
-> This process is more for record keeping than actually approving. In fact, there are no rejections. Efforts are approved and denied through other mechanisms. This is simply a way to make sure the financials get routed to the right place - it's administrative. The "approvals" are to ensure that things aren't auto assigned to areas without acknwoledgement that it is getting to the right place.
+> The process is **administrative record-keeping rather than approval**. There are no rejections — effort is approved or denied through other mechanisms entirely. Its purpose is to make sure financials are routed to the right place, and the sign-offs exist so nothing is auto-assigned to an area without someone there acknowledging it.
 
 ### When something is denied, does it go back to the start, or resume where it stopped?
 
-> It get's fixed and continues forward.
+> It is fixed, and continues forward.
 
 ### Can a later approver reject something an earlier approver already passed?
 
-> Not really applicable.
+> Not applicable.
 
 ### What does the requesting finance approver actually approve?
 
@@ -189,11 +195,11 @@ labor rate are entered by the performing side at stage 2 — so at their step, t
 on the form yet. We have assumed they are confirming funds against something held outside this
 process._
 
-> That there is money for the work being requested that ties back to the original project. The assumption is correct.
+> That funding exists for the requested work and ties back to the original project. The assumption is correct.
 
 ### Is the employee assigned to the work ever involved before the charge number exists?
 
-> No, it's forward looking, not back-dated.
+> No — it is forward-looking, not back-dated.
 
 ### Do approvers ever refuse an authorization outright, rather than returning it for correction?
 
@@ -216,7 +222,7 @@ also makes individual approvers visible on how quickly they respond. If that wou
 harder to sell internally, say so: we lose the ability to tell waiting from working, but the
 target itself survives._
 
-> Time in queue at each stage is good enough. But a historical log of who it has been passed between within a stage would be helpful to have, just not reported on.
+> Time in queue at each stage is sufficient. A historical log of who an authorization passed between *within* a stage would be useful, but should not be reported on.
 
 ### When an approver opens an authorization, does that reliably mean they have started work on it?
 
@@ -226,7 +232,7 @@ cycle-time diagnosis lives. That only holds if opening approximates starting. If
 open everything each morning and act later, the signal is noise and we should stop collecting
 it. This is separate from whether recording it is acceptable, which is asked above._
 
-> No. They are usually requesting the resource they need to perform the work. The overall initiative is generally underway.
+> No. Approvers are generally requesting a resource they need, and the wider initiative is already underway.
 
 ### Can anyone other than the submitter pause an authorization?
 
@@ -235,7 +241,7 @@ leaves everyone's queue, and resumes at the stage it left. We have assumed nobod
 that. If an approver, a program manager, or a finance lead can legitimately suspend work, we
 have the wrong model._
 
-> Not necessary. They might revoke it but that would be it.
+> Not needed. They might revoke it, but nothing beyond that.
 
 ### How does the receiving department know the ask is for them?
 
@@ -248,7 +254,7 @@ right, the system has to introduce something the paper process never had, and we
 the performing side until we know what. Please describe what actually happens between "I need
 another department to do this" and that department knowing about it._
 
-> Generally the originator/submitter would message them letting them know. They usually know the person who represents the department they are wanting work from.
+> The submitter messages them directly. They generally already know the person who represents the department they want work from.
 
 ### When work reaches a performing department, is there a queue anyone there can pick from, or is it handed to a named person by prior arrangement?
 
@@ -257,7 +263,7 @@ named on it — every performing name is a field that side fills in afterwards. 
 shared department queue that anyone there can claim from. If instead it goes to a specific person
 by standing arrangement, the handover works differently._
 
-> It goes to a representative of the department. There is generally one, but there can be a few. A submitter should be able to optionally name a specific representative for a department or put it in a general department queue.
+> It goes to a representative of the department — usually one, sometimes a few. The submitter should be able to name a specific representative, or leave it in a general department queue.
 
 ### Is two weeks the right life for an untouched draft?
 
@@ -276,19 +282,19 @@ but we would rather confirm than assume. Quick yes/no answers are fine.
 
 ### The performing entity's legal-entity field is labelled "Requesting Legal Entity" — the same string as the requesting block. Copy-paste error, or does the performing side genuinely record the requesting entity there?
 
-> I'm not sure what you mean.
+> The question was not clear as asked.
 
 ### The stage numbering runs 1, 2, 3, 4, 4, 5. Are Global Trade and Performing Admin one stage or two?
 
-> Two as clearly indicated.
+> Two stages, as indicated.
 
 ### Global Trade validates an export classification "selected by the originator," but no such field appears in the form's inputs. Where does that selection actually happen?
 
-> They are using a combination of the existing fields to make that distinction. Give them all the attributes.
+> The determination is made from a combination of existing fields — give them all the attributes.
 
 ### The Contracts gate names three funding types — Commercial, FAR 12, FAR 15 — but no routing difference between them. Do all three follow the same review path?
 
-> leave this as an open quesion. I'll come back.
+> Deferred — the product owner will come back to this.
 
 ---
 
@@ -328,7 +334,7 @@ _Why this matters: it tells us what genuinely cannot be changed versus what mere
 
 ### What distinguishes a foreign restricted government contract submission from a standard one, from the submitter's point of view?
 
-> It has to do with the government contract the deal the work is associated with. There can be restrictions on how and where the work is performed.
+> It depends on the government contract the work is associated with, which can carry restrictions on how and where the work is performed.
 
 ---
 
