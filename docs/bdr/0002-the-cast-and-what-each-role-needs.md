@@ -67,7 +67,7 @@ them, only what has arrived. No forecast view exists, and the only participant w
 stalled authorization is its submitter.
 
 **Escalation on age is deferred, not rejected.** A stale authorization generating a second nudge
-needs a threshold, and no baseline exists to set one from — `BUSINESS_CASE_V2.md` §7 is `TBD`
+needs a threshold, and no baseline exists to set one from — `docs/business-case.md` §7 is `TBD`
 throughout. Inventing one would break this project's own rule against fabricated numbers. It
 belongs after the pilot produces real timings.
 

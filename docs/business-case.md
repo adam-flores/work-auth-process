@@ -2,7 +2,7 @@
 
 **Status:** Draft — problem framed, solution direction set
 **Last updated:** 2026-09-10
-**Supersedes:** [BUSINESS_CASE.md](BUSINESS_CASE.md), which is kept unchanged as the original
+**Supersedes:** [BUSINESS_CASE.md](source/BUSINESS_CASE.md), which is kept unchanged as the original
 
 > **Why there are two.** The original business case was written to be solution-agnostic, before
 > any decision about what to build. This version keeps the problem framing intact and adds what
@@ -11,7 +11,7 @@
 > believed before those decisions were made.
 >
 > Sections marked **[Derived]** were inferred rather than stated by the process owner and have
-> not been validated. Decisions carried in here are recorded in full in [`docs/bdr/`](docs/bdr/),
+> not been validated. Decisions carried in here are recorded in full in [`docs/bdr/`](bdr/),
 > and are `provisional` until the product owner confirms them.
 
 ---
@@ -60,7 +60,7 @@ submission therefore risks becoming a support interaction.
 ### Where the time actually goes **[Derived]**
 
 The process is a five-stage relay documented in
-[`docs/process/work-authorization-flow.md`](docs/process/work-authorization-flow.md): four
+[`docs/process/work-authorization-flow.md`](process/work-authorization-flow.md): four
 mandatory approvals, up to two conditional compliance gates, and a charge number minted at the
 final step.
 
@@ -107,7 +107,7 @@ engineers proceed with contract work sooner.
 
 ## 6. Solution Direction
 
-Recorded in full as [BDR-0001](docs/bdr/0001-preserve-the-flow-rebuild-the-experience.md).
+Recorded in full as [BDR-0001](bdr/0001-preserve-the-flow-rebuild-the-experience.md).
 
 **The approval flow is preserved exactly as it stands.** Same steps, same order, same sign-offs.
 We are not proposing changes to who approves what. In a business whose authorizations touch cost
@@ -263,5 +263,5 @@ direction in §6 if answered unexpectedly.
 ## Appendix
 
 The original project overview, reproduced with the organization's name genericised, is
-[Appendix A of the original business case](BUSINESS_CASE.md#appendix-a-original-project-overview).
+[Appendix A of the original business case](source/BUSINESS_CASE.md#appendix-a-original-project-overview).
 It is not duplicated here so that the two copies cannot drift.

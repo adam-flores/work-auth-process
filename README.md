@@ -19,9 +19,9 @@ concentrates critical process knowledge in a few heads.
 
 The goal is a process where employees complete the form accurately with minimal assistance.
 
-**Full framing, solution direction, targets, and the ask: [BUSINESS_CASE_V2.md](BUSINESS_CASE_V2.md).**
-The original solution-agnostic framing is preserved unchanged in
-[BUSINESS_CASE.md](BUSINESS_CASE.md).
+**Full framing, solution direction, targets, and the ask:
+[docs/business-case.md](docs/business-case.md).** The original solution-agnostic framing
+is preserved unchanged in [docs/source/BUSINESS_CASE.md](docs/source/BUSINESS_CASE.md).
 
 ---
 
@@ -62,14 +62,18 @@ is judgment before `git add`.
 
 ```
 .
-├── README.md             You are here
-├── BUSINESS_CASE_V2.md   Current: problem, solution direction, targets, the ask
-├── BUSINESS_CASE.md      Original: solution-agnostic framing, kept unchanged
-├── CLAUDE.md             Working agreements and context for Claude Code
+├── README.md               You are here
+├── CONTEXT.md              The glossary — canonical vocabulary for the domain
+├── CLAUDE.md               Working agreements and context for Claude Code
 ├── docs/
-│   ├── bdr/              Business decision records — what the system should do, and why
-│   ├── adr/              Architecture decision records — how it is built, and why
-│   └── process/          The work authorization flow as it stands today
+│   ├── business-case.md    The live argument: problem, solution direction, targets, the ask
+│   ├── bdr/                Business decision records — what the system should do, and why
+│   ├── adr/                Architecture decision records — how it is built, and why
+│   ├── process/            The work authorization flow as it stands today
+│   ├── reference/          Synthetic fixtures — fictional data of a realistic shape
+│   ├── agents/             How agent skills map onto this repo's tools and conventions
+│   └── source/             What this was built from — the original business case,
+│                           plus real reference documents that are never committed
 └── .gitignore
 ```
 
