@@ -158,6 +158,12 @@ with the process owner.
    inputs list. Either the list is incomplete or that selection happens outside this form.
 4. **The Contracts gate names three funding types but no routing difference between them.**
    Whether Commercial, FAR 12, and FAR 15 follow the same review path is not stated.
+5. **The requesting finance approver approves a budget that has not been entered yet.** Stage 1
+   step 3 reads *"Finance approves budget and basic inputs,"* but *budget hours and labor rate*
+   are performing-side fields supplied at stage 2. Either the two finance approvals check
+   different things — funds available on the requesting side, cost estimate on the performing
+   side — or the requesting approver is working from something outside this form.
+   [BDR-0002](../bdr/0002-the-cast-and-what-each-role-needs.md) proceeds on the first reading.
 
 ## Transcription notes
 
