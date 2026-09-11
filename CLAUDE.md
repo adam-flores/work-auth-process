@@ -8,7 +8,7 @@ A prototype for an MBA course project: improving a large aerospace manufacturer'
 **internal work authorization process** — the form completed when an employee supports work for another
 department.
 
-Read [BUSINESS_CASE.md](BUSINESS_CASE.md) before proposing anything substantive. It defines
+Read [BUSINESS_CASE.md](docs/BUSINESS_CASE.md) before proposing anything substantive. It defines
 the problem, the impact, the desired outcome, and the open questions. It is the source of
 truth for *why* this project exists.
 
