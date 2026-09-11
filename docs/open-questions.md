@@ -450,6 +450,14 @@ cannot or should not be recorded, the cycle-time argument survives but loses its
 
 > Nothing stands out
 
+**This headline confirmation was overtaken by your own detailed answers, and the specifics win.**
+Three parts of BDR-0003 are gone: rejection (there are none), the denial/rejection distinction,
+and the record of when an approver first opened an authorization — you said time in queue per
+stage is sufficient, and separately that opening does not mean starting. BDR-0003 is marked
+*superseded in part* and [BDR-0005](bdr/0005-correction-in-place-and-revocation.md) replaces those
+parts. Nothing was lost by the disagreement: the reversal was priced in advance as small, and it
+was. Recorded here so the contradiction is visible rather than quietly resolved in our favour.
+
 ### Is there a decision here you would have expected us to make, and we have not?
 
 _Why this matters: silence is the harder failure to catch. We have deferred every technology
@@ -458,6 +466,106 @@ something you consider settled is missing from this list, it is more likely we h
 it than that we ruled it out._
 
 > Nothing stands out
+
+---
+
+## 8. Raised since the first round
+
+**Not yet asked.** Everything above has been answered; this section holds what has come up since,
+and goes out with the round [#32](https://github.com/adam-flores/work-auth-process/issues/32) is
+assembling. Same structure as sections 6 and 7: the decision itself, then the beliefs underneath
+it.
+
+### BDR-0005 — A defect is corrected in place, and the relay never rewinds for data
+
+Built on your answer that the process is **administrative record-keeping rather than approval**,
+and that a defect is *fixed, and continues forward*. Terminal refusal is removed from the model
+entirely. When a stage finds something wrong the approver raises a **correction request** against
+the named fields; the authorization **does not move** — the stage becomes *awaiting correction*,
+the clock keeps running, and the submitter fixes it where it stands. Sign-offs already collected
+survive unless the correction touched a field that approver's stage depends on, in which case they
+see it again as a **re-review**. Changing the performing department re-routes from the handover.
+**Revoked** replaces **Rejected** as the fifth state.
+
+_Reversing it:_ if some stage does hold a genuine veto, a sixth state returns and the error count
+gains a category — small. If the authorization should leave the relay while it is being corrected,
+the measurement basis for M1 and M3 goes with it — that is the expensive one.
+[BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
+
+>
+
+### Does any stage hold a genuine veto?
+
+_Why this matters: this is the question that could unwind the decision above. We removed terminal
+refusal entirely on the strength of "not really" — approvers do not refuse outright. Global Trade
+is the case we are least comfortable with, because its concern is precisely what is not allowed to
+happen. If an export determination can conclude *this must not proceed*, is that a revocation, or
+something we have not modelled at all?_
+
+>
+
+### When an approver spots a wrong department, would they expect to fix it themselves?
+
+_Why this matters: we have said no — the approver says precisely what is wrong and the submitter
+changes it — so that the person who fills a field stays separate from the person who signs it off.
+You described approvers spending real effort helping a submitter get what they need and reach the
+right person, which could mean either. If they correct it directly, that is a small change to allow
+now and a large one to discover late._
+
+>
+
+### Who, specifically, can revoke an authorization, and when?
+
+_Why this matters: you said nobody but the submitter needs to pause an authorization, but that they
+might revoke it. We have allowed any approver whose stage the authorization has reached **or already
+passed**, on the reading that the trigger is the wider initiative changing rather than a defect at a
+gate. That may be broader than you intended._
+
+>
+
+### Is charging correction time to the stage that found the defect the right picture?
+
+_Why this matters: it decides what your cycle-time numbers will look like. Because a correction does
+not move the authorization, a stage's elapsed time includes days the approver was waiting on
+somebody else — which makes the stage look slower than the approver was. We chose it because the
+alternative loses the time entirely: the authorization leaves and re-enters, every stage records a
+short visit, and the days the defect actually cost belong to nowhere. We would rather the total be
+honest and the breakdown explain it._
+
+>
+
+### Is whether a department may perform a given piece of work something the system could hold?
+
+_Why this matters: you named two dominant defects — the submitter cannot find the right
+department, and the submitter asks a department to do work it is not legally authorized to do. The
+second one
+is only preventable at entry if the constraint is data rather than judgement, and you said it could
+be either. So: what would it take to encode the encodable part, and roughly what share of these
+would that catch? Everything it does not catch falls through to an approver four stages later.
+[#35](https://github.com/adam-flores/work-auth-process/issues/35)_
+
+>
+
+### Assumptions underneath BDR-0005
+
+One-word reactions are enough; we only need to know which you would push back on.
+
+**A stage's concern can be written down as the set of fields it depends on.** It is what decides
+which sign-offs a correction invalidates. The requesting finance approver is the awkward case —
+they confirm funding held outside this process, so they depend on no field and their sign-off would
+survive every correction.
+
+>
+
+**The performing department is the only field whose correction invalidates a whole side.**
+
+>
+
+**A record of who an authorization passed between *within* a stage is worth collecting.** You
+raised this and said it should not be reported on. We have not modelled it yet — it would be
+visible in history and excluded from every measure.
+
+>
 
 ---
 

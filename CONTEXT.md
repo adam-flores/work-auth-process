@@ -74,8 +74,10 @@ _Avoid_: conditional step, checkpoint
 
 ## The lifecycle
 
-Five states are recorded. Where an authorization sits in the relay is **not** one of them — it
-is read from the relay, so there is no status anyone maintains by hand.
+Five states are recorded — **Draft**, **On hold**, **Completed**, **Withdrawn**, **Revoked**.
+Where an authorization sits in the relay is **not** one of them — it is read from the relay, so
+there is no status anyone maintains by hand. Neither is *awaiting correction*, which is a
+condition of a stage rather than a state of the authorization.
 
 **Draft**:
 An authorization its submitter has created but not yet initiated. Visible like any other, in its
@@ -99,8 +101,15 @@ value existing, not by a final judgement.
 _Avoid_: approved, closed, done, finished
 
 **Withdrawn**:
-An initiated authorization killed by its submitter. Terminal.
+An initiated authorization killed by its submitter. Terminal. Distinct from **revoked**: withdrawn
+means the submitter no longer wants it, revoked means someone else says it must not proceed.
 _Avoid_: cancelled, abandoned, deleted, killed
+
+**Revoked**:
+An initiated authorization ended by an approver rather than by its submitter. Terminal. Replaces
+the *rejected* state, which had no cause once it was established that no stage refuses on the
+merits.
+_Avoid_: rejected, refused, declined, cancelled
 
 **Transition**:
 One recorded change to an authorization, carrying who caused it, what kind it was, and when.
@@ -115,41 +124,45 @@ authoritative.
 _Avoid_: assignment, pickup, allocation
 
 **Acknowledgement**:
-An approver first opening an authorization that has arrived at them. Separates time it sat
-unopened from time it spent under consideration.
-_Avoid_: viewed, read, seen, opened
+An approver accepting an authorization at their stage and passing it forward. It is not a
+judgement on the merits of the ask — it records that someone in the area knows work is being
+assigned to them. The relay is a sequence of acknowledgements, which is why no stage can refuse.
+_Avoid_: approval, acceptance, sign-off, viewed, opened
 
-**Denial**:
-An approver returning an authorization to its submitter over something **fixable**. Always
-carries a comment addressed to them. Not terminal: correcting and resubmitting is the only
-appeal there is. Distinct from a **rejection**.
-_Avoid_: rejection, refusal, bounce, kickback
+**Correction request**:
+An approver, at their stage, naming the fields at fault on an authorization, with a mandatory
+comment to the owner of those fields. The authorization's position does **not** change: the stage
+stays where it is and becomes *awaiting correction*.
+_Avoid_: denial, rejection, refusal, bounce, kickback, return
 
-**Rejection**:
-An approver refusing an authorization on **the merits of the ask** rather than over a fixable
-defect. Terminal — there is no path back out of it, and an authorization rejected in error is
-replaced by a new one, not reopened.
-_Avoid_: denial, refusal, decline
-
-**Resubmission**:
-An authorization sent back into the relay by the submitter after a denial, carrying the
-submitter's comment.
-_Avoid_: resubmittal, revision, re-review
+**Correction**:
+The field's owner supplying the fix — the submitter generally, the performing contributor for
+performing-side fields. Made on the authorization where it stands; nothing is sent back and
+nothing is re-submitted, because nothing left the relay.
+_Avoid_: resubmission, resubmittal, revision, fix, rework
 
 **Re-review**:
-An authorization returning to an approver who already acted on it, because the relay's
-configuration changed beneath it. Shown as a re-review rather than as a fresh arrival, so the
-approver knows what changed is the rules and not the request.
+An authorization returning to an approver who already acted on it. Two causes: the relay's
+configuration changed beneath it, or a **correction** changed a field that approver's stage
+depends on. Shown as a re-review rather than as a fresh arrival, and carrying which of the two
+happened, so the approver knows whether what moved was the rules or the request.
 _Avoid_: re-approval, recheck, second pass
+
+**Revocation**:
+An approver ending an authorization outright, with a mandatory comment. Available to any approver
+whose stage the authorization has reached *or already passed*, because the cause is usually the
+wider initiative changing rather than a defect at a gate. The only refusal in the process, and it
+is not a stage's decision.
+_Avoid_: rejection, denial, cancellation, veto
 
 ## The cast
 
 Three roles, distinguished by what they can do rather than by what they are accountable for.
 
 **Submitter**:
-The individual who creates an authorization and owns it for its whole life — receives denial
-comments, resolves them, and resubmits. Ownership transfers to another individual; it is never
-a seat or a queue.
+The individual who creates an authorization and owns it for its whole life — receives correction
+requests and supplies the corrections. Ownership transfers to another individual; it is never a
+seat or a queue.
 _Avoid_: originator, issuer, requester, owner
 
 **Contributor**:
@@ -158,8 +171,10 @@ contributor; the performing department supplies its own.
 _Avoid_: originator, data entry, filler
 
 **Approver**:
-A role that accepts or denies an authorization at one stage. Six exist today: a program manager
-and a finance approver on each side, plus Contracts and Global Trade.
+A role that acknowledges an authorization at one stage, or raises a **correction request**
+against it. Six exist today: a program manager and a finance approver on each side, plus Contracts
+and Global Trade. No approver refuses on the merits; **revocation** is the only way one ends an
+authorization.
 _Avoid_: reviewer, signatory, gatekeeper, authorizer
 
 **Charge Number Admin**:
@@ -177,9 +192,11 @@ _Avoid_: role, responsibility, remit, discipline
 
 **Queue**:
 A list of authorizations waiting on someone's action — whatever put them there: arrival at their
-stage, their own unfinished draft, or a denial returned to them. An authorization leaves when
-they act and re-enters on resubmission. It holds live work only, so an authorization **on hold**
-is in nobody's queue. A department's queue distinguishes **claimed** from unclaimed.
+stage, their own unfinished draft, or a **correction request** addressed to them. An authorization
+leaves when they act, and an authorization out for correction sits in the corrector's queue only —
+the approver who raised the request cannot act on it and follows it on the master dashboard
+instead. It holds live work only, so an authorization **on hold** is in nobody's queue. A
+department's queue distinguishes **claimed** from unclaimed.
 _Avoid_: inbox, worklist, backlog, task list
 
 **Master dashboard**:
