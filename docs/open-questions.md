@@ -33,8 +33,8 @@ far has produced a business case, a transcription of the current process flow, a
 recorded design decisions. It is a class prototype: it will never be operationalized, and every
 participant in it is mocked.
 
-The reason for this document is that roughly two dozen questions have built up, of which **one
-is currently blocking work**, several would change the direction of the solution if answered
+The reason for this document is that roughly two dozen questions have built up, of which **two
+are currently blocking work**, several would change the direction of the solution if answered
 differently, and the rest are assumptions we are building on that would be cheaper to correct
 now than later.
 
@@ -72,11 +72,11 @@ Designing a replacement has stalled on the first question below.
 
 ### When someone fills in the CAS block, what are they actually looking for?
 
-_Why this matters: this is the blocker. We assumed the employee finds their own department on
-the chart. But the chart's boxes are supply units, service centers and legal entities — one box
-holds three services, another holds two cities, another is a foreign legal entity. None of those
-is a department, and no department name appears on the chart anywhere. So we don't know what the
-task actually is._
+_Why this matters: this is one of the two blocking questions. We assumed the employee finds
+their own department on the chart. But the chart's boxes are supply units, service centers and
+legal entities — one box holds three services, another holds two cities, another is a foreign
+legal entity. None of those is a department, and no department name appears on the chart
+anywhere. So we don't know what the task actually is._
 
 >
 
@@ -234,6 +234,19 @@ _Why this matters: we have proposed that a submitter can put an authorization on
 leaves everyone's queue, and resumes at the stage it left. We have assumed nobody else can do
 that. If an approver, a program manager, or a finance lead can legitimately suspend work, we
 have the wrong model._
+
+>
+
+### How does the receiving department know the ask is for them?
+
+_Why this matters: this is now blocking work. Nothing in the source material says how an
+authorization reaches the performing side. The form's inputs list carries no field naming the
+performing department, and the process flow shows the handover only as an arrow between stages 1
+and 2. So we think intake happens out-of-band today — the submitter already knows who they are
+asking and tells them, and the form documents the ask rather than delivering it. If that is
+right, the system has to introduce something the paper process never had, and we cannot design
+the performing side until we know what. Please describe what actually happens between "I need
+another department to do this" and that department knowing about it._
 
 >
 
