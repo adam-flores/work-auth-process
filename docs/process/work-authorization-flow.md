@@ -157,14 +157,12 @@ with the process owner.
    inputs list. Either the list is incomplete or that selection happens outside this form.
 4. **The Contracts gate names three funding types but no routing difference between them.**
    Whether Commercial, FAR 12, and FAR 15 follow the same review path is not stated.
-
 5. **The form asks for four lookup levels; the chart supplies three.** The inputs list marks
    CAS group, CAS segment, CAS SBU, and legal entity as manual lookup — four levels. The
    chart resolves only to chart → segment → unit, and its leaf is inconsistent about whether
    it names an SBU or a legal entity: some leaves are legal names with corporate suffixes,
-   others are
-   function descriptions. Which form field each chart level answers, and what fills the gap, is
-   open — see issue #16.
+   others are function descriptions. Which form field each chart level answers, and what
+   fills the gap, is open — see issue #16.
 
 ## Transcription notes
 
