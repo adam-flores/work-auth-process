@@ -562,8 +562,54 @@ survive every correction.
 >
 
 **A record of who an authorization passed between *within* a stage is worth collecting.** You
-raised this and said it should not be reported on. We have not modelled it yet — it would be
-visible in history and excluded from every measure.
+raised this and said it should not be reported on. It is excluded from every measure, and what
+such a handoff actually *is* now has its own ticket, because it contradicts our definition of a
+stage as occupied by a single role.
+[#37](https://github.com/adam-flores/work-auth-process/issues/37)
+
+>
+
+### BDR-0006 — The product records the relay and nothing before it
+
+Built directly on your answers, so the decision itself is settled rather than proposed. Cycle
+time runs from **initiation** to completion; time spent drafting is not measured and an
+abandoned draft leaves no trace. Every stage records three timestamps — arrived, notified,
+resolved — and the fourth we had planned, *when an approver first opened it*, is gone. Held
+time is excluded from cycle time and reported separately; time *awaiting correction* stays
+in. A stage re-entered as a re-review counts as a separate occurrence rather than inflating
+its first pass. M4–M6 are pilot survey items, and the product makes no attempt to approximate
+them. An **insights dashboard** for administrators shows the measures over seeded history.
+
+**The consequence worth seeing stated**, because it narrows what the pilot can argue: we can
+show which stage the elapsed time built up in and how much of it was the data being wrong,
+but not whether the remainder was an approver considering the authorization or the
+authorization sitting unopened. Assumption 1 of this project — that most of today's elapsed
+time is idle rather than busy — therefore stays an assumption. The 50% target is unaffected.
+[BDR-0006](bdr/0006-what-the-product-records.md)
+
+>
+
+### Assumptions underneath BDR-0006
+
+**Nothing about filling the form in needs measuring.** The clock starts at initiation,
+abandoned drafts are not counted, and we are not counting guidance being opened. So the
+product records nothing at all about the part of the process this business case identifies as
+the actual problem. If someone asks how we know the guidance helped, the answer is the pilot
+survey and nothing else. We think that is the right call for a prototype; it is worth knowing
+you are comfortable defending it.
+
+>
+
+**Holds are rare, and are what they claim to be.** Excluding held time is only safe if a hold
+is a submitter pausing their own request. If holding becomes the informal way an approver
+parks something, the exclusion hides exactly the delay we are looking for.
+
+>
+
+**"Admin" is a real audience for the insights dashboard.** Every other view in the system is
+open to everyone by deliberate decision. This would be the first restricted one — and since
+the prototype has no log-in, the restriction is a statement of intent rather than something
+built.
 
 >
 
