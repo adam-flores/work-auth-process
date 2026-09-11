@@ -1,8 +1,34 @@
 # BDR-0003: Five explicit states, position derived, and four timestamps at every stage
 
-**Status:** provisional
+**Status:** provisional, superseded in part
 **Date:** 2026-09-11
 **Decided by:** us, provisionally
+**Superseded in part by:** [BDR-0005](0005-correction-in-place-and-revocation.md)
+
+> **Read this first.** Three parts of what follows are wrong, and the record is left standing
+> rather than rewritten because what we assumed and why it failed is the useful part.
+>
+> - **The Rejected state, the denial/rejection distinction, and resubmission are gone.** The relay
+>   acknowledges rather than judges; no approver refuses on the merits. A defect is raised as a
+>   **correction request** and fixed in place without the authorization moving, and **Revoked**
+>   takes Rejected's place as the fifth state. This BDR anticipated the reversal under *What it
+>   assumes* and priced it as small, which was roughly right.
+>   [BDR-0005](0005-correction-in-place-and-revocation.md)
+> - **The `acknowledged` timestamp has lost both its permission and its meaning.** The product
+>   owner's answer was that time in queue at each stage is sufficient, and separately that an
+>   approver opening an authorization does *not* mean they have started work on it — the two
+>   assumptions this BDR names. Not yet replaced: what the product records is
+>   [#13](https://github.com/adam-flores/work-auth-process/issues/13)'s to settle.
+> - ***Acknowledgement* now means something else.** It is the approver's sign-off itself — the act
+>   the whole relay consists of — not the moment they first opened the record.
+>   [`CONTEXT.md`](../../CONTEXT.md) carries the current definition.
+>
+> Everything else stands: five recorded states, position derived rather than stored, the
+> department queue with claiming, gate skips recorded with the value that decided them, and the
+> draft's visibility. Note that section 7 of
+> [`docs/open-questions.md`](../open-questions.md) shows this BDR confirmed with "nothing stands
+> out" — that headline confirmation was overtaken by the same reviewer's detailed answers, and the
+> specifics win.
 
 ## Decision
 

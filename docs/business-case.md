@@ -145,15 +145,26 @@ or denies at one stage, and a **Charge Number Admin** completes the authorizatio
 separates two approvers is not what they can do but what they judge. The vocabulary the rest
 of this project uses is in [`CONTEXT.md`](../CONTEXT.md).
 
+**The relay acknowledges; it does not judge.** Whether work happens at all is approved or denied
+through entirely different mechanisms. This process exists to stop what is not legally allowed to
+happen and to keep the financial ledger honest by allocating work to the department that
+originated it — and the sign-offs exist so nothing is assigned to an area without someone there
+acknowledging it. No approver refuses on the merits.
+[BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
+
 **The lifecycle is explicit, and the record is what happened rather than where it is.** Five
-states are recorded — **Draft**, **On hold**, **Completed**, **Withdrawn**, **Rejected**. Where
-an authorization sits in the relay is *derived* from the relay itself rather than stored, so
-there is no status for anyone to maintain or forget. A **denial** is an approver returning
-something *fixable*, and correcting and resubmitting is the appeal; a **rejection** is a refusal
-on the merits of the ask and is terminal. Every stage records when the authorization arrived,
-when the approver was notified, when they first opened it, and when they acted — which is what
-turns "most of the elapsed time is idle time" from this document's central assumption (§10) into
-something a pilot can measure. [BDR-0003](bdr/0003-the-authorization-lifecycle.md)
+states are recorded — **Draft**, **On hold**, **Completed**, **Withdrawn**, **Revoked**. Where an
+authorization sits in the relay is *derived* from the relay itself rather than stored, so there is
+no status for anyone to maintain or forget. When a stage finds something wrong it raises a
+**correction request** against the named fields: the authorization does not move, the stage becomes
+*awaiting correction*, and the clock keeps running — so the days a defect costs stay attached to
+the stage that found it rather than falling into a gap between stages. A correction that changes a
+field an earlier stage depends on returns it there as a **re-review**; changing the performing
+department re-routes from the handover. Time in each stage, decomposed into time the approver held
+it and time it was out for correction, is what turns "most of the elapsed time is idle time" from
+this document's central assumption (§10) into something a pilot can measure.
+[BDR-0003](bdr/0003-the-authorization-lifecycle.md) ·
+[BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
 
 **Visibility is asymmetric by design.** What reaches a person is scoped — an approver's queue
 shows the step in front of them, not the whole record. What a person can go and look up is not
@@ -193,18 +204,21 @@ is the first job of the pilot, not an input to it.
 
 | # | Measure | Baseline | Target | Ties to |
 |---|---|---|---|---|
-| M1 | First-pass acceptance rate | TBD | +25% relative | Errors |
+| M1 | Share of authorizations completed with zero correction requests | TBD | +25% relative | Errors |
 | M2 | Cycle time from form start to approved authorization | TBD | −50% | Cycle time |
-| M3 | Resubmissions per authorization | TBD | −25% | Errors |
+| M3 | Correction requests per authorization | TBD | −25% | Errors |
 | M4 | SME support interactions per authorization | TBD | Decrease | Expert dependency |
 | M5 | Share of forms completed without SME contact | TBD | Increase | Minimal assistance |
 | M6 | Time-to-competence for a first-time submitter | TBD | Decrease | Training gap |
 
-M1–M3 are computable from system data once the product exists — specifically from the four
-timestamps every stage records ([BDR-0003](bdr/0003-the-authorization-lifecycle.md)), which is
-what makes M2 separable into time an authorization sat unopened and time it spent under
-consideration. M4–M6 describe human behaviour that a system cannot observe on its own and would
-need to be gathered alongside the pilot. Exactly what each measure counts is still open.
+M1–M3 are computable from system data once the product exists — from the time an authorization
+spends in each stage, split into time the approver held it and time it was out for correction
+([BDR-0005](bdr/0005-correction-in-place-and-revocation.md)). That split is what makes M2
+diagnostic rather than merely a total. What counts as an **error** is settled: a correction request
+raised at a stage. A validation failure caught at entry is reported separately as a *prevention*,
+never folded into the error rate — otherwise the number rises as the guidance improves — and a
+re-review is excluded by name, because nobody erred. M4–M6 describe human behaviour that a system
+cannot observe on its own and would need to be gathered alongside the pilot.
 
 ---
 
@@ -275,17 +289,16 @@ pilot, and a pilot is what stage 1 buys.
    guidance capability in §6 assumes the expertise this project is trying to spread is willing
    to be written down. That is a behavioural bet, not a technical one, and it is the weakest
    joint in the consistency argument.
-8. **Recording when an individual approver first opens an authorization is acceptable.**
-   Separating time an authorization sat unopened from time it spent under consideration is what
-   lets assumption 1 be tested rather than asserted — and it makes approvers individually
-   visible on responsiveness. That is an organizational question, not a technical one. If the
-   answer is no, the measure collapses to a single arrival-to-action interval and the
-   cycle-time argument keeps its target but loses its diagnosis.
-   [BDR-0003](bdr/0003-the-authorization-lifecycle.md)
-9. **Approvers sometimes refuse an authorization outright, rather than only returning it for
-   correction.** The distinction between a denial and a rejection in §6 assumes both acts exist
-   in practice. If every refusal is really a correction request, one state has no cause.
-   [BDR-0003](bdr/0003-the-authorization-lifecycle.md)
+8. **A stage's concern can be expressed as the set of fields it depends on.** It is what decides
+   which sign-offs a correction invalidates. An approver whose judgement rests on something not on
+   the form — requesting finance confirm funding held outside this process — declares no
+   dependency and their sign-off survives every correction. That may be right, or it may mean
+   their concern is under-modelled.
+   [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
+9. **No stage in the relay holds a genuine veto.** Terminal refusal has been removed entirely on
+   the basis that approvers do not refuse outright. Global Trade is the case least sure: if an
+   export determination can conclude *this must not happen*, revocation is carrying weight it was
+   not designed for. [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
 
 ---
 
@@ -298,10 +311,10 @@ pilot, and a pilot is what stage 1 buys.
   long needs an age threshold, and every baseline in §7 is `TBD`. Setting one now would mean
   inventing a number. Deferred until the pilot produces real timings, not rejected.
   [BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md)
-- **Appealing a rejection.** A denial is already the route back for anything fixable; an appeal
-  against a refusal on the merits would need an adjudicator the process has no role for, and a
-  way out of a terminal state. A rejection made in error is answered with a new authorization.
-  [BDR-0003](bdr/0003-the-authorization-lifecycle.md)
+- **Appeals of any kind.** Nothing in the relay refuses on the merits, so there is nothing to
+  appeal against. A defect is corrected in place and the authorization continues forward; a
+  **revocation** is terminal and is answered with a new authorization, not a reopening.
+  [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
 - Handling real company data, forms, contract identifiers, or personnel information
 
 ---
@@ -341,12 +354,13 @@ From [BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md).
 
 From [BDR-0003](bdr/0003-the-authorization-lifecycle.md).
 
-9. **What actually separates a denial from a rejection in your process?** We have modelled a
-   denial as concerning something fixable and a rejection as concerning the merits of the ask.
-   Do approvers ever refuse outright — and if so, what makes them do one rather than the other?
-10. **Is it acceptable to record when an individual approver first opens an authorization?**
-    It is what separates idle time from review time, and it makes approvers individually
-    visible on responsiveness.
+9. **Does any stage hold a genuine veto?** Terminal refusal has been removed from the model
+   entirely. Global Trade is the case we are least sure of, since its concern is precisely what is
+   not allowed to happen. [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
+10. **Who, specifically, can revoke an authorization — and when?** We have allowed any approver
+    at or before the current stage, because the trigger described is the wider initiative changing
+    rather than a defect at a gate. That may be broader than intended.
+    [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
 11. **Can anyone other than the submitter pause an authorization** — an approver, a program
     manager, a finance lead? We have assumed not.
 12. **When work reaches a performing department, is there a queue anyone there can pick from,
