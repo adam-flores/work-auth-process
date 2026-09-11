@@ -20,7 +20,7 @@ concentrates critical process knowledge in a few heads.
 The goal is a process where employees complete the form accurately with minimal assistance.
 
 **Full framing, solution direction, targets, and the ask:
-[docs/BUSINESS_CASE_V2.md](docs/BUSINESS_CASE_V2.md).** The original solution-agnostic framing
+[docs/business-case.md](docs/business-case.md).** The original solution-agnostic framing
 is preserved unchanged in [docs/source/BUSINESS_CASE.md](docs/source/BUSINESS_CASE.md).
 
 ---
@@ -66,7 +66,7 @@ is judgment before `git add`.
 ├── CONTEXT.md              The glossary — canonical vocabulary for the domain
 ├── CLAUDE.md               Working agreements and context for Claude Code
 ├── docs/
-│   ├── BUSINESS_CASE_V2.md Current: problem, solution direction, targets, the ask
+│   ├── business-case.md    The live argument: problem, solution direction, targets, the ask
 │   ├── bdr/                Business decision records — what the system should do, and why
 │   ├── adr/                Architecture decision records — how it is built, and why
 │   ├── process/            The work authorization flow as it stands today
