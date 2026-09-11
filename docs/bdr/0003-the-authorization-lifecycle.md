@@ -3,7 +3,8 @@
 **Status:** provisional, superseded in part
 **Date:** 2026-09-11
 **Decided by:** us, provisionally
-**Superseded in part by:** [BDR-0005](0005-correction-in-place-and-revocation.md)
+**Superseded in part by:** [BDR-0005](0005-correction-in-place-and-revocation.md) ·
+[BDR-0006](0006-what-the-product-records.md)
 
 > **Read this first.** Three parts of what follows are wrong, and the record is left standing
 > rather than rewritten because what we assumed and why it failed is the useful part.
@@ -14,11 +15,13 @@
 >   takes Rejected's place as the fifth state. This BDR anticipated the reversal under *What it
 >   assumes* and priced it as small, which was roughly right.
 >   [BDR-0005](0005-correction-in-place-and-revocation.md)
-> - **The `acknowledged` timestamp has lost both its permission and its meaning.** The product
->   owner's answer was that time in queue at each stage is sufficient, and separately that an
->   approver opening an authorization does *not* mean they have started work on it — the two
->   assumptions this BDR names. Not yet replaced: what the product records is
->   [#13](https://github.com/adam-flores/work-auth-process/issues/13)'s to settle.
+> - **The `acknowledged` timestamp is removed.** The product owner's answer was that time in queue
+>   at each stage is sufficient, and separately that an approver opening an authorization does
+>   *not* mean they have started work on it — the two assumptions this BDR names. Three timestamps
+>   survive: `arrived`, `notified`, `resolved`. What the product records in its place is settled by
+>   [BDR-0006](0006-what-the-product-records.md), which also prices the loss: a pilot can show
+>   which stage the time built up in and how much of it was the data being wrong, but not whether
+>   the rest was idle or busy.
 > - ***Acknowledgement* now means something else.** It is the approver's sign-off itself — the act
 >   the whole relay consists of — not the moment they first opened the record.
 >   [`CONTEXT.md`](../../CONTEXT.md) carries the current definition.
