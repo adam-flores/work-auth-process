@@ -115,3 +115,28 @@ _Avoid_: rejection, refusal, bounce, kickback
 An authorization sent back into the relay by the submitter after a denial, carrying the
 submitter's comment.
 _Avoid_: resubmittal, revision, re-review
+
+## Project roles
+
+Not participants in an authorization — nobody here appears in the relay. These are the two
+roles **this project** answers to. They are distinct roles that may well be held by the same
+person; the distinction matters because they are asked different kinds of question.
+
+**Process owner**:
+The individual accountable for achieving the objectives the work authorization process exists
+to serve. Authority over how the process runs. The source of truth for how it works today, what
+it costs, and which of its requirements are compliance-mandated rather than convention —
+so the role that corrects a factual assumption.
+_Avoid_: process manager, business owner, stakeholder
+
+**Product owner**:
+The individual accountable for the design and ownership of the system that facilitates the
+process. Authority over what the system should do — so the role that confirms or overturns a
+business decision record.
+_Avoid_: sponsor, client, stakeholder, owner
+
+**Where each is asked:** a BDR's *What it assumes* section lists beliefs about the process,
+which the process owner corrects. Its *Question for the product owner* puts the decision itself,
+which the product owner settles. A decision can survive its assumptions being wrong, and an
+assumption can be right under a decision that gets overturned — which is why the two are asked
+separately even when one person answers both.

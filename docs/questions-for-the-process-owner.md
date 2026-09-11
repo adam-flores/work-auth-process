@@ -10,6 +10,13 @@ instead of accumulating unasked.
 will be used:** to confirm or overturn the provisional decisions in `docs/bdr/`, fill the `TBD`
 baselines in the business case, and correct the transcribed process document.
 
+**Two roles, probably one person.** The *process owner* is accountable for achieving the
+objectives the process serves and is the source of truth for how it works today. The *product
+owner* is accountable for the design of the system that facilitates it. Almost everything below
+is a question about how the process actually works, which is why it is addressed to the process
+owner — the handful that ask for a direction rather than a fact are marked **[product owner]**.
+If the two are the same person, answer straight through and ignore the marking.
+
 ---
 
 ## Context
@@ -113,11 +120,11 @@ is unreachable and our central decision was wrong. We would rather find that out
 
 >
 
-### Is preserving the existing sign-off sequence a requirement, a preference, or simply how it has always been?
+### Is preserving the existing sign-off sequence a requirement, a preference, or simply how it has always been? **[product owner]**
 
 >
 
-### Would you rather have a tool that makes today's process work well, or a proposal for a different process?
+### Would you rather have a tool that makes today's process work well, or a proposal for a different process? **[product owner]**
 
 _Why this matters: we assumed the first and parked the second. Both are legitimate projects, but
 they are different projects._

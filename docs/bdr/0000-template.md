@@ -17,8 +17,9 @@ alternative, this probably isn't a decision worth recording.>
 
 ## What it assumes
 
-<The beliefs about the process this rests on. This is the part most likely to be wrong, and
-the part the product owner is best placed to correct.>
+<The beliefs about how the process works that this rests on. This is the part most likely to
+be wrong, and the part the *process owner* is best placed to correct — distinct from the
+decision itself, which is the product owner's. See the README.>
 
 ## Question for the product owner
 
