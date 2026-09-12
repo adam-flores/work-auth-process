@@ -206,6 +206,11 @@ A role that acknowledges an authorization at one stage, or raises a **correction
 against it. Six exist today: a program manager and a finance approver on each side, plus Contracts
 and Global Trade. No approver refuses on the merits; **revocation** is the only way one ends an
 authorization.
+**The name is deliberately inherited, not accurate.** Nobody approves anything — the act is an
+**acknowledgement** — and the name is kept because it is what the organization's own people
+answer to, while the verbs around it carry the precision instead. Read *Approver* as a job title,
+never as a description of what happens at the stage.
+[BDR-0009](docs/bdr/0009-the-business-case-survives.md)
 _Avoid_: reviewer, signatory, gatekeeper, authorizer
 
 **Charge Number Admin**:
