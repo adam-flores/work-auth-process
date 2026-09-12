@@ -165,6 +165,7 @@ good information together and makes the path through the process a manageable on
 | An open master record of every authorization | Anyone can see where any authorization sits, without asking a person |
 | A department queue anyone on the performing side can claim from | An authorization stops waiting on one named person being available |
 | Reference data maintained inside the product, by an **Administrator** | A department missing from the org hierarchy is added where the work is, rather than leaving a submitter blocked with nowhere to turn. [BDR-0010](bdr/0010-an-administrator-maintains-the-hierarchy.md) |
+| A **referral** — show an authorization to a colleague without handing it over | An approver who cannot answer something asks whoever can, and the asking is recorded rather than lost in a forwarded email. [BDR-0011](bdr/0011-a-referral-shows-it-without-moving-it.md) |
 | Every stage timestamped three times over — arrived, notified, resolved | Where the time went becomes a fact the pilot can read off, not a claim. [BDR-0006](bdr/0006-what-the-product-records.md) |
 
 In priority order, the claims are: **fewer mistakes**, then **less waiting**, then **less effort
@@ -218,6 +219,16 @@ submitter chase their own work without asking around, and means no stage sees a 
 than another. This rests on the form carrying *average* labor rates rather than actual
 compensation, so there is nothing on it to protect — see §10.
 [BDR-0007](bdr/0007-one-project-many-resources.md)
+
+**Asking a colleague is part of the process, and it is the only thing the product records and
+never reports on.** A stage routes to a role at a department rather than to a named person, so any
+holder of that role can act and no authorization waits on one individual being at their desk. Where
+the answer lies outside that role entirely — the engineer who knows whether the scope is right — an
+approver raises a **referral**: the colleague is notified and the asking is recorded, while the
+authorization stays where it is and the sign-off still comes from the stage. Referrals are readable
+in an authorization's history and excluded from every measure, counts included, because a metric
+that counts how often someone asked for help is a metric against asking.
+[BDR-0011](bdr/0011-a-referral-shows-it-without-moving-it.md)
 
 **One authorization is one project.** It asks one department for work from another and may request
 **one or more resources**, each with its own budget hours and rate. A second project, or work from
@@ -437,7 +448,14 @@ pilot, and a pilot is what stage 1 buys.
     [BDR-0005](bdr/0005-correction-in-place-and-revocation.md) removed terminal refusal on the
     strength of the same answer, so *rejected* would have to return as a state.
     [BDR-0009](bdr/0009-the-business-case-survives.md)
-11. **The five controls in §2 are the complete set.** They are everything the transcribed process
+11. **No stage's sign-off carries delegated authority tied to a named individual.** Load-bearing
+    for the queue model in §6: a stage routes to a role at a department and any holder of that
+    role may acknowledge, so nothing waits on one person. Aerospace finance sign-offs often do
+    carry a threshold, a named signatory, or a delegation-of-authority list. If any stage here
+    does, a stage has a fixed occupant, work has to be able to move *within* a stage, and the
+    **referral** in §6 is the wrong model.
+    [BDR-0011](bdr/0011-a-referral-shows-it-without-moving-it.md)
+12. **The five controls in §2 are the complete set.** They are everything the transcribed process
     and the decisions so far establish — but the brief has already been found incomplete once, by
     the process owner's own acknowledgement, and the export classification field Global Trade
     validates against is still unaccounted for.
@@ -477,6 +495,11 @@ From [BDR-0001](bdr/0001-preserve-the-flow-rebuild-the-experience.md).
 2. **Is preserving the existing sign-off sequence a requirement, a preference, or habit?**
 3. **Would you rather have a tool that makes today's process work well, or a proposal for a
    different process?**
+4. **Does an approver ever get someone else to sign in their place?** Not *ask* someone — that
+   is a **referral** — but hand over the acknowledgement itself, so the name on the sign-off is
+   not the person the stage routed to. If yes, a stage has a fixed occupant and work has to be
+   able to move inside a stage.
+   [BDR-0011](bdr/0011-a-referral-shows-it-without-moving-it.md)
 
 ### Would change who sees what, and how consistency is achieved
 

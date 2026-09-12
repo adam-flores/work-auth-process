@@ -664,6 +664,33 @@ expensive one. [BDR-0008](bdr/0008-finding-a-department.md)
 
 > **Answered 2026-09-12 — `final`.** Recorded for the reviewer; nothing outstanding.
 
+### BDR-0011 — Asking a colleague is a referral, and it moves nothing
+
+You volunteered that a log of who an authorization passed between *within* a stage would be
+useful but should not be reported on. Asked what such a handoff is, you asked us to decide unless
+something material hung on it. We decided it is a **referral**: an approver shows the
+authorization to a colleague, that colleague is notified and the asking is recorded, and nothing
+else changes — it stays in the approver's queue and the approver still signs. Referrals are
+readable in an authorization's history and kept out of every measure, counts included.
+
+That rests on a stage routing to a **role at a department** rather than to a person, so any
+holder of that role can acknowledge and nothing waits on one individual being available.
+
+One question we could not decide for you, because it is a fact about your process rather than a
+choice:
+
+**Does an approver ever get someone else to sign in their place?** Not ask them — hand over the
+acknowledgement, so the name on the sign-off is not the person the stage routed to. Related: do
+any of your sign-offs carry delegated authority tied to a named individual — a spend threshold, a
+named signatory, a delegation-of-authority list — most plausibly at the two finance stages?
+
+_Reversing it:_ if a sign-off is tied to an individual, a stage has a fixed occupant, queues stop
+being shared across a role, and work has to be able to move *within* a stage — which is the
+larger model we deliberately did not build.
+[BDR-0011](bdr/0011-a-referral-shows-it-without-moving-it.md)
+
+>
+
 ---
 
 ## Anything else?

@@ -123,6 +123,11 @@ _Avoid_: workflow, pipeline, chain
 
 **Stage**:
 One position in the relay, occupied by a single role, on a single side, with a single concern.
+It routes to a **role at a department**, never to a named person: every holder of that role sees
+it and any of them may **acknowledge** it. So the individual who acts is discovered, not
+addressed — which is why a colleague taking something on needs no mechanism, and why a
+**referral** is for asking someone who could never have held the stage.
+[BDR-0011](docs/bdr/0011-a-referral-shows-it-without-moving-it.md)
 _Avoid_: step, phase, level
 
 **Gate**:
@@ -187,6 +192,17 @@ An approver accepting an authorization at their stage and passing it forward. It
 judgement on the merits of the ask — it records that someone in the area knows work is being
 assigned to them. The relay is a sequence of acknowledgements, which is why no stage can refuse.
 _Avoid_: approval, acceptance, sign-off, viewed, opened
+
+**Referral**:
+An approver showing an authorization to a named colleague, to ask what they cannot answer
+themselves. It **notifies and records, and does nothing else**: the authorization stays in the
+referrer's queue, the colleague gains no power to act on it, and the **acknowledgement** still
+comes from the person the stage routed to. Available to whoever holds an authorization at their
+stage. Every referral is readable in the authorization's history and excluded from every measure,
+counts included — the one thing the product records and never reports on. Distinct from a
+**claim**, which names the owner of a section; a referral names nobody and owns nothing.
+[BDR-0011](docs/bdr/0011-a-referral-shows-it-without-moving-it.md)
+_Avoid_: handoff, hand-off, delegation, reassignment, forward, transfer
 
 **Correction request**:
 An approver, at their stage, naming the fields at fault on an authorization, with a mandatory
