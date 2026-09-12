@@ -613,6 +613,27 @@ built.
 
 >
 
+### BDR-0008 — Finding a department is narrowing on attributes, then searching the rest
+
+Built on your answers that there are **three legal entities**, that **attributes sit at any level**
+and simply whittle the list down however makes sense, and that a submitter **self-identifies**
+rather than having their own side filled in for them. One screen: narrow by whatever you are
+certain of, then search what is left by name. It resolves to a department and derives the two
+levels above it, so nothing is keyed in three times. There is no free-text escape — a department
+that is not in the hierarchy leaves the request in **Draft** until someone adds it.
+
+You also confirmed that departments carry **nothing about the work they do** — a requester knows
+what they are looking for from the department name — so no work-kind taxonomy is needed and
+search-by-name is load-bearing rather than a fallback.
+
+_Reversing it:_ if attributes have to be tied to their level, the picker becomes a
+legal-entity-then-division cascade and anyone who does not know the division is back to reading a
+chart. Contained. If free text is allowed for a department that cannot be found, the permissibility
+check cannot run at entry and the wrong-department error resurfaces at a gate instead — that is the
+expensive one. [BDR-0008](bdr/0008-finding-a-department.md)
+
+> **Answered 2026-09-12 — `final`.** Recorded for the reviewer; nothing outstanding.
+
 ---
 
 ## Anything else?

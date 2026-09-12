@@ -34,6 +34,14 @@ excluded by `.gitignore`.
 | **Taken** | Structural properties only: how many charts there are, their differing layouts and code schemes, the depth of nesting, the *shape* of the code formats, which attributes are encoded visually rather than textually, and the kinds of irregularity present |
 | **Not taken** | Entity names, cost-center codes, CAS codes, CAGE codes, site locations, disclosure classifications, footnote text — none of it, anywhere |
 
+> **One field goes beyond the source's shape.** Each unit carries a `country`, and the source has
+> **no country field** — it distinguishes foreign from domestic by text colour and nothing more
+> (see *How attributes are encoded*). Every specific country here is invented, and one unit
+> (`Crosstrade`) was left `null` by oversight rather than by design. Treat `foreign` as faithful and
+> `country` as fabrication: a prototype that filters on specific countries demos something the real
+> hierarchy cannot supply. Recorded by
+> [BDR-0008](../bdr/0008-finding-a-department.md), which filters on foreign/domestic for this reason.
+
 One characteristic of the source is worth recording because it *is* the problem: the workbook's
 entire content is embedded screenshots. The whole file contains **five unique text strings**.
 There is no machine-readable data in it at all.
