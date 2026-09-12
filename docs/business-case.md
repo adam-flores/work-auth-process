@@ -161,6 +161,7 @@ good information together and makes the path through the process a manageable on
 | Notification the moment an authorization arrives | A form stops sitting because nobody knew it was waiting |
 | An open master record of every authorization | Anyone can see where any authorization sits, without asking a person |
 | A department queue anyone on the performing side can claim from | An authorization stops waiting on one named person being available |
+| Reference data maintained inside the product, by an **Administrator** | A department missing from the org hierarchy is added where the work is, rather than leaving a submitter blocked with nowhere to turn. [BDR-0010](bdr/0010-an-administrator-maintains-the-hierarchy.md) |
 | Every stage timestamped three times over — arrived, notified, resolved | Where the time went becomes a fact the pilot can read off, not a claim. [BDR-0006](bdr/0006-what-the-product-records.md) |
 
 In priority order, the claims are: **fewer mistakes**, then **less waiting**, then **less effort
@@ -168,10 +169,19 @@ per form**.
 
 **Who does what is settled**, in
 [BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md). The ten participants named in the
-current process are three roles — a **Contributor** fills a section, an **Approver** accepts
-or denies at one stage, and a **Charge Number Admin** completes the authorization. What
-separates two approvers is not what they can do but what they judge. The vocabulary the rest
-of this project uses is in [`CONTEXT.md`](../CONTEXT.md).
+current process are three roles — a **Contributor** fills a section, an **Approver**
+acknowledges at one stage or raises a **correction request** against it, and a **Charge Number
+Admin** completes the authorization. What separates two approvers is not what they can do but
+what they judge.
+
+A **fourth role** sits outside the relay: an **Administrator** maintains what the process runs on
+— the org hierarchy, the permissibility rules, the relay configuration, and the insights
+dashboard — and touches no authorization directly. It is the only role whose actions are not
+performed on an authorization, and naming it closes a gap three earlier decisions had already
+opened by referring to an "administrator" that no record defined.
+[BDR-0010](bdr/0010-an-administrator-maintains-the-hierarchy.md)
+
+The vocabulary the rest of this project uses is in [`CONTEXT.md`](../CONTEXT.md).
 
 **The relay acknowledges; it does not judge.** Whether work happens at all is approved or denied
 through entirely different mechanisms. This process exists to stop what is not legally allowed to
@@ -362,6 +372,7 @@ pilot, and a pilot is what stage 1 buys.
 | Subject-matter experts | Stop absorbing repetitive one-on-one support requests |
 | Approvers | Receive complete, accurate authorizations, and see everything waiting on them at once |
 | Charge Number Admin | Mint charge numbers against authorizations that are already correct |
+| Administrators | Keep the org hierarchy and the permissibility rules correct, so nobody is blocked by reference data that is out of date |
 | Finance / cost accounting | Correct cost allocation across legal entities and reporting systems |
 | Contracts / compliance | Costs tracked within US contract requirements, controls unchanged |
 
@@ -492,14 +503,28 @@ From [BDR-0003](bdr/0003-the-authorization-lifecycle.md).
    not allowed to happen. [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
 10. **Who, specifically, can revoke an authorization — and when?** We have allowed any approver
     at or before the current stage, because the trigger described is the wider initiative changing
-    rather than a defect at a gate. That may be broader than intended.
-    [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
+    rather than a defect at a gate. That may be broader than intended. It has since broadened
+    again: an **Administrator** moving or deactivating a department revokes the in-flight work that
+    names it, so revocation now has a second kind of actor and one that nobody asked for.
+    [BDR-0005](bdr/0005-correction-in-place-and-revocation.md) ·
+    [BDR-0010](bdr/0010-an-administrator-maintains-the-hierarchy.md)
 11. **Can anyone other than the submitter pause an authorization** — an approver, a program
     manager, a finance lead? We have assumed not.
 12. **When work reaches a performing department, is there a queue anyone there can pick from,
     or is it handed to a named person by prior arrangement?**
 13. **Is two weeks the right life for an untouched draft?** Chosen as a policy value with no
     evidence behind it, and it deletes the draft rather than archiving it.
+
+### Would change who maintains the reference data
+
+From [BDR-0010](bdr/0010-an-administrator-maintains-the-hierarchy.md).
+
+16. **Where does the org hierarchy actually live today, and who maintains it?** We have assumed
+    the product owns it and an Administrator edits it inside the product. The organization may
+    well hold it in an HR or finance system of record that this process should only ever read
+    from — in which case the Administrator maintains a copy, and the real question becomes how
+    the copy stays current. This is the assumption under BDR-0010 most likely to be wrong, and
+    nothing has been asked about it.
 
 ### Needed to size and target the work
 
