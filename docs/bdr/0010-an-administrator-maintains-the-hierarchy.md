@@ -143,10 +143,19 @@ is not an attribute" ([BDR-0008](0008-finding-a-department.md)). If any part of 
 reads jurisdiction, ownership, or funding out of a name, renaming becomes a substantive change and
 the exemption is wrong.
 
-**That nobody outside the Administrator needs to edit reference data.** The organization may well
-maintain its hierarchy in a system of record this process only reads from. Nothing here has been
-confirmed about where the real hierarchy lives or who owns it, and the process owner has not been
-asked.
+**That nobody outside the Administrator needs to edit reference data.** ~~The organization may
+well maintain its hierarchy in a system of record this process only reads from. Nothing here has
+been confirmed about where the real hierarchy lives or who owns it, and the process owner has not
+been asked.~~
+
+**Answered 2026-09-12, and the assumption holds with a correction.** The hierarchy lives
+**outside this process**, and the Administrator **configures the product's own copy to match it**.
+So the product is not the system of record, there is **no integration** with whatever is, and the
+Administrator's job is keeping a hand-maintained copy current rather than editing the original.
+Everything this record decides about what an Administrator may do is unaffected — the edits, the
+revocation of in-flight work, the rename exemption, the change log — because they all act on the
+copy the process runs on. What it does add is a way for the copy to be wrong: the product cannot
+tell that a department moved in the system of record until somebody tells it.
 
 **That restructures arrive one department at a time.** An acquisition plausibly arrives as a whole
 legal entity, which is the case bulk import exists for. Ruled out as a data-loading feature rather
