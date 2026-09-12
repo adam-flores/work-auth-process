@@ -75,7 +75,11 @@ _Avoid_: team, unit, supply unit, service center, cost center
 **Classification**:
 Identifying a department by its three levels. Performed by the submitter for **both** sides, and the
 two sides may never be the same. Nothing is pre-filled: the submitter identifies their own
-department as deliberately as the one they are requesting work from.
+department as deliberately as the one they are requesting work from. The record holds the department
+alone and reads the levels above it **live** while the authorization is live; they are **frozen**
+into the record when it reaches a terminal state, so a settled record always reads as the structure
+it was settled under and a later restructure cannot rewrite it.
+[ADR-0007](docs/adr/0007-classification-resolves-live-and-freezes-at-terminal.md)
 _Avoid_: CAS classification, lookup, coding
 
 **Attribute**:
@@ -87,6 +91,15 @@ through the hierarchy rather than grouped in one part of it. A department's **na
 attribute — it is what search matches on, and it is what tells a requester the work a department
 does, since nothing else records that.
 _Avoid_: field, property, facet, tag, flag
+
+**Inactive**:
+A department, division or legal entity closed to new authorizations but still resolvable for ever —
+which is how something in the hierarchy stops existing without breaking the records that name it.
+Nothing in the hierarchy is deleted. Marking a department inactive **revokes** every in-flight
+authorization naming it. A *merge* is this plus whatever the surviving department already is, and a
+*split* is departments added, so neither is an operation of its own.
+[BDR-0010](docs/bdr/0010-an-administrator-maintains-the-hierarchy.md)
+_Avoid_: deleted, archived, retired, closed, disabled, deactivated
 
 ## The relay
 
@@ -137,7 +150,9 @@ means the submitter no longer wants it, revoked means someone else says it must 
 _Avoid_: cancelled, abandoned, deleted, killed
 
 **Revoked**:
-An initiated authorization ended by an approver rather than by its submitter. Terminal. Replaces
+An initiated authorization ended by an approver, or by the **Administrator**, rather than by its
+submitter. Terminal. A **Draft** is never revoked this way, because it is not in the relay for a
+hierarchy change to reach. Replaces
 the *rejected* state, which had no cause once it was established that no stage refuses on the
 merits.
 _Avoid_: rejected, refused, declined, cancelled
@@ -180,15 +195,18 @@ happened, so the approver knows whether what moved was the rules or the request.
 _Avoid_: re-approval, recheck, second pass
 
 **Revocation**:
-An approver ending an authorization outright, with a mandatory comment. Available to any approver
-whose stage the authorization has reached *or already passed*, because the cause is usually the
-wider initiative changing rather than a defect at a gate. The only refusal in the process, and it
-is not a stage's decision.
+An approver, or the **Administrator**, ending an authorization outright, with a mandatory comment.
+Available to any approver whose stage the authorization has reached *or already passed*, because the
+cause is usually the wider initiative changing rather than a defect at a gate. It is also how a
+hierarchy change ends the work that names it: an Administrator moving or deactivating a department
+revokes each affected in-flight authorization, with the comment supplied by the system rather than
+typed. The only refusal in the process, and it is not a stage's decision.
 _Avoid_: rejection, denial, cancellation, veto
 
 ## The cast
 
-Three roles, distinguished by what they can do rather than by what they are accountable for.
+Four roles, distinguished by what they can do rather than by what they are accountable for. Three
+act on an authorization; the fourth maintains what they act against and never appears in a relay.
 
 **Submitter**:
 The individual who creates an authorization and owns it for its whole life — receives correction
@@ -217,6 +235,15 @@ _Avoid_: reviewer, signatory, gatekeeper, authorizer
 The role that mints the charge number and thereby completes the authorization. Not an approver:
 it supplies a value rather than rendering a judgement.
 _Avoid_: issuer, minter, administrator
+
+**Administrator**:
+The role that maintains what the process runs on, and the only one that never appears in a relay:
+the organizational hierarchy, the **permissibility rules**, the relay configuration, the **insights
+dashboard**, and the **hierarchy change log**. It acts on nothing an authorization contains, which
+is why it holds no queue and no stage — but its edits can **revoke** work in flight. Distinct from
+the **Charge Number Admin**, which despite the name is a stage in the relay.
+[BDR-0010](docs/bdr/0010-an-administrator-maintains-the-hierarchy.md)
+_Avoid_: admin, superuser, data steward, Charge Number Admin
 
 **Concern**:
 What a particular approver judges — scope, funds available, cost estimate, contract terms,
@@ -257,9 +284,17 @@ Restricted to administrators, which makes it the one surface that is not open to
 no individual: nothing on it attributes time or defects to a named person.
 _Avoid_: analytics, metrics page, reporting, MI
 
+**Hierarchy change log**:
+Every edit ever made to the organizational hierarchy — who made it, what changed, and when.
+Visible to the **Administrator** and deliberately *not* part of the **insights dashboard**, which
+shows no individual; this surface exists to say who did something.
+_Avoid_: audit log, history, activity feed, changelog
+
 **Notification**:
-A push to a role when an authorization arrives in their queue. The queue is what people are
-told about; the master dashboard is what they go and look at.
+A push to a role when an authorization arrives in their queue — and, in one case, when one leaves
+without them: a submitter is told when a hierarchy change **revokes** their authorization, which
+lands it in nobody's queue. The queue is what people are told about; the master dashboard is what
+they go and look at.
 _Avoid_: alert, reminder, email
 
 ## Correctness

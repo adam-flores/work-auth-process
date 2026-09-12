@@ -6,7 +6,7 @@
 
 ## Decision
 
-Six answers, recorded together because they describe one capability: who owns the data the
+Seven answers, recorded together because they describe one capability: who owns the data the
 process runs on, what they may do to it, and what that does to work already moving.
 
 **A fourth role exists — the Administrator — and it never appears in a relay.** It maintains what
@@ -45,6 +45,11 @@ restructure almost verbatim. Its actor widens from *any approver* to *any approv
 Administrator*; the mandatory comment is supplied by the system rather than typed. **The submitter
 is notified**, which widens notification past queue arrival for the first time — a revoked
 authorization arrives in nobody's queue, so the alternative was silence.
+
+**Drafts are untouched.** A draft is not in the relay, so a hierarchy change has nothing to reach:
+it simply re-resolves live, and a draft naming a department that has gone inactive is the
+already-settled unfindable-department case that leaves it sitting in Draft
+([BDR-0008](0008-finding-a-department.md)) until the submitter and an Administrator resolve it.
 
 **A completed authorization must read as the structure it was completed under.** The requirement is
 the record's, not the hierarchy's: cost was allocated between departments as they then sat, and a
