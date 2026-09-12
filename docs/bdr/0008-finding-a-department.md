@@ -89,7 +89,7 @@ thing about the department they want. If someone knows nothing except a person's
 search over 58 names and no better than variant A.
 
 **That the two-week draft sweep is acceptable here.**
-[BDR-0003](0003-the-authorization-lifecycle.md) deletes a draft two weeks after it was last
+[BDR-0003](0003-the-authorization-lifecycle.md) deletes a draft a month after it was last
 modified. A draft parked on a missing department is a draft nobody is modifying, so the sweeper can
 take it and the submitter re-keys. Recorded as an accepted cost rather than fixed: exempting it
 needs a *blocked on missing department* flag, which is the system solving what was just ruled out

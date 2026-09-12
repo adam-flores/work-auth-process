@@ -46,15 +46,18 @@ it. Five named controls do that work.
 | Control | What it does | What it reads |
 |---|---|---|
 | **Permissibility rule** | Blocks a pairing of departments that may not work together, at entry rather than days later at a gate | The two departments on the authorization |
-| **Contracts gate** | A conditional stage testing that the authorization is consistent with the funding contract's terms. It does not run at all for **company-funded** work, which has no customer contract to be consistent with **[Derived]** | The **funding type** the requesting side supplies at intake — commercial contract, government commercial-item contract, government negotiated contract, or company funded |
+| **Contracts gate** | A conditional stage testing that the authorization is consistent with the funding contract's terms, under the **exception rules** the contract type triggers. It does not run at all for **company-funded** work, which has no customer contract to be consistent with — confirmed by the process owner | The **funding type** the requesting side supplies at intake — commercial contract, government commercial-item contract, government negotiated contract, or company funded |
 | **Global Trade gate** | A conditional stage testing that the scope matches the declared export jurisdiction and classification | The **location type** entered on each side |
 | **Classification** | Identifies the department each side belongs to, which is what the cost is allocated against | Three levels per side, from the department picker |
 | **Four mandatory acknowledgements** | A program manager and a finance approver on each side, so nothing is assigned to an area without someone there knowing | Nothing conditional; they always run |
 
 The first three are what stop what is not permitted — though two of them are conditional, and one
-of those conditions now has a named negative case: the Contracts gate does not run for
-company-funded work. **[Derived]** Only the permissibility rule and the four acknowledgements run
-on every authorization. The fourth control is what keeps the ledger honest,
+of those conditions has a confirmed negative case: **the Contracts gate does not run at all for
+company-funded work.** One of the five controls therefore does not operate for a whole class of
+work, which is worth stating plainly rather than leaving implied. Only the permissibility rule and
+the four acknowledgements run on every authorization. Among the three contract types that do reach
+the gate, each triggers a different combination of **exception rules**, so the funding type is
+consequential inside the gate rather than a value the record merely carries. The fourth control is what keeps the ledger honest,
 and is the one most exposed to human error — a misrouted authorization *"usually lands in the
 wrong team's queue, and takes a few days to be routed where it should have gone."* The fifth is a
 control over surprise, not over permission.
@@ -63,9 +66,9 @@ control over surprise, not over permission.
 through mechanisms outside it entirely. What it controls is whether the hours can be **booked**,
 and against whom. This diverges from [the source brief](source/project-overview.md), which
 describes the form as what permits cross-departmental work to begin; the process owner has since
-described the process as administrative record-keeping, with no rejections. The divergence is
-recorded here rather than smoothed over, because the brief is not edited and the two readings
-cannot both be right — see §10, assumption 10.
+described the process as administrative record-keeping, with no rejections, and **confirmed that
+reading when asked directly**. The divergence is recorded here rather than smoothed over, because
+the brief is not edited — but it is no longer an open risk. See §10, assumption 10.
 
 Because the form sits upstream of both cost allocation and the point at which work can be booked,
 errors propagate into two different kinds of harm: compliance and accounting exposure, and
@@ -203,14 +206,17 @@ no status for anyone to maintain or forget. When a stage finds something wrong i
 **correction request** against the named fields: the authorization does not move, the stage becomes
 *awaiting correction*, and the clock keeps running — so the days a defect costs stay attached to
 the stage that found it rather than falling into a gap between stages. A correction that changes a
-field an earlier stage depends on returns it there as a **re-review**; changing the performing
-department re-routes from the handover. Time in each stage, decomposed into time the approver held
+field an earlier stage depends on returns it there as a **re-review**. The **performing
+department** is the exception: it is fixed once an authorization is initiated, because a different
+department is a different request, so a wrong one is withdrawn and raised again rather than
+re-routed. Time in each stage, decomposed into time the approver held
 it and time it was out for correction, is what lets a pilot say *where* the elapsed time went and
 how much of it was the data being wrong — though not, as §7 sets out, whether the rest of it was
 idle or busy.
 [BDR-0003](bdr/0003-the-authorization-lifecycle.md) ·
 [BDR-0005](bdr/0005-correction-in-place-and-revocation.md) ·
-[BDR-0006](bdr/0006-what-the-product-records.md)
+[BDR-0006](bdr/0006-what-the-product-records.md) ·
+[BDR-0012](bdr/0012-a-wrong-department-is-a-new-authorization.md)
 
 **What is pushed is scoped; what is visible is not.** A person is notified about the authorizations
 waiting on *their* action and nothing else, which is what keeps a queue a queue. What anyone can go
@@ -264,6 +270,12 @@ findings.
 
 Both are percentages against baselines that are currently unknown. Establishing those baselines
 is the first job of the pilot, not an input to it.
+
+**They will not be filled in before the pilot.** Asked for volumes, correction rates, and expert
+time, the process owner said they are not needed and to invent history for the insights dashboard
+instead. The dashboard's seeded data is fictional by design and always was — but the baselines
+here are a different thing, and they stay `TBD` rather than borrowing a number from the demo. A
+business-school deliverable with invented volumes is worse than one with blanks.
 
 **Both stand unchanged under the administrative framing.** Neither target ever rested on the relay
 rendering judgement — the cycle-time target rests on time being lost *inside* the steps rather than
@@ -398,8 +410,10 @@ pilot, and a pilot is what stage 1 buys.
 
 - Compliance obligations apply throughout; anything touching foreign restricted government
   contracts is subject to US contract requirements and likely export-control considerations.
-- Legal entities may use **different reporting systems**, so no single common system of record
-  can be assumed.
+- **Nothing integrates.** The organizational hierarchy lives outside this process and the
+  Administrator maintains the product's own copy of it by hand
+  ([BDR-0010](bdr/0010-an-administrator-maintains-the-hierarchy.md)); no finance, ERP, or
+  reporting system is read from or written to, and no common system of record is assumed.
 - This repository is a **class prototype**, not a deployed system.
 
 **Assumptions**
@@ -434,32 +448,43 @@ pilot, and a pilot is what stage 1 buys.
    which sign-offs a correction invalidates. An approver whose judgement rests on something not on
    the form — requesting finance confirm funding held outside this process — declares no
    dependency and their sign-off survives every correction. That may be right, or it may mean
-   their concern is under-modelled.
+   their concern is under-modelled. Put to the process owner and **declined as
+   over-complication**, so it stands as ours rather than confirmed.
    [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
-9. **No stage in the relay holds a genuine veto.** Terminal refusal has been removed entirely on
-   the basis that approvers do not refuse outright. Global Trade is the case least sure: if an
-   export determination can conclude *this must not happen*, revocation is carrying weight it was
-   not designed for. [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
-10. **Permission to perform the work is granted outside this process.** §2 follows the process
-    owner, who describes the process as administrative record-keeping with no rejections, over
+9. ~~**No stage in the relay holds a genuine veto.**~~ **Confirmed, no longer an assumption.**
+   Asked directly, the process owner answered that no stage holds a veto, Global Trade included.
+   Terminal refusal stays out of the model, and the case we were least sure of is the one that was
+   ruled out by name. [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
+10. ~~**Permission to perform the work is granted outside this process.**~~ **Confirmed, no
+    longer an assumption.** §2 follows the process owner, who describes the process as
+    administrative record-keeping with no rejections, over
     [the source brief](source/project-overview.md), which describes the form as what permits
-    cross-departmental work to begin. The two cannot both be right. If the brief is right and the
-    answer was loose, §2 is wrong and the damage runs deeper than one section:
-    [BDR-0005](bdr/0005-correction-in-place-and-revocation.md) removed terminal refusal on the
-    strength of the same answer, so *rejected* would have to return as a state.
+    cross-departmental work to begin. The two could not both be right, and the reading that was
+    load-bearing for §2 and for the removal of terminal refusal is the one confirmed. The brief
+    stays unedited and the divergence stays recorded in §2 as history.
     [BDR-0009](bdr/0009-the-business-case-survives.md)
 11. **No stage's sign-off carries delegated authority tied to a named individual.** Load-bearing
     for the queue model in §6: a stage routes to a role at a department and any holder of that
     role may acknowledge, so nothing waits on one person. Aerospace finance sign-offs often do
     carry a threshold, a named signatory, or a delegation-of-authority list. If any stage here
     does, a stage has a fixed occupant, work has to be able to move *within* a stage, and the
-    **referral** in §6 is the wrong model.
-    [BDR-0011](bdr/0011-a-referral-shows-it-without-moving-it.md)
+    **referral** in §6 is the wrong model. **Narrowed, not resolved:** asked whether anyone ever
+    signs in an approver's place, the process owner said *occasionally* — occasional rather than
+    standing, which is what a role-shared queue already allows, and the delegated-authority half
+    was not affirmed. What is left of the assumption is that the occasional signer **holds the
+    stage's role**. [BDR-0011](bdr/0011-a-referral-shows-it-without-moving-it.md)
 12. **The five controls in §2 are the complete set.** They are everything the transcribed process
     and the decisions so far establish — but the brief has already been found incomplete once, by
     the process owner's own acknowledgement, and the export classification field Global Trade
-    validates against is still unaccounted for.
-    [BDR-0009](bdr/0009-the-business-case-survives.md)
+    validates against is still unaccounted for. Put to the process owner and **withdrawn** rather
+    than answered: *five controls* is this document's framing, not theirs, and the question did not
+    land. It stands as ours. [BDR-0009](bdr/0009-the-business-case-survives.md)
+13. **The product's copy of the hierarchy is kept current by hand.** The hierarchy lives outside
+    this process and the Administrator configures the product to match it, with nothing
+    integrating the two. So the product cannot know that a department moved until somebody tells
+    it, and a stale copy sends work to a department that no longer exists — the one failure mode
+    the Administrator role cannot detect on its own.
+    [BDR-0010](bdr/0010-an-administrator-maintains-the-hierarchy.md)
 
 ---
 
@@ -473,9 +498,11 @@ pilot, and a pilot is what stage 1 buys.
   inventing a number. Deferred until the pilot produces real timings, not rejected.
   [BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md)
 - **Appeals of any kind.** Nothing in the relay refuses on the merits, so there is nothing to
-  appeal against. A defect is corrected in place and the authorization continues forward; a
-  **revocation** is terminal and is answered with a new authorization, not a reopening.
-  [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
+  appeal against — confirmed: no stage holds a veto. A defect is corrected in place and the
+  authorization continues forward; a **revocation**, which only the Administrator now causes, is
+  terminal and is answered with a new authorization, not a reopening.
+  [BDR-0005](bdr/0005-correction-in-place-and-revocation.md) ·
+  [BDR-0012](bdr/0012-a-wrong-department-is-a-new-authorization.md)
 - Handling real company data, forms, contract identifiers, or personnel information
 
 ---
@@ -495,10 +522,10 @@ From [BDR-0001](bdr/0001-preserve-the-flow-rebuild-the-experience.md).
 2. **Is preserving the existing sign-off sequence a requirement, a preference, or habit?**
 3. **Would you rather have a tool that makes today's process work well, or a proposal for a
    different process?**
-4. **Does an approver ever get someone else to sign in their place?** Not *ask* someone — that
-   is a **referral** — but hand over the acknowledgement itself, so the name on the sign-off is
-   not the person the stage routed to. If yes, a stage has a fixed occupant and work has to be
-   able to move inside a stage.
+4. ~~**Does an approver ever get someone else to sign in their place?**~~ **Answered:**
+   occasionally, but occasionally rather than by standing arrangement, and no delegated authority
+   tied to a named individual was affirmed. A stage routing to a role already covers it, so the
+   referral and the shared queue both hold. Carried into §10, assumption 11, narrowed.
    [BDR-0011](bdr/0011-a-referral-shows-it-without-moving-it.md)
 
 ### Would change who sees what, and how consistency is achieved
@@ -524,42 +551,51 @@ From [BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md).
 
 From [BDR-0003](bdr/0003-the-authorization-lifecycle.md).
 
-9. **Does any stage hold a genuine veto?** Terminal refusal has been removed from the model
-   entirely. Global Trade is the case we are least sure of, since its concern is precisely what is
-   not allowed to happen. [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
-10. **Who, specifically, can revoke an authorization — and when?** We have allowed any approver
-    at or before the current stage, because the trigger described is the wider initiative changing
-    rather than a defect at a gate. That may be broader than intended. It has since broadened
-    again: an **Administrator** moving or deactivating a department revokes the in-flight work that
-    names it, so revocation now has a second kind of actor and one that nobody asked for.
-    [BDR-0005](bdr/0005-correction-in-place-and-revocation.md) ·
-    [BDR-0010](bdr/0010-an-administrator-maintains-the-hierarchy.md)
+9. ~~**Does any stage hold a genuine veto?**~~ **Answered: no**, Global Trade included. Terminal
+   refusal stays out of the model and BDR-0005 reaches `final` on its foundation. Carried into
+   §10, assumption 9. [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
+10. ~~**Who, specifically, can revoke an authorization — and when?**~~ **Answered: N/A** — an
+    approver revoking is not something the process does. Our widening to *any approver at or
+    before the current stage* is withdrawn, and **Revoked** keeps one cause: the Administrator
+    moving or deactivating a department, which revokes the in-flight work naming it. Every other
+    ending is the submitter's.
+    [BDR-0012](bdr/0012-a-wrong-department-is-a-new-authorization.md)
 11. **Can anyone other than the submitter pause an authorization** — an approver, a program
     manager, a finance lead? We have assumed not.
 12. **When work reaches a performing department, is there a queue anyone there can pick from,
     or is it handed to a named person by prior arrangement?**
-13. **Is two weeks the right life for an untouched draft?** Chosen as a policy value with no
-    evidence behind it, and it deletes the draft rather than archiving it.
+13. ~~**Is two weeks the right life for an untouched draft?**~~ **Answered: make it a month.**
+    Applied everywhere the value appears. It still deletes the draft rather than archiving it,
+    which nobody has objected to.
+    [BDR-0003](bdr/0003-the-authorization-lifecycle.md)
 
 ### Would change who maintains the reference data
 
 From [BDR-0010](bdr/0010-an-administrator-maintains-the-hierarchy.md).
 
-16. **Where does the org hierarchy actually live today, and who maintains it?** We have assumed
-    the product owns it and an Administrator edits it inside the product. The organization may
-    well hold it in an HR or finance system of record that this process should only ever read
-    from — in which case the Administrator maintains a copy, and the real question becomes how
-    the copy stays current. This is the assumption under BDR-0010 most likely to be wrong, and
-    nothing has been asked about it.
+16. ~~**Where does the org hierarchy actually live today, and who maintains it?**~~ **Answered:**
+    it lives outside this process, and the Administrator configures the product's own copy to
+    match it. So the product is not the system of record, nothing integrates, and the real
+    question becomes how the copy stays current — now §10, assumption 13, and the one failure mode
+    the Administrator cannot detect unaided.
+    [BDR-0010](bdr/0010-an-administrator-maintains-the-hierarchy.md)
 
 ### Needed to size and target the work
 
-14. What is the current volume of authorizations per period, and the current error rate?
+14. ~~What is the current volume of authorizations per period, and the current error rate?~~
+    **Closed, not answered.** Asked twice; the process owner does not have these and says they
+    are not needed. The §7 baselines stay `TBD` until the pilot produces them.
 15. ~~Which fields drive the majority of errors?~~ **Answered:** getting the departments right.
     Carried into §3; it sharpens the error argument without narrowing the §7 target.
     [BDR-0009](bdr/0009-the-business-case-survives.md)
-16. What is the cost of a single rework cycle, in SME time and in schedule delay?
-17. Which requirements are compliance-mandated versus organizational convention?
+16. ~~What is the cost of a single rework cycle, in SME time and in schedule delay?~~
+    **Answered:** hours to days per issue. Expert time per week remains unquantified and is
+    closed with item 14.
+17. ~~Which requirements are compliance-mandated versus organizational convention?~~
+    **Withdrawn.** Asked twice, including a narrower re-ask about which fields could be removed
+    or deferred without breaking an externally imposed rule, and it did not land either time. It
+    has no consumer: [BDR-0001](bdr/0001-preserve-the-flow-rebuild-the-experience.md) preserves
+    the form as it stands, so this project proposes removing no field.
 18. What distinguishes a foreign restricted government contract submission from a standard one?
 
 ---

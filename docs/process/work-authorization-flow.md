@@ -90,7 +90,7 @@ The two conditional gates test different things and are independent of each othe
 
 | Gate | Condition | Concern |
 |---|---|---|
-| Contracts | The work is funded by a customer contract — commercial, government commercial-item, or government negotiated. **Company-funded work has no customer contract, so the gate is skipped.** **[Derived]** | Whether the authorization is consistent with the funding contract's terms |
+| Contracts | The work is funded by a customer contract — commercial, government commercial-item, or government negotiated. **Company-funded work has no customer contract, so the gate is skipped** — confirmed by the process owner. | Whether the authorization is consistent with the funding contract's terms, under the **exception rules** the contract type triggers |
 | Global Trade | Requesting and performing sites are in different countries | Whether the scope matches the export jurisdiction and classification the originator selected |
 
 ## Inputs the form collects
@@ -182,7 +182,12 @@ with the process owner.
 
 1. **The performing entity's legal-entity field is labelled "Requesting Legal Entity"** — the
    same string as the requesting block. Almost certainly a copy-paste error for *Performing*
-   Legal Entity, but it is what the source says.
+   Legal Entity, but it is what the source says. **Closed without confirmation.** Asked twice,
+   the second time with both blocks shown side by side, and it did not land either time. It has
+   no consumer:
+   [BDR-0004](../bdr/0004-the-classification-is-three-levels.md) retired the CAS block and
+   derives the legal entity from the department, so the field this is about does not exist in
+   the model. Read as a copy-paste error on our judgement.
 2. **The stage numbering runs 1, 2, 3, 4, 4, 5** — Global Trade and Performing Admin are both
    numbered 4. This document renumbers them 4 and 5, and the completion state is shown as a
    terminator rather than a numbered stage.
@@ -200,6 +205,12 @@ with the process owner.
    skips it, which is the routing difference the question was reaching for. **Still open** is only
    whether the three *contract* types differ from one another once the gate is reached, and it may
    well turn out that they do not.
+   **Now closed.** The three contract types **do** differ once the gate is reached: each triggers
+   a different combination of **exception rules**. So the funding type is consequential inside the
+   gate rather than a value the product merely stores. What those rules are is the Contracts
+   approver's own **criteria**, which
+   [BDR-0002](../bdr/0002-the-cast-and-what-each-role-needs.md) already puts in the hands of the
+   role that judges the field — this document does not transcribe them.
 6. **The funding type was missing from the inputs list.** *Resolved.* The gate at stage 3 turns on
    the customer contract type, and the requesting side supplies it at intake; the process owner
    confirms it was left out of the brief's basic-inputs section by oversight. Added to the inputs

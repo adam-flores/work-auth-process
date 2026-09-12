@@ -78,6 +78,14 @@ sign-offs often do carry real delegated authority — a threshold, a named signa
 delegation-of-authority list. If any stage here does, then a stage has a fixed occupant, a
 handoff becomes a genuine transfer of authority, and reassignment is the right model after all.
 
+**Narrowed, 2026-09-12.** Asked whether an approver ever gets someone else to sign in their
+place, the product owner answered **yes, occasionally**; the delegated-authority half of the
+question was not affirmed. Occasional substitution is already what this model does — a stage
+routes to a role, so another holder of that role acknowledging needs no mechanism. So the
+assumption survives, reduced to its sharp edge: **the substitute holds the stage's role.** If
+the occasional signer is someone who could never have held the stage, the assumption below about
+the consulted colleague never signing is wrong, and with it this decision.
+
 **That the colleague consulted never signs.** The scenario in the ticket had the colleague
 signing, but that detail was a previous session's illustration and was never stated by anyone.
 If in practice the approver forwards it and the colleague acknowledges in their place, this is
@@ -94,13 +102,13 @@ the remark was made — in answer to a question about approvers being visible on
 rather than stated. The decision does not depend on the reason being right; the exclusion holds
 either way.
 
-## Question for the product owner
+## Question for the product owner, answered
 
-**Does an approver ever get someone else to sign in their place?** Not *ask* someone — that is
-the referral — but hand over the acknowledgement itself, so the sign-off on the record comes from
-a person other than the one the stage routed to. If yes, tell us whether that is a standing
-arrangement or an occasional one, because a stage then has a fixed occupant and a handoff moves
-authority rather than a question.
+**Does an approver ever get someone else to sign in their place?** — **Yes, occasionally.**
+Occasional rather than standing, which is what the question was for: a stage has no fixed
+occupant, so the role-shared queue holds and a handoff still moves a question rather than
+authority. The decision stays `provisional` because the product owner delegated the decision
+itself rather than confirming it; what is answered is the process fact underneath it.
 
 ## What changes if this is overturned
 
