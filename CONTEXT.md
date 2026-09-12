@@ -51,8 +51,9 @@ vocabulary the source form used — *group*, *CAS group*, *CAS segment*, *CAS SB
 *segment* name nothing in this system.
 
 **Legal entity**:
-The outermost level, and the one that separates otherwise similar departments — notably a US
-department from a foreign one. Holds divisions.
+The outermost level. Holds divisions; three exist. It does *not* separate otherwise similar
+departments — a foreign department and a domestic one may sit in the same legal entity. What tells
+them apart is an **attribute**, not a position.
 _Avoid_: entity, company, SBU, CAS SBU
 
 **Division**:
@@ -66,9 +67,18 @@ for — the two levels above it exist to disambiguate it. Belongs to exactly one
 _Avoid_: team, unit, supply unit, service center, cost center
 
 **Classification**:
-Identifying a department by its three levels. Performed by the submitter for **both** sides,
-and the two sides may never be the same.
+Identifying a department by its three levels. Performed by the submitter for **both** sides, and the
+two sides may never be the same. Nothing is pre-filled: the submitter identifies their own
+department as deliberately as the one they are requesting work from.
 _Avoid_: CAS classification, lookup, coding
+
+**Attribute**:
+Anything recorded about a department that helps identify it — its country, whether it is foreign,
+and whatever else the organization holds. Held at **whatever level it belongs to** and inherited
+downward, so a department carries its own attributes plus every attribute of the division and legal
+entity above it. Attributes are not tied to a level, which is why foreign departments are scattered
+through the hierarchy rather than grouped in one part of it.
+_Avoid_: field, property, facet, tag, flag
 
 ## The relay
 
@@ -213,6 +223,13 @@ the approver who raised the request cannot act on it and follows it on the maste
 instead. It holds live work only, so an authorization **on hold** is in nobody's queue. A
 department's queue distinguishes **claimed** from unclaimed.
 _Avoid_: inbox, worklist, backlog, task list
+
+**Department picker**:
+Where a submitter finds a department: narrowing by **attribute** on whatever they are certain of,
+then searching what remains by name. One surface, used for both sides. Resolves to a department —
+the division and legal entity above it are derived rather than keyed in. Offers no free text, so a
+department that is not in the hierarchy leaves the authorization in **Draft** until someone adds it.
+_Avoid_: lookup, chart, org browser, search
 
 **Master dashboard**:
 The view of every authorization in the system, open to anyone with access and filterable by
