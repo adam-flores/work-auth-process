@@ -144,10 +144,15 @@ This is the part worth reading before prototyping against the data.
 
 ## What this dataset does not do
 
-- **It does not decide the data store.** JSON was chosen for readability at this stage.
-  [ADR-0003](../adr/0003-data-store-xml-or-sqlite.md) covers persistence of authorization
-  lifecycle state, which is a different problem; static reference data does not settle it, and
-  re-serializing 58 records is trivial.
+- **It does not decide the data store.** JSON was chosen for readability at this stage, and the
+  store was settled separately as SQLite
+  ([ADR-0008](../adr/0008-sqlite-for-the-prototype-store.md), superseding ADR-0003). This file is
+  now a **seed**, not the store: it is transformed into the hierarchy the product reads, and from
+  the first Administrator edit the store is authoritative for a running instance while this file
+  stays as it is. The transformation is not a load —
+  [ADR-0011](../adr/0011-reference-data-in-the-store-configuration-in-the-repo.md) records that the
+  product's shape is legal entity → division → department, in the vocabulary
+  [BDR-0004](../bdr/0004-the-classification-is-three-levels.md) replaced the CAS one with.
 - **It does not model the entered fields.** Trading partner number, finance/ERP entity code,
   and billing contact are *entered*, not looked up — the chart does not carry them. Their
   absence here is faithful, and is itself a finding: the chart cannot supply them, so
