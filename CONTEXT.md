@@ -146,8 +146,8 @@ condition of a stage rather than a state of the authorization.
 
 **Draft**:
 An authorization its submitter has created but not yet initiated. Visible like any other, in its
-submitter's queue and on the master dashboard. Deleted by its submitter, or by the system two
-weeks after it was last modified.
+submitter's queue and on the master dashboard. Deleted by its submitter, or by the system **a month**
+after it was last modified.
 _Avoid_: unsubmitted, work in progress, incomplete
 
 **Initiation**:

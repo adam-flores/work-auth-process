@@ -286,6 +286,9 @@ deleted. That number is ours, with nothing behind it, and it deletes rather than
 
 > Make it a month.
 
+**Applied 2026-09-12.** `CONTEXT.md`, BDR-0003 and BDR-0008 said two weeks; all of them now say a
+month. It still deletes rather than archives, which nobody has objected to.
+
 ---
 
 ## 4. Discrepancies in the source document

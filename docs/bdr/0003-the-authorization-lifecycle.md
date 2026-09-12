@@ -62,7 +62,7 @@ and it is what separates *sat unopened* from *opened and under consideration*.
 silently omitted.
 
 **A draft is fully visible** — in its submitter's queue and on the master dashboard like
-anything else. Its submitter may delete it, and the system deletes it two weeks after it was
+anything else. Its submitter may delete it, and the system deletes it a month after it was
 last modified.
 
 The vocabulary is in [`CONTEXT.md`](../../CONTEXT.md). How this is represented and routed is
@@ -76,7 +76,7 @@ The vocabulary is in [`CONTEXT.md`](../../CONTEXT.md). How this is represented a
 | **Contributor** | claim (performing side) · complete a contribution stage |
 | **Approver** | acknowledge · accept · deny *(fixable)* · reject *(on the merits)* |
 | **Charge Number Admin** | mint the charge number, which completes the authorization |
-| **System** | arrive · notify · skip a gate, recording the value that decided it · delete a draft two weeks after last modification · return an authorization to a stage whose configuration changed, flagged as a re-review |
+| **System** | arrive · notify · skip a gate, recording the value that decided it · delete a draft a month after last modification · return an authorization to a stage whose configuration changed, flagged as a re-review |
 
 Two of these are worth calling out because they are easy to mis-model. **Completion is not an
 approval** — the Charge Number Admin supplies a *value*, and the authorization completes because
@@ -148,9 +148,11 @@ later makes the measure noise.
 assumes an identifiable performing organization with members who can claim work, rather than
 an authorization being handed to a specific named person by arrangement outside the form.
 
-**That two weeks is a reasonable life for an untouched draft.** Supplied by the product owner
+**That two weeks is a reasonable life for an untouched draft.** ~~Supplied by the product owner
 as a policy value, not derived from evidence. Recorded as a choice to confirm rather than a
-measured threshold — no baseline exists for it and none is claimed.
+measured threshold — no baseline exists for it and none is claimed.~~ **Answered: make it a
+month.** Applied throughout; still a policy value with no evidence behind it, and still a
+deletion rather than an archive.
 
 **That nobody but the submitter needs to pause an authorization.** On hold is submitter-only in
 both directions. If an approver or a program can legitimately suspend work, this is wrong.
@@ -161,8 +163,7 @@ both directions. If an approver or a program can legitimately suspend work, this
    denial as concerning something fixable and a rejection as concerning the merits of the ask.
    Do approvers today ever refuse an authorization outright, rather than returning it for
    correction — and if so, what makes them do one rather than the other?
-2. **Is two weeks the right life for an untouched draft?** We chose it as a policy value with
-   no evidence behind it, and it deletes the draft rather than archiving it.
+2. ~~**Is two weeks the right life for an untouched draft?**~~ **Answered: a month.**
 3. **Is it acceptable in your organization to record when an individual approver first opens
    an authorization?** Separating *sat unopened* from *under consideration* only pays off if
    the answer is yes, and it makes approvers individually visible on responsiveness. If that
