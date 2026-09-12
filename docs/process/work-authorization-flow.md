@@ -96,6 +96,7 @@ describe the work being done and who books it.
 
 | Input | Requesting | Performing | Source |
 |---|:--:|:--:|---|
+| Customer contract / funding type | ● | — | Entered — **not in the source**, see note |
 | Group selection | ● | — | Manual lookup |
 | CAS group | ● | ● | Manual lookup |
 | CAS segment | ● | ● | Manual lookup |
@@ -112,6 +113,13 @@ describe the work being done and who books it.
 | Budget hours and labor rate | — | ● | Entered |
 | G&A % (if applicable) | — | ● | Entered |
 | Charge number admin | — | ● | Entered |
+
+**On the added row.** *Customer contract / funding type* does not appear in the source document's
+inputs list. The process owner has since confirmed it belongs there: the requesting side states what
+kind of funding or contract the work supports when the form is raised, and that is the attribute the
+Contracts gate's condition is read from. It is recorded here as a **correction supplied by the
+process owner**, not as something transcribed — everything else in this table is as found. The
+omission is the process owner's own, acknowledged as an oversight in drafting the brief.
 
 ### The manual lookup problem
 
@@ -156,8 +164,19 @@ with the process owner.
 3. **The export jurisdiction / classification has no input field.** Global Trade's step
    validates a classification *"selected by the originator,"* but no such field appears in the
    inputs list. Either the list is incomplete or that selection happens outside this form.
+   **Partly answered:** the same kind of omission was confirmed for the funding type (item 6), so
+   an incomplete list is now the likelier reading of this one too. Not yet confirmed for the
+   classification itself.
 4. **The Contracts gate names three funding types but no routing difference between them.**
-   Whether Commercial, FAR 12, and FAR 15 follow the same review path is not stated.
+   Whether Commercial, FAR 12, and FAR 15 follow the same review path is not stated. **Still
+   open** — item 6 establishes where the gate reads its condition from, but not what the gate
+   does differently for each type.
+6. **The funding type was missing from the inputs list.** *Resolved.* The gate at stage 3 turns on
+   the customer contract type, and the requesting side supplies it at intake; the process owner
+   confirms it was left out of the brief's basic-inputs section by oversight. Added to the inputs
+   table above and marked as a correction rather than a transcription. Neither conditional gate
+   derives its trigger from the company chart: this one reads an entered funding type, and stage 4
+   reads the entered *location type* on the two sides.
 5. **The requesting finance approver approves a budget that has not been entered yet.** Stage 1
    step 3 reads *"Finance approves budget and basic inputs,"* but *budget hours and labor rate*
    are performing-side fields supplied at stage 2. Either the two finance approvals check

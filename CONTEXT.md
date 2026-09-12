@@ -38,6 +38,12 @@ The department whose employee does the work and books time against it. Named on 
 authorization by the submitter, not discovered later.
 _Avoid_: performing entity, provider, supplier, supplying department
 
+**Funding type**:
+What kind of funding or customer contract the requested work supports, stated by the submitter when
+the authorization is raised. It is what the **Contracts** gate's condition is read from, which is why
+it belongs at intake rather than at the gate. Supplied by the requesting side only.
+_Avoid_: contract type, funding source, customer contract, contract vehicle
+
 **Charge number**:
 The code the performing team books time against, minted at the final stage. Until it exists,
 no work can be booked against the authorization.

@@ -113,7 +113,8 @@ mocked participants need a department on file. Small, and reversible in either d
 
 **If the real hierarchy does carry a country** after all, it becomes one more attribute among the
 others and nothing about the design changes — that is the point of attributes not being level-bound.
-What it *would* change is the Global Trade gate, which is not this ticket's.
+It would not change the Global Trade gate either: that gate reads the **location type** entered on
+each side, not the hierarchy, so its trigger never depended on this.
 
 **If free text is allowed for an unfound department**, the record gains an unresolvable state, the
 permissibility check from [BDR-0007](0007-one-project-many-resources.md) cannot run at entry, and
