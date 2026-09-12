@@ -41,8 +41,21 @@ _Avoid_: performing entity, provider, supplier, supplying department
 **Funding type**:
 What kind of funding or customer contract the requested work supports, stated by the submitter when
 the authorization is raised. It is what the **Contracts** gate's condition is read from, which is why
-it belongs at intake rather than at the gate. Supplied by the requesting side only.
-_Avoid_: contract type, funding source, customer contract, contract vehicle
+it belongs at intake rather than at the gate. Supplied by the requesting side only. Four values,
+named in this project's own vocabulary rather than the source form's:
+
+- **Commercial contract** — funded by a commercial customer's contract
+- **Government commercial-item contract** — a government contract for commercial products or
+  services (the source names the US regulation's commercial-acquisition part)
+- **Government negotiated contract** — a government contract awarded through negotiation (the
+  source names the US regulation's contracting-by-negotiation part)
+- **Company funded** — no customer contract; the company pays for the work itself
+
+The first three are **customer contracts** and reach the **Contracts** gate. **Company funded** is
+the gate's negative case, so the gate is skipped — the one place where a funding type changes the
+route rather than only the review. Whether the three contract types differ from *each other* at
+the gate is not yet known.
+_Avoid_: contract type, funding source, customer contract, contract vehicle, CFE, FAR 12, FAR 15
 
 **Charge number**:
 The code the performing team books time against, minted at the final stage. Until it exists,

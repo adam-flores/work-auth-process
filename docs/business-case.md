@@ -46,12 +46,15 @@ it. Five named controls do that work.
 | Control | What it does | What it reads |
 |---|---|---|
 | **Permissibility rule** | Blocks a pairing of departments that may not work together, at entry rather than days later at a gate | The two departments on the authorization |
-| **Contracts gate** | A conditional stage testing that the authorization is consistent with the funding contract's terms | The **funding type** the requesting side supplies at intake — Commercial, FAR 12, FAR 15 |
+| **Contracts gate** | A conditional stage testing that the authorization is consistent with the funding contract's terms. It does not run at all for **company-funded** work, which has no customer contract to be consistent with **[Derived]** | The **funding type** the requesting side supplies at intake — commercial contract, government commercial-item contract, government negotiated contract, or company funded |
 | **Global Trade gate** | A conditional stage testing that the scope matches the declared export jurisdiction and classification | The **location type** entered on each side |
 | **Classification** | Identifies the department each side belongs to, which is what the cost is allocated against | Three levels per side, from the department picker |
 | **Four mandatory acknowledgements** | A program manager and a finance approver on each side, so nothing is assigned to an area without someone there knowing | Nothing conditional; they always run |
 
-The first three are what stop what is not permitted. The fourth is what keeps the ledger honest,
+The first three are what stop what is not permitted — though two of them are conditional, and one
+of those conditions now has a named negative case: the Contracts gate does not run for
+company-funded work. **[Derived]** Only the permissibility rule and the four acknowledgements run
+on every authorization. The fourth control is what keeps the ledger honest,
 and is the one most exposed to human error — a misrouted authorization *"usually lands in the
 wrong team's queue, and takes a few days to be routed where it should have gone."* The fifth is a
 control over surprise, not over permission.

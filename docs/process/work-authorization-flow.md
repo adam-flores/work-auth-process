@@ -19,6 +19,10 @@ It previously described a single four-level hierarchy with one colour encoding. 
 document's own inference from the form's field names, not a transcription of the source, and
 it was wrong on both counts.
 
+The **funding type** was corrected twice by the process owner: first to add it to the inputs list,
+which the brief omitted, and again on 2026-09-12 to record that it carries **four** values rather
+than three. Both are marked as corrections where they appear rather than folded in silently.
+
 ## The flow
 
 ```mermaid
@@ -42,7 +46,7 @@ flowchart TD
 
     subgraph S3["3 · Contracts — conditional"]
         direction TB
-        C1{"Is the request funded by a<br/>customer contract?<br/>Commercial · USG FAR 12 · USG FAR 15"}
+        C1{"Is the request funded by a<br/>customer contract?<br/>Commercial · Government commercial-item<br/>· Government negotiated"}
         C2["Contracts reviews the form<br/>and provides approval"]
         C1 -->|Yes| C2
     end
@@ -64,7 +68,7 @@ flowchart TD
     A3 -->|Form sent to performing entity| B1
     B4 -->|Form sent to Contracts| C1
     C2 --> D1
-    C1 -->|No — skip this step| D1
+    C1 -->|"No — company funded; skip this step"| D1
     D2 --> E1
     D1 -->|No — skip this step| E1
     E1 --> DONE
@@ -86,7 +90,7 @@ The two conditional gates test different things and are independent of each othe
 
 | Gate | Condition | Concern |
 |---|---|---|
-| Contracts | The work is funded by a customer contract (Commercial, USG FAR 12, USG FAR 15) | Whether the authorization is consistent with the funding contract's terms |
+| Contracts | The work is funded by a customer contract — commercial, government commercial-item, or government negotiated. **Company-funded work has no customer contract, so the gate is skipped.** **[Derived]** | Whether the authorization is consistent with the funding contract's terms |
 | Global Trade | Requesting and performing sites are in different countries | Whether the scope matches the export jurisdiction and classification the originator selected |
 
 ## Inputs the form collects
@@ -120,6 +124,27 @@ kind of funding or contract the work supports when the form is raised, and that 
 Contracts gate's condition is read from. It is recorded here as a **correction supplied by the
 process owner**, not as something transcribed — everything else in this table is as found. The
 omission is the process owner's own, acknowledged as an oversight in drafting the brief.
+
+**The funding type has four values, not three.** A second correction from the process owner, who
+supplied the field as it appears at order entry. The three named in the brief are joined by a
+fourth: work the **company funds itself**, with no customer contract behind it. The source labels
+are a commercial customer contract, a US government contract for commercial products or services,
+a US government contract awarded through negotiation, and company-funded work; this project uses
+its own vocabulary for them — **commercial contract**, **government commercial-item contract**,
+**government negotiated contract**, and **company funded** — on the same grounds that retired the
+CAS vocabulary in [BDR-0004](../bdr/0004-the-classification-is-three-levels.md): a label that is
+meaningful inside one company and opaque outside it is not worth reproducing. The internal role
+acronym the source field's help text names is dropped rather than renamed.
+
+**This partly answers open question 4 below, and it matters more than a fourth radio button.**
+The gate's condition was already recorded as *"is the request funded by a customer contract?"* with
+only a Yes branch drawn, so the negative case existed in the flow with no value that reached it.
+Company funded is that value. **The routing difference between funding types is therefore
+company-funded versus contract-funded** — one of the five named controls does not run at all for a
+whole class of work — rather than a distinction among the three contract types, which remains
+unstated. Marked **[Derived]**: it follows from the gate's own condition and the field's values, not
+from anything the process owner has said about the skip, and it is in
+[`docs/open-questions.md`](../open-questions.md) for confirmation.
 
 ### The manual lookup problem
 
@@ -168,9 +193,13 @@ with the process owner.
    an incomplete list is now the likelier reading of this one too. Not yet confirmed for the
    classification itself.
 4. **The Contracts gate names three funding types but no routing difference between them.**
-   Whether Commercial, FAR 12, and FAR 15 follow the same review path is not stated. **Still
-   open** — item 6 establishes where the gate reads its condition from, but not what the gate
-   does differently for each type.
+   **Partly answered, and the question was narrower than it looked.** There are **four** funding
+   types, not three — the process owner has since supplied the field as it appears at order entry,
+   and the fourth is **company funded**, with no customer contract behind it. That supplies the
+   gate's missing negative case: the three contract types reach the gate and company-funded work
+   skips it, which is the routing difference the question was reaching for. **Still open** is only
+   whether the three *contract* types differ from one another once the gate is reached, and it may
+   well turn out that they do not.
 6. **The funding type was missing from the inputs list.** *Resolved.* The gate at stage 3 turns on
    the customer contract type, and the requesting side supplies it at intake; the process owner
    confirms it was left out of the brief's basic-inputs section by oversight. Added to the inputs

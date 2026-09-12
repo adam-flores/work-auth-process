@@ -306,6 +306,26 @@ but we would rather confirm than assume. Quick yes/no answers are fine.
 
 > Deferred — the product owner will come back to this.
 
+**Partly answered since, and re-asked narrower below.** The funding field as it appears at order
+entry has **four** values, not three: the fourth is work the company funds itself. That supplies
+the negative case the gate's condition always implied, so the routing difference is company-funded
+versus contract-funded.
+
+### Is the Contracts gate skipped entirely when work is company funded?
+
+_Why this matters: we have taken it as skipped, because the gate's condition is "is the request
+funded by a customer contract?" and company-funded work is not one. If that is right, one of the
+five controls the process operates does not run at all for a whole class of work — which is worth
+stating plainly in the business case rather than leaving implied. If Contracts reviews
+company-funded work too, then the condition is not really about a customer contract and we have
+the gate's trigger wrong._
+
+### Once the gate is reached, do the three contract types differ from one another?
+
+_Why this matters: this is what is left of the original question. It may well be that all three
+follow an identical path, in which case the distinction only matters to whoever reads the record
+later and the product just stores it. We are building on that assumption._
+
 ---
 
 ## 5. Sizing the problem
