@@ -168,11 +168,20 @@ idle or busy.
 [BDR-0005](bdr/0005-correction-in-place-and-revocation.md) ·
 [BDR-0006](bdr/0006-what-the-product-records.md)
 
-**Visibility is asymmetric by design.** What reaches a person is scoped — an approver's queue
-shows the step in front of them, not the whole record. What a person can go and look up is not
-scoped at all: every authorization is readable by anyone, which is what lets a submitter chase
-their own work without asking around. This rests on the form carrying *average* labor rates
-rather than actual compensation, so there is nothing on it to protect — see §10.
+**What is pushed is scoped; what is visible is not.** A person is notified about the authorizations
+waiting on *their* action and nothing else, which is what keeps a queue a queue. What anyone can go
+and look at is not scoped at all — every authorization is readable in full by anyone, which lets a
+submitter chase their own work without asking around, and means no stage sees a narrower record
+than another. This rests on the form carrying *average* labor rates rather than actual
+compensation, so there is nothing on it to protect — see §10.
+[BDR-0007](bdr/0007-one-project-many-resources.md)
+
+**One authorization is one project.** It asks one department for work from another and may request
+**one or more resources**, each with its own budget hours and rate. A second project, or work from
+a second department, is a second authorization — which is what keeps the ledger allocation
+attributable and the relay a single sequence. An impermissible pairing of departments is caught at
+entry against a configurable list, rather than days later at a gate.
+[BDR-0007](bdr/0007-one-project-many-resources.md)
 
 ### What this deliberately does not do
 

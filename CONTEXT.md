@@ -11,10 +11,23 @@ wrong.
 ## The record
 
 **Authorization**:
-The record one department creates to request work from another, carrying the data both sides
-supply and the approvals it collects. Full name *internal work authorization*, abbreviated
-*IWA*.
+The record one department creates to request work from another for **one project**, carrying the
+data both sides supply and the approvals it collects. Full name *internal work authorization*,
+abbreviated *IWA*. Covers a second project, or work from a second department, only by being a
+second authorization.
 _Avoid_: form, request, ticket
+
+**Resource**:
+One person's worth of work requested on an authorization, carrying its own budget hours and labor
+rate. An authorization carries one or more; they share its project, its departments, and its relay.
+The employee eventually assigned is a name on the record, not a participant in the process.
+_Avoid_: line item, headcount, assignment, allocation
+
+**Permissibility rule**:
+A configured pair of departments that may not work together, checked when an authorization is
+entered. A property of the *pairing*, not of either department — a department is not incapable, the
+combination is not allowed. Held as data so it can be changed without a build.
+_Avoid_: restriction, capability, authorization rule, policy
 
 **Requesting department**:
 The department that needs the work done and creates the authorization.
@@ -192,7 +205,9 @@ _Avoid_: role, responsibility, remit, discipline
 
 **Queue**:
 A list of authorizations waiting on someone's action — whatever put them there: arrival at their
-stage, their own unfinished draft, or a **correction request** addressed to them. An authorization
+stage, their own unfinished draft, or a **correction request** addressed to them. A list, not a
+filter on the record: opening an item shows the whole authorization, and no stage sees less of one
+than any other. An authorization
 leaves when they act, and an authorization out for correction sits in the corrector's queue only —
 the approver who raised the request cannot act on it and follows it on the master dashboard
 instead. It holds live work only, so an authorization **on hold** is in nobody's queue. A
