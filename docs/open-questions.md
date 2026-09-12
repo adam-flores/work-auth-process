@@ -99,6 +99,16 @@ reason rather than help them search._
 
 > Build it ourselves, for this project's purposes.
 
+### Where does the org hierarchy live today, and who maintains it?
+
+_Why this matters: you have told us an admin function is needed to manage legal entities,
+divisions and departments, and we have designed one — an **Administrator** role that owns the
+hierarchy inside the product. That is only right if the product is where the hierarchy lives. If
+the organization already holds it in an HR or finance system of record, then what we have built is
+a copy, the Administrator's job is keeping the copy current rather than editing the original, and
+"who maintains it" has a different answer than we have assumed. We have not asked, and it is the
+weakest assumption under the decision._
+
 ### The form asks for four lookup levels (group, CAS group, CAS segment, CAS SBU, legal entity). The chart supplies three (chart, segment, unit). Which form field does each chart level answer?
 
 _Why this matters: we have four labels and three things to put in them, and we cannot tell
