@@ -622,33 +622,17 @@ certain of, then search what is left by name. It resolves to a department and de
 levels above it, so nothing is keyed in three times. There is no free-text escape — a department
 that is not in the hierarchy leaves the request in **Draft** until someone adds it.
 
+You also confirmed that departments carry **nothing about the work they do** — a requester knows
+what they are looking for from the department name — so no work-kind taxonomy is needed and
+search-by-name is load-bearing rather than a fallback.
+
 _Reversing it:_ if attributes have to be tied to their level, the picker becomes a
 legal-entity-then-division cascade and anyone who does not know the division is back to reading a
 chart. Contained. If free text is allowed for a department that cannot be found, the permissibility
 check cannot run at entry and the wrong-department error resurfaces at a gate instead — that is the
 expensive one. [BDR-0008](bdr/0008-finding-a-department.md)
 
->
-
-### Does a department carry anything describing the work it does?
-
-_Why this matters: every attribute we can see describes **where** a department sits or **what
-jurisdiction** it is in — country, legal entity, foreign or domestic. None describes what it
-actually does. If a department carries something like a discipline, a service type, or a capability
-list, then someone can find it knowing only what they need done, which is how people usually think
-about it. If not, they have to already know roughly where to look._
-
->
-
-### Is a department with no country on file a real thing?
-
-_Why this matters: our synthetic hierarchy has one unit with no country at all. We assumed that was
-us being deliberately awkward. If real departments genuinely have no country recorded, the Global
-Trade gate — which turns on whether two sites are in different countries — cannot be evaluated for
-them at all, and that is a bigger hole than the picker. An order-of-magnitude answer is fine: never,
-a handful, or more common than you would like._
-
->
+> **Answered 2026-09-12 — `final`.** Recorded for the reviewer; nothing outstanding.
 
 ---
 

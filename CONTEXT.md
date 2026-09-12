@@ -73,11 +73,13 @@ department as deliberately as the one they are requesting work from.
 _Avoid_: CAS classification, lookup, coding
 
 **Attribute**:
-Anything recorded about a department that helps identify it — its country, whether it is foreign,
-and whatever else the organization holds. Held at **whatever level it belongs to** and inherited
+Anything recorded about a department that helps identify it — whether it is foreign or domestic, and
+whatever else the organization holds. Held at **whatever level it belongs to** and inherited
 downward, so a department carries its own attributes plus every attribute of the division and legal
 entity above it. Attributes are not tied to a level, which is why foreign departments are scattered
-through the hierarchy rather than grouped in one part of it.
+through the hierarchy rather than grouped in one part of it. A department's **name** is not an
+attribute — it is what search matches on, and it is what tells a requester the work a department
+does, since nothing else records that.
 _Avoid_: field, property, facet, tag, flag
 
 ## The relay

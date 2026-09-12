@@ -1,6 +1,6 @@
 # BDR-0008: Finding a department is filtering on attributes, then searching what remains
 
-**Status:** provisional
+**Status:** final
 **Date:** 2026-09-12
 **Decided by:** product owner, on the prototype
 
@@ -16,6 +16,11 @@ well as its own. Foreign departments appear scattered through all three legal en
 this reason; nothing is wrong with the data. Any attribute a department carries can narrow the
 list, in whatever combination makes sense to the person narrowing. There is no privileged
 attribute and no required order.
+
+**The names carry the meaning.** Departments hold nothing describing the work they do — no
+discipline, no service type, no capability list — and none is needed: a requester recognises what
+they are looking for from the department's name. This is why search-by-name is the second half of
+the design rather than a fallback, and why no work-kind taxonomy has to be invented.
 
 **Filtering is optional.** Certain of nothing is a legal starting state, and search works cold.
 Filtering is how people cope with the chart today — foreign and domestic departments have similar
@@ -90,21 +95,12 @@ take it and the submitter re-keys. Recorded as an accepted cost rather than fixe
 needs a *blocked on missing department* flag, which is the system solving what was just ruled out
 of its scope.
 
-**That one unit having no country at all is tolerable.** `Crosstrade` carries `country: null`. It
-is shown under an unknown value rather than hidden, because hiding a department from the person
-looking for it is the worse failure. This is the same gap that makes the Global Trade gate
-non-derivable for that department.
-
-## Question for the product owner
-
-Two, both narrow:
-
-1. **Does a department carry attributes describing the *work it does*** — a discipline, a service
-   type, anything of that kind? Nothing in the fixture does, and it is the one addition that would
-   let someone find a department knowing only what they need done rather than where it sits.
-2. **Is `Crosstrade` having no country a fixture artifact or a real condition?** If departments
-   genuinely exist with no country on file, the Global Trade gate has a hole in it that is bigger
-   than this ticket.
+**That foreign/domestic is the jurisdiction attribute, and there is no country.** The source chart
+carries no country field at all — foreign versus domestic is encoded in text colour and nothing
+narrows it further. The specific countries in `docs/reference/cas-hierarchy.json` are invented
+enrichment that the source does not have, and are now labelled as such in
+`docs/reference/cas-hierarchy.md`. The picker filters on **foreign/domestic**. Anything finer would
+demo a capability the real hierarchy cannot supply.
 
 ## What changes if this is overturned
 
@@ -114,6 +110,10 @@ Contained to the picker; nothing else depends on it.
 
 **If the submitter's side is pre-filled after all**, the two sides stop being one screen and the
 mocked participants need a department on file. Small, and reversible in either direction.
+
+**If the real hierarchy does carry a country** after all, it becomes one more attribute among the
+others and nothing about the design changes — that is the point of attributes not being level-bound.
+What it *would* change is the Global Trade gate, which is not this ticket's.
 
 **If free text is allowed for an unfound department**, the record gains an unresolvable state, the
 permissibility check from [BDR-0007](0007-one-project-many-resources.md) cannot run at entry, and
