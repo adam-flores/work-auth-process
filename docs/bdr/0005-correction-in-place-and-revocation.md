@@ -1,10 +1,27 @@
 # BDR-0005: A defect is corrected in place, and the relay never rewinds for data
 
-**Status:** provisional
+**Status:** final, superseded in part
 **Date:** 2026-09-11
-**Decided by:** us, on the product owner's answers
+**Decided by:** us, on the product owner's answers; confirmed 2026-09-12
 **Supersedes:** [BDR-0003](0003-the-authorization-lifecycle.md) in part — the Rejected state,
 the denial/rejection distinction, and resubmission
+**Superseded in part by:** [BDR-0012](0012-a-wrong-department-is-a-new-authorization.md)
+
+> **Read this first.** The product owner has since answered all four questions below. The
+> foundation is confirmed and two parts are gone.
+>
+> - **Confirmed: no stage holds a veto**, Global Trade included, and permission to perform the
+>   work genuinely is granted outside this process. Terminal refusal stays out of the model, which
+>   is what everything here rests on.
+> - **The performing-department re-route is gone.** That field cannot change after initiation — a
+>   different department is a different request — so a wrong one ends the authorization instead of
+>   re-routing it.
+>   [BDR-0012](0012-a-wrong-department-is-a-new-authorization.md)
+> - **Revocation by an approver is gone.** Asked who may revoke, the answer was *N/A*. **Revoked**
+>   survives with one cause: the Administrator deactivating or moving a department.
+>   [BDR-0012](0012-a-wrong-department-is-a-new-authorization.md)
+> - **Charging correction time to the stage that found the defect stands**, delegated rather than
+>   confirmed — the product owner called it inconsequential and left the choice to us.
 
 ## What the process is for
 
@@ -52,21 +69,25 @@ built for the relay's configuration changing beneath an authorization, now servi
 cause: the data changing beneath it. The shape is
 [ADR-0005](../adr/0005-field-dependencies-drive-re-review.md).
 
-**Changing the performing department re-routes from stage 2.** It is the loudest case of the rule
-above and the error the product owner named as the one that actually happens. Performing-side
-contributions and acknowledgements are superseded in the transition log rather than erased;
-requesting-side stages are untouched. A sign-off from a department that is not doing the work
-cannot be allowed to stand, and nothing returns to the start.
+**Changing the performing department re-routes from stage 2.** ~~It is the loudest case of the
+rule above and the error the product owner named as the one that actually happens.~~
+**Superseded** — the field cannot change after initiation, so there is no re-route to perform. A
+wrong department ends the authorization and the right one is asked in a new request.
+[BDR-0012](0012-a-wrong-department-is-a-new-authorization.md)
 
-**Revocation is a terminal state.** Any approver whose stage the authorization has reached **or
-already passed** may revoke it, with a mandatory comment. **Revoked** replaces **Rejected**, so
-five states are still recorded: Draft, On hold, Completed, Withdrawn, Revoked.
+**Revocation is a terminal state.** ~~Any approver whose stage the authorization has reached **or
+already passed** may revoke it, with a mandatory comment.~~ **Superseded in part** — no approver
+revokes; the Administrator is the only cause. **Revoked** still replaces **Rejected**, so five
+states are still recorded: Draft, On hold, Completed, Withdrawn, Revoked.
+[BDR-0012](0012-a-wrong-department-is-a-new-authorization.md)
 
 **Whether a department may perform a given piece of work is sometimes a lookup and sometimes a
 judgement.** The product encodes what is genuinely encodable and surfaces the attributes where it
 is not; the correction loop is the safety net either way. What the system holds about a department
-is not settled here — see
-[#35](https://github.com/adam-flores/work-auth-process/issues/35).
+was settled by [BDR-0007](0007-one-project-many-resources.md) — a configurable list of disallowed
+department pairings, checked at entry. The product owner has since said that encoding
+permissibility is *perhaps* possible but **not needed now**, so the seeded single rule is as far
+as it goes.
 
 ### What counts as an error
 
@@ -157,28 +178,28 @@ belongs to whoever entered the bad data, which would produce a very different pi
 time goes.
 
 **That the performing department is the only field whose correction invalidates a whole side.**
-Other fields may turn out to have the same reach.
+~~Other fields may turn out to have the same reach.~~ **Void** — the performing department is not
+correctable at all. [BDR-0012](0012-a-wrong-department-is-a-new-authorization.md)
 
 **That "not legally allowed" is knowable from the authorization.** The permitted-work constraint
 is treated as data where it can be and as judgement where it cannot. If it is *always* judgement,
 the entry-validation half of the error argument weakens considerably.
 
-## Question for the product owner
+## Questions for the product owner, answered
 
-1. **Does any stage hold a genuine veto?** We have removed terminal refusal entirely on the basis
-   that approvers do not refuse outright. Global Trade is the case we are least sure of: if an
-   export determination can conclude *this must not happen*, is that a revocation, or something
-   we have not modelled?
-2. **When an approver spots a wrong department, would they expect to fix it themselves?** We have
-   said no — they tell the submitter precisely what is wrong and the submitter changes it — to
-   keep the person who fills a field separate from the person who signs it off. If in practice
-   approvers correct routing data directly, say so; it is a small change to allow and a large one
-   to discover late.
-3. **Who, specifically, can revoke?** We have allowed any approver at or before the current stage.
-   That may be broader than you want.
-4. **Is charging correction time to the stage that found the defect the right picture?** It means
-   a stage's elapsed time includes days the approver was waiting on someone else. We think that is
-   the honest total, but it makes a stage look slower than its approver was.
+Kept as asked, with the answers, because two of them changed the decision.
+
+1. **Does any stage hold a genuine veto?** — **No**, Global Trade included. The basis of this
+   record is confirmed.
+2. **When an approver spots a wrong department, would they expect to fix it themselves?** —
+   **Neither party fixes it.** The performing team is the only one who would catch it, they catch
+   it before acknowledging, and there is no change afterwards because a different department is a
+   different request. The question assumed the field was editable by someone.
+   [BDR-0012](0012-a-wrong-department-is-a-new-authorization.md)
+3. **Who, specifically, can revoke?** — **N/A**; an approver revoking is not something the process
+   does. [BDR-0012](0012-a-wrong-department-is-a-new-authorization.md)
+4. **Is charging correction time to the stage that found the defect the right picture?** —
+   **Inconsequential**, there is nothing like it today, and the choice was left to us. It stands.
 
 ## What changes if this is overturned
 

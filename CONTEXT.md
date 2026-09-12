@@ -35,7 +35,10 @@ _Avoid_: requesting entity, requester, originating department, customer
 
 **Performing department**:
 The department whose employee does the work and books time against it. Named on the
-authorization by the submitter, not discovered later.
+authorization by the submitter, not discovered later — and **fixed once the authorization is
+initiated**. A wrong one is not corrected: a different department is a different request, so the
+authorization is **withdrawn** and a new one raised.
+[BDR-0012](docs/bdr/0012-a-wrong-department-is-a-new-authorization.md)
 _Avoid_: performing entity, provider, supplier, supplying department
 
 **Funding type**:
@@ -168,11 +171,10 @@ means the submitter no longer wants it, revoked means someone else says it must 
 _Avoid_: cancelled, abandoned, deleted, killed
 
 **Revoked**:
-An initiated authorization ended by an approver, or by the **Administrator**, rather than by its
-submitter. Terminal. A **Draft** is never revoked this way, because it is not in the relay for a
-hierarchy change to reach. Replaces
-the *rejected* state, which had no cause once it was established that no stage refuses on the
-merits.
+An initiated authorization ended by the **Administrator** rather than by its submitter. Terminal.
+A **Draft** is never revoked, because it is not in the relay for a hierarchy change to reach.
+Replaces the *rejected* state, which had no cause once it was established that no stage refuses
+on the merits.
 _Avoid_: rejected, refused, declined, cancelled
 
 **Transition**:
@@ -210,6 +212,11 @@ comment to the owner of those fields. The authorization's position does **not** 
 stays where it is and becomes *awaiting correction*.
 _Avoid_: denial, rejection, refusal, bounce, kickback, return
 
+**The one correction request nobody can satisfy** names the **performing department**. The field
+is fixed at initiation, so the submitter's only resolution is to withdraw and raise the request
+again against the right department. The mechanism is reused rather than a second one built.
+[BDR-0012](docs/bdr/0012-a-wrong-department-is-a-new-authorization.md)
+
 **Correction**:
 The field's owner supplying the fix — the submitter generally, the performing contributor for
 performing-side fields. Made on the authorization where it stands; nothing is sent back and
@@ -224,12 +231,12 @@ happened, so the approver knows whether what moved was the rules or the request.
 _Avoid_: re-approval, recheck, second pass
 
 **Revocation**:
-An approver, or the **Administrator**, ending an authorization outright, with a mandatory comment.
-Available to any approver whose stage the authorization has reached *or already passed*, because the
-cause is usually the wider initiative changing rather than a defect at a gate. It is also how a
-hierarchy change ends the work that names it: an Administrator moving or deactivating a department
-revokes each affected in-flight authorization, with the comment supplied by the system rather than
-typed. The only refusal in the process, and it is not a stage's decision.
+The **Administrator** ending an authorization outright. It has exactly one cause: a hierarchy
+change reaching work that names the department — an Administrator moving or deactivating a
+department revokes each affected in-flight authorization, with the comment supplied by the system
+rather than typed. **No approver revokes anything**; asked who could and when, the product owner
+answered that it is not something the process does. Never a stage's decision, and not a refusal —
+no stage refuses. [BDR-0012](docs/bdr/0012-a-wrong-department-is-a-new-authorization.md)
 _Avoid_: rejection, denial, cancellation, veto
 
 ## The cast
