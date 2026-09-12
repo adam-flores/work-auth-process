@@ -109,6 +109,10 @@ a copy, the Administrator's job is keeping the copy current rather than editing 
 "who maintains it" has a different answer than we have assumed. We have not asked, and it is the
 weakest assumption under the decision._
 
+> It lives **outside this process**. The product's Administrator configures the hierarchy inside
+> the product to match. So the product holds a copy maintained by hand, there is no integration
+> with any system of record, and keeping the copy current is the Administrator's job.
+
 ### The form asks for four lookup levels (group, CAS group, CAS segment, CAS SBU, legal entity). The chart supplies three (chart, segment, unit). Which form field does each chart level answer?
 
 _Why this matters: we have four labels and three things to put in them, and we cannot tell
@@ -294,6 +298,12 @@ but we would rather confirm than assume. Quick yes/no answers are fine.
 
 > The question was not clear as asked.
 
+**Withdrawn.** Re-asked with both blocks shown side by side, and it still did not land — which is
+itself the answer: the field does not exist in this project's model. BDR-0004 retired the CAS
+block and derives the legal entity from the department, so the duplicated label has no consumer.
+Recorded as a copy-paste error in the source for *Performing* Legal Entity, on our judgement
+rather than on confirmation.
+
 ### The stage numbering runs 1, 2, 3, 4, 4, 5. Are Global Trade and Performing Admin one stage or two?
 
 > Two stages, as indicated.
@@ -311,6 +321,8 @@ entry has **four** values, not three: the fourth is work the company funds itsel
 the negative case the gate's condition always implied, so the routing difference is company-funded
 versus contract-funded.
 
+**Answered in full by the two questions below.**
+
 ### Is the Contracts gate skipped entirely when work is company funded?
 
 _Why this matters: we have taken it as skipped, because the gate's condition is "is the request
@@ -320,11 +332,18 @@ stating plainly in the business case rather than leaving implied. If Contracts r
 company-funded work too, then the condition is not really about a customer contract and we have
 the gate's trigger wrong._
 
+> Yes — skipped entirely for company-funded work. No longer **[Derived]**.
+
 ### Once the gate is reached, do the three contract types differ from one another?
 
 _Why this matters: this is what is left of the original question. It may well be that all three
 follow an identical path, in which case the distinction only matters to whoever reads the record
 later and the product just stores it. We are building on that assumption._
+
+> They do differ: each triggers a different combination of **exception rules**. So the funding
+> type is consequential inside the gate rather than a value the product merely stores — though
+> the rules themselves are the Contracts approver's own criteria, which BDR-0002 already puts in
+> the hands of the role that judges the field.
 
 ---
 
@@ -335,11 +354,11 @@ fine; we are not going to publish precise figures.
 
 ### Roughly how many authorizations are raised per month?
 
-> TBD
+> Not needed. Invent the history for the insights dashboard instead.
 
 ### Roughly what share of them come back for correction at least once?
 
-> TBD
+> Not needed. Invent the history for the insights dashboard instead.
 
 ### Which fields drive the majority of errors?
 
@@ -354,13 +373,21 @@ figures or the approver names, the solution is aimed at the wrong target._
 
 ### How much of an expert's week goes to answering questions about this form?
 
-> TBD.
+> Not needed. Invent the history for the insights dashboard instead.
+
+**Answered by delegation, with one exception.** Seeded history for the insights dashboard is
+fictional by design and always was. The business case's §7 baselines are **not** the same thing
+and stay `TBD` — a business-school deliverable with invented volumes and error rates is worse
+than one with blanks, which is this project's own rule.
 
 ### Which requirements on the form are compliance-mandated, and which are organizational convention?
 
 _Why this matters: it tells us what genuinely cannot be changed versus what merely has not been._
 
 > All fields are required.
+
+**Withdrawn.** Re-asked once, narrower, and it did not land. It has no consumer either way:
+BDR-0001 preserves the form as it stands, so this project proposes removing no field.
 
 ### What distinguishes a foreign restricted government contract submission from a standard one, from the submitter's point of view?
 
@@ -417,7 +444,10 @@ consistency argument. If they wouldn't, the expertise problem moves rather than 
 
 ### Legal entities use different reporting systems, so no single common system of record can be assumed.
 
->
+> **Withdrawn, not answered.** Asked twice without landing, which is our fault rather than a gap
+> — it was written in our vocabulary, not yours. What it was for is settled anyway by the
+> hierarchy answer in §1: nothing integrates, the product keeps its own copy, and no common
+> system of record is assumed on either side.
 
 ---
 
@@ -501,10 +531,29 @@ it than that we ruled it out._
 
 ## 8. Raised since the first round
 
-**Not yet asked.** Everything above has been answered; this section holds what has come up since,
-and goes out with the round [#32](https://github.com/adam-flores/work-auth-process/issues/32) is
-assembling. Same structure as sections 6 and 7: the decision itself, then the beliefs underneath
-it.
+**Asked and answered 2026-09-12**, in the round
+[#32](https://github.com/adam-flores/work-auth-process/issues/32) assembled. Same structure as
+sections 6 and 7: the decision itself, then the beliefs underneath it. The assumption checks were
+declined as over-complication, so they stand as ours rather than confirmed.
+
+### Is permission to perform the work granted outside this process?
+
+_Why this matters: the brief says the form is what permits cross-departmental work to begin, while
+your answer in §3 said the process is administrative record-keeping with no rejections. Both
+cannot be right. Business case §2 follows the second reading, and BDR-0005 removed terminal
+refusal on the strength of it — so if the first is right, *refused* comes back as a state._
+
+> Confirmed: permission is granted outside this process. §2 stands, and so does the removal of
+> terminal refusal.
+
+### Are these five the complete set of controls the process operates?
+
+_Permissibility of a department pairing, the Contracts gate, the Global Trade gate, the
+classification that drives ledger allocation, and the four mandatory acknowledgements._
+
+> **Withdrawn.** Did not land, and *five controls* is our framing rather than yours. We treat the
+> transcribed process as complete, while noting that its input list has already been found
+> incomplete once — on the funding type, by your own correction.
 
 ### BDR-0005 — A defect is corrected in place, and the relay never rewinds for data
 
@@ -522,7 +571,11 @@ gains a category — small. If the authorization should leave the relay while it
 the measurement basis for M1 and M3 goes with it — that is the expensive one.
 [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
 
->
+> **Confirmed in its foundation, overturned in one part.** Permission to perform the work is
+> genuinely granted outside this process, so the relay records and acknowledges rather than
+> permits; and no stage holds a veto, Global Trade included. Terminal refusal stays out of the
+> model. The part that does not survive is the performing department — see the wrong-department
+> question below.
 
 ### Does any stage hold a genuine veto?
 
@@ -532,7 +585,7 @@ is the case we are least comfortable with, because its concern is precisely what
 happen. If an export determination can conclude *this must not proceed*, is that a revocation, or
 something we have not modelled at all?_
 
->
+> No. No stage holds a genuine veto, Global Trade included.
 
 ### When an approver spots a wrong department, would they expect to fix it themselves?
 
@@ -542,7 +595,12 @@ You described approvers spending real effort helping a submitter get what they n
 right person, which could mean either. If they correct it directly, that is a small change to allow
 now and a large one to discover late._
 
->
+> **Neither, and the question was the wrong shape.** The performing team is the only party who
+> would catch a wrong department, and they see it before they acknowledge. A request naming the
+> wrong department is not corrected — it is raised again, because a different department is a
+> different request. The performing department is therefore fixed at initiation. This overturns
+> BDR-0005's *re-route from the handover* and voids the assumption below about one field
+> invalidating a whole side.
 
 ### Who, specifically, can revoke an authorization, and when?
 
@@ -551,7 +609,9 @@ might revoke it. We have allowed any approver whose stage the authorization has 
 passed**, on the reading that the trigger is the wider initiative changing rather than a defect at a
 gate. That may be broader than you intended._
 
->
+> N/A — an approver revoking is not something the process does. What takes its place is bound up
+> with the wrong-department answer above, so the ticket raised from that answer owns it rather
+> than this one.
 
 ### Is charging correction time to the stage that found the defect the right picture?
 
@@ -562,7 +622,9 @@ alternative loses the time entirely: the authorization leaves and re-enters, eve
 short visit, and the days the defect actually cost belong to nowhere. We would rather the total be
 honest and the breakdown explain it._
 
->
+> Inconsequential — there is nothing like it today, and the choice was delegated to us. Our
+> choice stands: correction time charges to the stage that found the defect, and the per-stage
+> breakdown is what explains the total.
 
 ### Is whether a department may perform a given piece of work something the system could hold?
 
@@ -574,7 +636,11 @@ be either. So: what would it take to encode the encodable part, and roughly what
 would that catch? Everything it does not catch falls through to an approver four stages later.
 [#35](https://github.com/adam-flores/work-auth-process/issues/35)_
 
->
+> Perhaps, but not needed now. [BDR-0007](bdr/0007-one-project-many-resources.md) had already
+> gone further on the strength of the earlier *it could be either* — a configurable list of
+> disallowed department pairings, checked at entry, seeded with a single rule. That much is built
+> and costs nothing, so it stays. Nothing further is encoded, and no capability model is built on
+> top of it.
 
 ### Assumptions underneath BDR-0005
 
@@ -585,11 +651,13 @@ which sign-offs a correction invalidates. The requesting finance approver is the
 they confirm funding held outside this process, so they depend on no field and their sign-off would
 survive every correction.
 
->
+> Declined as over-complication, along with the assumptions under BDR-0006 below. They stand as
+> ours — provisional by delegation rather than confirmed.
 
 **The performing department is the only field whose correction invalidates a whole side.**
 
->
+> As above — and void in any case. Per the wrong-department answer, there is no correction of the
+> performing department for a sign-off to survive or not survive.
 
 **A record of who an authorization passed between *within* a stage is worth collecting.** You
 raised this and said it should not be reported on. It is excluded from every measure, and what
@@ -597,7 +665,9 @@ such a handoff actually *is* now has its own ticket, because it contradicts our 
 stage as occupied by a single role.
 [#37](https://github.com/adam-flores/work-auth-process/issues/37)
 
->
+> Settled by [#37](https://github.com/adam-flores/work-auth-process/issues/37) instead: such a
+> handoff is a **referral**, and it moves nothing.
+> [BDR-0011](bdr/0011-a-referral-shows-it-without-moving-it.md)
 
 ### BDR-0006 — The product records the relay and nothing before it
 
@@ -617,7 +687,7 @@ authorization sitting unopened. Assumption 1 of this project — that most of to
 time is idle rather than busy — therefore stays an assumption. The 50% target is unaffected.
 [BDR-0006](bdr/0006-what-the-product-records.md)
 
->
+> Declined as over-complication. Stands as ours, provisional by delegation.
 
 ### Assumptions underneath BDR-0006
 
@@ -628,20 +698,20 @@ the actual problem. If someone asks how we know the guidance helped, the answer 
 survey and nothing else. We think that is the right call for a prototype; it is worth knowing
 you are comfortable defending it.
 
->
+> As above.
 
 **Holds are rare, and are what they claim to be.** Excluding held time is only safe if a hold
 is a submitter pausing their own request. If holding becomes the informal way an approver
 parks something, the exclusion hides exactly the delay we are looking for.
 
->
+> As above.
 
 **"Admin" is a real audience for the insights dashboard.** Every other view in the system is
 open to everyone by deliberate decision. This would be the first restricted one — and since
 the prototype has no log-in, the restriction is a statement of intent rather than something
 built.
 
->
+> As above.
 
 ### BDR-0008 — Finding a department is narrowing on attributes, then searching the rest
 
@@ -689,7 +759,12 @@ being shared across a role, and work has to be able to move *within* a stage —
 larger model we deliberately did not build.
 [BDR-0011](bdr/0011-a-referral-shows-it-without-moving-it.md)
 
->
+> Yes, occasionally someone does sign in an approver's place. **That does not overturn the
+> referral**, because a stage routes to a *role at a department* rather than to a named person:
+> another holder of that role acknowledging is already what the model does, and it needs no
+> mechanism. What would overturn it is a sign-off tied to a **named individual** — a spend
+> threshold, a named signatory, a delegation-of-authority list — and that half was not affirmed.
+> Assumption 11 narrows to that, and stands.
 
 ---
 
