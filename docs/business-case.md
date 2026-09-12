@@ -1,7 +1,7 @@
 # Business Case v2: Improving the Internal Work Authorization Process
 
 **Status:** Draft — problem framed, solution direction set
-**Last updated:** 2026-09-11
+**Last updated:** 2026-09-12
 **Supersedes:** the first-draft business case, retired once this version carried everything it held
 
 > **This is the business case.** An earlier draft was written to be solution-agnostic, before any
@@ -30,23 +30,43 @@
 | **Scope** | The internal work authorization form and the process surrounding it |
 
 Employees frequently support work for departments other than their own. Each time they do, an
-internal work authorization must be completed and approved before the work is properly
-authorized and the hours can be booked.
+internal work authorization must be completed and cleared through its sign-offs before the hours
+can be booked against it. What that clearance controls — and, as §2 sets out, what it does not —
+is the subject of this case.
 
 ---
 
 ## 2. Operational Context
 
-Internal work authorizations serve three control functions:
+Internal work authorizations serve two ends — **stopping what is not legally allowed to happen**,
+and **keeping the financial ledger honest** by allocating work to the department that originated
+it. Five named controls do that work.
+[BDR-0009](bdr/0009-the-business-case-survives.md)
 
-- **Cost control between legal entities**, especially where those entities use different
-  reporting systems.
-- **Contract compliance**, particularly for foreign restricted government contracts, where costs
-  must be tracked and allocated within US contract requirements.
-- **Work authorization** itself — the form is what permits cross-departmental work to begin.
+| Control | What it does | What it reads |
+|---|---|---|
+| **Permissibility rule** | Blocks a pairing of departments that may not work together, at entry rather than days later at a gate | The two departments on the authorization |
+| **Contracts gate** | A conditional stage testing that the authorization is consistent with the funding contract's terms | The **funding type** the requesting side supplies at intake — Commercial, FAR 12, FAR 15 |
+| **Global Trade gate** | A conditional stage testing that the scope matches the declared export jurisdiction and classification | The **location type** entered on each side |
+| **Classification** | Identifies the department each side belongs to, which is what the cost is allocated against | Three levels per side, from the department picker |
+| **Four mandatory acknowledgements** | A program manager and a finance approver on each side, so nothing is assigned to an area without someone there knowing | Nothing conditional; they always run |
 
-Because the form sits upstream of both cost allocation and the start of work, errors propagate
-into two different kinds of harm: compliance and accounting exposure, and schedule delay.
+The first three are what stop what is not permitted. The fourth is what keeps the ledger honest,
+and is the one most exposed to human error — a misrouted authorization *"usually lands in the
+wrong team's queue, and takes a few days to be routed where it should have gone."* The fifth is a
+control over surprise, not over permission.
+
+**What this process does not control is whether the work may happen.** That is approved or denied
+through mechanisms outside it entirely. What it controls is whether the hours can be **booked**,
+and against whom. This diverges from [the source brief](source/project-overview.md), which
+describes the form as what permits cross-departmental work to begin; the process owner has since
+described the process as administrative record-keeping, with no rejections. The divergence is
+recorded here rather than smoothed over, because the brief is not edited and the two readings
+cannot both be right — see §10, assumption 10.
+
+Because the form sits upstream of both cost allocation and the point at which work can be booked,
+errors propagate into two different kinds of harm: compliance and accounting exposure, and
+schedule delay.
 
 ---
 
@@ -75,12 +95,20 @@ count of them:
 | Where time goes | Why |
 |---|---|
 | **Idle time** | A form sits because the approver does not know it is waiting on them |
-| **Rework loops** | A form comes back because a field was wrong, and the relay restarts |
+| **Rework loops** | A field is wrong, and the authorization stands still at the stage that found it while it is corrected |
 | **Context switching** | Approvers handle authorizations one at a time as they arrive |
 | **Lookup effort** | Nine fields are read off a picture of an org chart and typed by hand |
 
 None of these require changing a single sign-off to fix. This is the central claim of the
 project, and the assumption most in need of validation — see §10.
+
+**The dominant error is named.** Asked which fields drive the majority of errors, the process
+owner's answer was *"getting the departments right"* — which is the lookup effort above and the
+misroute in §2, and is exactly where the solution concentrates. It is the argument the error
+target rests on, not the target itself: the target in §7 stays broad, measured over every
+correction request, because narrowing it to the one field we already expect to move would be
+choosing the metric for the result.
+[BDR-0009](bdr/0009-the-business-case-survives.md)
 
 ---
 
@@ -133,7 +161,7 @@ good information together and makes the path through the process a manageable on
 | Notification the moment an authorization arrives | A form stops sitting because nobody knew it was waiting |
 | An open master record of every authorization | Anyone can see where any authorization sits, without asking a person |
 | A department queue anyone on the performing side can claim from | An authorization stops waiting on one named person being available |
-| Every stage timestamped four times over | Where the time went becomes a fact the pilot can read off, not a claim |
+| Every stage timestamped three times over — arrived, notified, resolved | Where the time went becomes a fact the pilot can read off, not a claim. [BDR-0006](bdr/0006-what-the-product-records.md) |
 
 In priority order, the claims are: **fewer mistakes**, then **less waiting**, then **less effort
 per form**.
@@ -149,8 +177,10 @@ of this project uses is in [`CONTEXT.md`](../CONTEXT.md).
 through entirely different mechanisms. This process exists to stop what is not legally allowed to
 happen and to keep the financial ledger honest by allocating work to the department that
 originated it — and the sign-offs exist so nothing is assigned to an area without someone there
-acknowledging it. No approver refuses on the merits.
-[BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
+acknowledging it. No approver refuses on the merits. The five controls that do this work are named
+in §2, and the tooling below leaves every one of them exactly where it is.
+[BDR-0005](bdr/0005-correction-in-place-and-revocation.md) ·
+[BDR-0009](bdr/0009-the-business-case-survives.md)
 
 **The lifecycle is explicit, and the record is what happened rather than where it is.** Five
 states are recorded — **Draft**, **On hold**, **Completed**, **Withdrawn**, **Revoked**. Where an
@@ -210,6 +240,13 @@ findings.
 
 Both are percentages against baselines that are currently unknown. Establishing those baselines
 is the first job of the pilot, not an input to it.
+
+**Both stand unchanged under the administrative framing.** Neither target ever rested on the relay
+rendering judgement — the cycle-time target rests on time being lost *inside* the steps rather than
+in the count of them, which is unaffected by what the steps are for. If anything the framing makes
+it easier to defend, since a stage that neither approves nor refuses has no deliberation to
+protect, and days spent in one are days spent waiting. The target does not need the help and is not
+restated to lean on it. [BDR-0009](bdr/0009-the-business-case-survives.md)
 
 ### Measures **[Derived]**
 
@@ -342,13 +379,17 @@ pilot, and a pilot is what stage 1 buys.
 
 **Assumptions**
 
-1. **Most of today's elapsed time is idle time and rework, not work.** This is load-bearing. The
-   entire cycle-time target rests on it, because the approval sequence is unchanged. If the six
-   steps are genuinely busy end to end, the 50% target is unreachable. It also stays an
-   *assumption*: the product deliberately does not record when an approver first opens an
-   authorization, so a pilot can show which stage the time built up in and how much of it was
-   rework, but not whether the remainder was idle
-   ([BDR-0006](bdr/0006-what-the-product-records.md)).
+1. **Enough of today's elapsed time is idle time and rework to make a 50% reduction reachable
+   without touching the sequence.** Asked where the time goes, the process owner said **all
+   three** — approvers working through it, the form sitting unnoticed, and correction — over a
+   total of 2+ weeks end to end. So this is not the stronger claim an earlier draft made, that
+   *most* of the time is idle; it is that the waiting and rework components are large enough to
+   halve the total. It also stays an *assumption* and always will: the product deliberately does
+   not record when an approver first opens an authorization, so a pilot can show which stage the
+   time built up in and how much of it was rework, but not whether the remainder was idle
+   ([BDR-0006](bdr/0006-what-the-product-records.md)). The target does not rest on this alone —
+   see §7, where the administrative framing carries it independently.
+   [BDR-0009](bdr/0009-the-business-case-survives.md)
 2. The form is a legitimate and necessary control; the goal is to make it easier to complete
    correctly, not to eliminate it.
 3. The information needed to complete the form correctly is knowable at the time of submission.
@@ -374,6 +415,19 @@ pilot, and a pilot is what stage 1 buys.
    the basis that approvers do not refuse outright. Global Trade is the case least sure: if an
    export determination can conclude *this must not happen*, revocation is carrying weight it was
    not designed for. [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
+10. **Permission to perform the work is granted outside this process.** §2 follows the process
+    owner, who describes the process as administrative record-keeping with no rejections, over
+    [the source brief](source/project-overview.md), which describes the form as what permits
+    cross-departmental work to begin. The two cannot both be right. If the brief is right and the
+    answer was loose, §2 is wrong and the damage runs deeper than one section:
+    [BDR-0005](bdr/0005-correction-in-place-and-revocation.md) removed terminal refusal on the
+    strength of the same answer, so *rejected* would have to return as a state.
+    [BDR-0009](bdr/0009-the-business-case-survives.md)
+11. **The five controls in §2 are the complete set.** They are everything the transcribed process
+    and the decisions so far establish — but the brief has already been found incomplete once, by
+    the process owner's own acknowledgement, and the export classification field Global Trade
+    validates against is still unaccounted for.
+    [BDR-0009](bdr/0009-the-business-case-survives.md)
 
 ---
 
@@ -403,8 +457,9 @@ collects here, grouped by what it would change.
 
 From [BDR-0001](bdr/0001-preserve-the-flow-rebuild-the-experience.md).
 
-1. **When an authorization takes a long time, where does the time actually go** — approvers
-   working through it, or the form sitting unnoticed and coming back for correction?
+1. ~~**When an authorization takes a long time, where does the time actually go?**~~
+   **Answered:** all three — approvers working through it, the form sitting unnoticed, and
+   correction — over 2+ weeks end to end. Carried into §10, assumption 1.
 2. **Is preserving the existing sign-off sequence a requirement, a preference, or habit?**
 3. **Would you rather have a tool that makes today's process work well, or a proposal for a
    different process?**
@@ -419,8 +474,11 @@ From [BDR-0002](bdr/0002-the-cast-and-what-each-role-needs.md).
 5. **What does the requesting finance approver actually approve?** The budget hours and labor
    rate arrive later, from the performing side, so at their step there is no budget on the form
    yet.
-6. **When an approver denies an authorization today, do they give a written reason, and does it
-   reliably reach the person who submitted it?**
+6. ~~**When an approver denies an authorization today, do they give a written reason, and does it
+   reliably reach the person who submitted it?**~~ **Answered, by dissolution:** nothing is
+   denied. The process is administrative record-keeping and there are no rejections; a defect is
+   corrected in place and continues forward.
+   [BDR-0005](bdr/0005-correction-in-place-and-revocation.md)
 7. **Would your approvers write down what they check for, and keep it up to date?** If not, the
    consistency capability in §6 has no mechanism behind it.
 8. **Is the employee assigned to the work ever involved before the charge number exists?**
@@ -446,7 +504,9 @@ From [BDR-0003](bdr/0003-the-authorization-lifecycle.md).
 ### Needed to size and target the work
 
 14. What is the current volume of authorizations per period, and the current error rate?
-15. Which fields drive the majority of errors?
+15. ~~Which fields drive the majority of errors?~~ **Answered:** getting the departments right.
+    Carried into §3; it sharpens the error argument without narrowing the §7 target.
+    [BDR-0009](bdr/0009-the-business-case-survives.md)
 16. What is the cost of a single rework cycle, in SME time and in schedule delay?
 17. Which requirements are compliance-mandated versus organizational convention?
 18. What distinguishes a foreign restricted government contract submission from a standard one?
