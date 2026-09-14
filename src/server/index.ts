@@ -7,7 +7,7 @@ import { createService } from "../service/index.ts";
 import type { Service } from "../service/index.ts";
 import { DomainError } from "../service/errors.ts";
 import type { DomainErrorCode } from "../service/errors.ts";
-import { SYSTEM_PARTICIPANT_ID } from "../shared/rules.ts";
+
 
 /**
  * A thin adapter over the service (ADR-0010). It parses a request, calls one
@@ -25,11 +25,24 @@ const STATUS_FOR: Record<DomainErrorCode, number> = {
   UNKNOWN_PARTICIPANT: 403,
 };
 
-/** Every call names who is acting; nothing here reads a session (ADR-0010). */
+/**
+ * Every call names who is acting; nothing here reads a session (ADR-0010).
+ *
+ * A missing header is refused rather than defaulted. Defaulting to `system`
+ * would mean a request that names nobody gets the one identity that skips the
+ * roster check - and since a request with no custom header needs no preflight,
+ * any page on the internet could have posted it.
+ */
 function actingParticipant(req: IncomingMessage): { participantId: string } {
   const header = req.headers["x-acting-participant"];
   const id = Array.isArray(header) ? header[0] : header;
-  return { participantId: id ?? SYSTEM_PARTICIPANT_ID };
+  if (!id) {
+    throw new DomainError(
+      "INVALID_REQUEST",
+      "An acting participant is required (the x-acting-participant header).",
+    );
+  }
+  return { participantId: id };
 }
 
 type Handler = (service: Service, ctx: { participantId: string }) => unknown;

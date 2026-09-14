@@ -52,10 +52,36 @@ function seed(db: DatabaseSync): void {
   }
 }
 
+/** The version the store on disk was built by, or null if it predates the key
+ *  or has no store_meta table at all. */
+function versionOnDisk(db: DatabaseSync): number | null {
+  try {
+    const row = db.prepare("SELECT value FROM store_meta WHERE key = 'schema_version'").get() as
+      | { value: string }
+      | undefined;
+    return row ? Number(row.value) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Drop everything and build it again. ADR-0008 makes the store disposable
+ *  rather than migrated, so this is the whole of the upgrade story. */
+function rebuild(db: DatabaseSync): void {
+  db.exec("DROP TABLE IF EXISTS participants; DROP TABLE IF EXISTS store_meta;");
+  db.exec(SCHEMA);
+  seed(db);
+}
+
 /**
- * Open the store, creating and seeding it if it is not there. First run and
- * hundredth run take the same path, which is what makes a cold clone work
- * without a setup step.
+ * Open the store, building it if it is not there or was left by a different
+ * schema. First run, hundredth run and post-upgrade run all take the same path,
+ * which is what makes a cold clone work without a setup step.
+ *
+ * A store written by an older schema is rebuilt, not migrated. `CREATE TABLE IF
+ * NOT EXISTS` cannot reshape a table that already exists, so without this an
+ * older store would survive open and then throw on the first query naming a
+ * column it does not have.
  */
 export function openStore(storePath: string = DEFAULT_STORE_PATH): Store {
   mkdirSync(dirname(storePath), { recursive: true });
@@ -63,8 +89,7 @@ export function openStore(storePath: string = DEFAULT_STORE_PATH): Store {
   db.exec("PRAGMA foreign_keys = ON");
   db.exec(SCHEMA);
 
-  const seeded = db.prepare("SELECT value FROM store_meta WHERE key = 'seeded_at'").get();
-  if (!seeded) seed(db);
+  if (versionOnDisk(db) !== SCHEMA_VERSION) rebuild(db);
 
   return {
     db,

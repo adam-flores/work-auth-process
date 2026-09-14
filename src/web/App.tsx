@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api.ts";
 import type { StoreInfo } from "./api.ts";
-import { SYSTEM_PARTICIPANT_ID } from "../shared/rules.ts";
+import { SYSTEM_PARTICIPANT_ID } from "../shared/constants.ts";
 import type { Participant } from "../shared/rules.ts";
 
 /**
@@ -17,13 +17,21 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Switching actor twice quickly leaves two reads in flight. Only the newest
+  // may paint - otherwise a slow failure from the actor you just left lands on
+  // top of the valid data for the one you just chose, and nothing clears it.
+  const latestLoad = useRef(0);
+
   const load = useCallback(async (actor: string) => {
+    const seq = ++latestLoad.current;
     setError(null);
     try {
       const [people, info] = await Promise.all([api.listParticipants(actor), api.getStoreInfo(actor)]);
+      if (seq !== latestLoad.current) return;
       setParticipants(people);
       setStore(info);
     } catch (err) {
+      if (seq !== latestLoad.current) return;
       setError(err instanceof ApiError ? err.message : String(err));
     }
   }, []);

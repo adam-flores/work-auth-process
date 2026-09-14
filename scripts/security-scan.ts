@@ -16,7 +16,7 @@
  * rule it enforces. So the built-in patterns are generic, and site-specific
  * terms go one-per-line in `.security-terms`, which is gitignored.
  */
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
 type Finding = { target: string; file: string; line: number; detail: string };
@@ -36,18 +36,23 @@ function git(args: string[]): string {
 }
 
 function filesToScan(): string[] {
+  // -z is not optional: without it git quotes any path outside ASCII
+  // (core.quotePath), the quoted name does not resolve, and the file is skipped
+  // - which would let a secret through in a file nobody could see was unscanned.
   const out = staged
-    ? git(["diff", "--cached", "--name-only", "--diff-filter=ACMR"])
-    : git(["ls-files"]);
-  return out.split("\n").filter(Boolean);
+    ? git(["diff", "--cached", "-z", "--name-only", "--diff-filter=ACMR"])
+    : git(["ls-files", "-z"]);
+  return out.split(NUL).filter(Boolean);
 }
 
-function contentOf(file: string): string {
-  if (staged) return git(["show", ":" + file]);
+/** null means "could not be read", which is a finding rather than a pass. */
+function contentOf(file: string): string | null {
   try {
-    return readFileSync(file, "utf8");
+    return staged
+      ? execFileSync("git", ["show", ":" + file], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
+      : readFileSync(file, "utf8");
   } catch {
-    return "";
+    return null;
   }
 }
 
@@ -125,17 +130,38 @@ const semgrepAvailable = (() => {
 for (const file of files) {
   if (file === SELF) continue; // every rule appears in this file by definition
   const text = contentOf(file);
-  if (!text || text.includes(NUL)) continue; // unreadable or binary
+  if (text === null) {
+    findings.push({
+      target: "secrets",
+      file,
+      line: 0,
+      detail: "could not be read, so it was not scanned - refusing to pass it",
+    });
+    continue;
+  }
+  if (text.includes(NUL)) continue; // binary
   scan(file, text, "secrets", SECRET_RULES);
   scan(file, text, "confidential", confidentialRules);
   if (!semgrepAvailable) scan(file, text, "code", CODE_RULES);
 }
 
 if (semgrepAvailable) {
-  try {
-    execFileSync("semgrep", ["--config=auto", "--error", "--quiet", "."], { stdio: "inherit" });
-  } catch {
+  // Scan exactly what the other three targets scan, so `git add -p` does not
+  // produce a report about code that is not being committed.
+  const targets = files.length > 0 ? files : ["."];
+  const run = spawnSync("semgrep", ["--config=auto", "--error", "--quiet", ...targets], {
+    encoding: "utf8",
+  });
+  if (run.error) {
+    notes.push("semgrep could not be run (" + run.error.message + ") - code check skipped");
+  } else if (run.status === 1) {
     findings.push({ target: "code", file: ".", line: 0, detail: "semgrep reported findings" });
+    if (run.stdout) console.error(run.stdout);
+  } else if (run.status !== 0) {
+    // 2, 7 and 8 are semgrep's own failures - a missing ruleset offline, most
+    // often. A tool that could not run has found nothing, and saying otherwise
+    // would train everyone to ignore the hook.
+    notes.push("semgrep exited " + run.status + " without scanning - code check skipped");
   }
 } else {
   notes.push(
@@ -144,19 +170,33 @@ if (semgrepAvailable) {
 }
 
 // ---- 2. Dependency vulnerabilities -----------------------------------------
-try {
-  execFileSync("npm", ["audit", "--audit-level=high"], { stdio: "pipe" });
-} catch (err) {
-  const out = String((err as { stdout?: Buffer }).stdout ?? "");
-  if (/ENOTFOUND|ETIMEDOUT|ECONNREFUSED|offline/i.test(out)) {
-    notes.push("npm audit could not reach the registry - dependency check skipped");
+{
+  // Ask for JSON and read the counts, rather than inferring an advisory from a
+  // non-zero exit: npm exits non-zero when it cannot reach the registry or
+  // there is no lockfile, and reporting those as vulnerabilities would block
+  // every offline commit with a claim that is not true.
+  const run = spawnSync("npm", ["audit", "--json", "--audit-level=high"], { encoding: "utf8" });
+  const parsed = ((): { metadata?: { vulnerabilities?: Record<string, number> }; error?: unknown } | null => {
+    try {
+      return JSON.parse(run.stdout) as { metadata?: { vulnerabilities?: Record<string, number> } };
+    } catch {
+      return null;
+    }
+  })();
+
+  if (run.error || parsed === null || parsed.error) {
+    notes.push("npm audit could not complete (offline, or no lockfile) - dependency check skipped");
   } else {
-    findings.push({
-      target: "dependencies",
-      file: "package-lock.json",
-      line: 0,
-      detail: "npm audit reports a high or critical advisory - run `npm audit`",
-    });
+    const counts = parsed.metadata?.vulnerabilities ?? {};
+    const serious = (counts["high"] ?? 0) + (counts["critical"] ?? 0);
+    if (serious > 0) {
+      findings.push({
+        target: "dependencies",
+        file: "package-lock.json",
+        line: 0,
+        detail: serious + " high or critical advisory(ies) - run `npm audit`",
+      });
+    }
   }
 }
 

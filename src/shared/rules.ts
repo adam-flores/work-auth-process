@@ -38,9 +38,4 @@ export type ParticipantRole = z.infer<typeof ParticipantRole>;
 export type Participant = z.infer<typeof Participant>;
 export type ActingParticipant = z.infer<typeof ActingParticipant>;
 
-/**
- * The one identity that is not on the roster. It stands for the product acting
- * on its own behalf - seeding, resetting, and reading before anybody has chosen
- * who they are. A real build replaces it with an authenticated principal.
- */
-export const SYSTEM_PARTICIPANT_ID = "system";
+export { SYSTEM_PARTICIPANT_ID } from "./constants.ts";
