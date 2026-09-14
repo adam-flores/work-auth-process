@@ -72,26 +72,10 @@ four targets SEC-5 names: secrets, dependency advisories, code-level patterns, a
 or export-controlled content. Installing `semgrep` upgrades the third target from built-in
 patterns to a full ruleset.
 
-**Before your first commit, supply the term list:**
-
-```bash
-cp .security-terms.example .security-terms   # then edit it
-```
-
-`.security-terms` holds the names that must never reach this repository — the real organization,
-its programs, real people from source documents. It is **gitignored and stays on your machine**,
+Optionally, put site-specific names — the real organization, its programs, real people from the
+source documents — one per line in `.security-terms`. It is gitignored and stays on your machine,
 because a scanner that hardcoded the client's name would put that name in the public repository it
-exists to keep it out of (SEC-1).
-
-**The hook refuses to run without it**, and refuses again if the file still holds only the
-placeholders from the example. The generic patterns can catch an export marking or a CAGE code,
-but nothing generic can catch a company name — so that target is either supplied or it is not
-running, and a target that is not running must not pass quietly. The cost of getting this wrong
-once was deleting and recreating the repository, because a force-push does not remove published
-history (SEC-2).
-
-Put the *real* names in it, not the fictional ones. `Calderis Aerospace` and the department names
-in `docs/reference/` are invented on purpose and are meant to be here.
+exists to keep it out of. Without it the generic patterns still run.
 
 ---
 
