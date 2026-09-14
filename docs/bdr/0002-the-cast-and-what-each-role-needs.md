@@ -1,8 +1,9 @@
 # BDR-0002: The cast is three roles, the queue is scoped, and the record is open
 
-**Status:** provisional
+**Status:** final
 **Date:** 2026-09-11
-**Decided by:** us, provisionally
+**Confirmed:** 2026-09-14
+**Decided by:** us, confirmed by the product owner
 
 ## Decision
 
@@ -93,21 +94,6 @@ not a participant, and the product gives them nothing but a filter on the master
 own root-cause framing is that this knowledge lives in people. Criteria ownership assumes those
 people will externalise it and maintain it — which is a behavioural bet, not a technical one.
 
-## Question for the product owner
-
-1. **Are the labor figures on the form average rates or actual compensation? And is there
-   anything on an authorization that one entity would not want another to read?** Every record
-   being visible to everyone depends on both answers, and it is the easiest thing here to get
-   wrong.
-2. **What does the requesting finance approver actually approve?** The hours and rate arrive
-   later, from the other side, so they appear to be approving a budget that does not exist yet.
-   We have assumed they are confirming funds against a portfolio held outside this process.
-3. **When an approver denies a form today, do they give a written reason, and does it reliably
-   reach the person who submitted it?** We have assumed a comment is mandatory on denial.
-4. **Would your approvers write down what they check for, and keep it up to date?** If not, the
-   consistency argument has no mechanism behind it.
-5. **Is the employee assigned to the work ever involved before the charge number exists?** We
-   have assumed not.
 
 ## What changes if this is overturned
 
@@ -127,3 +113,27 @@ dissolves. That question is [#12](https://github.com/adam-flores/work-auth-proce
 **The three roles and the queue/dashboard split are safe to build on while provisional.** They
 are orthogonal to routing, which is what makes them stable regardless of how the lifecycle
 question settles.
+
+
+## Confirmed
+
+Every question this record was provisional on has been answered.
+
+- **Labor figures are averages**, not actual compensation, and there is nothing else on an
+  authorization one legal entity would withhold from another — which is what the open record rests
+  on. [BDR-0007](0007-one-project-many-resources.md) went further and made every participant see
+  the whole record.
+- **The requesting finance approver confirms that funding exists and ties back to the original
+  project.** The assumption here was right, and the two finance stages do check different things.
+- **There are no denials on the merits to write a reason for.** The process is administrative
+  record-keeping; [BDR-0005](0005-correction-in-place-and-revocation.md) replaced denial with a
+  **correction request**, which carries a mandatory comment.
+- **Approvers would write down what they check for and keep it current**, which is the mechanism
+  the consistency argument needed.
+- **The assigned employee is not involved before the charge number exists.** They remain a name on
+  the record rather than a participant.
+
+One part of this record has since been narrowed rather than confirmed: *a queue shows an approver
+only what they need to act* was about list density and was being read as a scoping rule.
+[BDR-0007](0007-one-project-many-resources.md) settles that no stage sees less of a record than
+any other.
