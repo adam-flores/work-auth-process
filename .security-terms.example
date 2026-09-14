@@ -1,30 +1,43 @@
-# Terms that must never be committed to this repository.
-#
-# Copy this file to `.security-terms` and fill it in:
+# Copy me to `.security-terms` and add your terms. I am committed; that file is
+# gitignored and never leaves your machine.
 #
 #     cp .security-terms.example .security-terms
 #
-# `.security-terms` is gitignored and stays on your machine. That is deliberate:
-# a scanner that hardcodes the client's name would put the name in the public
-# repository it exists to keep it out of (SEC-1). This example file is committed,
-# so it must contain no real terms - placeholders only.
+# WHAT THIS IS
+# A list of literal strings that must never appear in this repository. The
+# pre-commit hook greps every staged file for each one and blocks the commit on
+# a match. One term per line. Case-insensitive, substring match, punctuation and
+# spaces are fine. Lines starting with # are ignored.
 #
-# One term per line. Matching is case-insensitive and substring-based, and each
-# line is escaped before use, so punctuation and spaces are safe to include.
-# Lines starting with # are ignored.
+# WHY IT IS NOT COMMITTED
+# The main term is the client's name. Writing it into a file in a public repo
+# would put it in the repository this exists to keep it out of (SEC-1).
 #
-# What belongs here (see README, Data handling):
-#   - the real organization's name, and any abbreviation or trading name
-#   - real program and project names
-#   - real contract numbers not already caught by the generic pattern
-#   - names of real employees who appear in source documents
-#   - internal system and platform names that were genericised in transcription
+# WHAT TO PUT IN IT
+# Realistically the first two lines are most of the value.
 #
-# The pre-commit hook refuses to run without this file, because the generic
-# patterns cannot catch a company name and a scan that quietly skips a target is
-# worse than one that stops.
-
-# --- replace everything below with the real terms ---
-ACME AEROSPACE
-Acme
-PROJECT PLACEHOLDER
+#   1. The organization's name, plus anything it is also called - a short form,
+#      an abbreviation, a division that is recognisable on its own.
+#   2. Real program or project names from the source documents.
+#   3. Real people named in the source documents.
+#   4. Internal system or platform names that were genericised in transcription.
+#      Two of those are already in docs/process/work-authorization-flow.md,
+#      appearing there as "trading partner number" and "finance / ERP entity
+#      code" - the real names belong here.
+#   5. Specific site locations, cost center codes or CAGE codes you know appear
+#      in the source material. Generic patterns already catch most of these
+#      shapes, so this is a backstop rather than the point.
+#
+# WHAT NOT TO PUT IN IT
+# The fictional names. "Calderis Aerospace" and the department names under
+# docs/reference/ are invented on purpose and are meant to be in the repo.
+# Adding one here blocks every commit until you take it out again.
+#
+# A filled-in file is just a list, and can be as short as this:
+#
+#     Northgate Aerodynamics
+#     Northgate
+#     NGA
+#     Falconridge
+#
+# Add yours below this line.
