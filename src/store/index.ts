@@ -8,9 +8,15 @@ import type { Participant as ParticipantRecord } from "../shared/rules.ts";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
-/** Where the store lives by default. Disposable: deleting it loses nothing that
- *  seeding cannot put back (ADR-0008). */
-export const DEFAULT_STORE_PATH = resolve(repoRoot, ".store/work-auth.db");
+/**
+ * Where the store lives by default. Disposable: deleting it loses nothing that
+ * seeding cannot put back (ADR-0008). `WORK_AUTH_STORE` points it somewhere
+ * else, which is how the browser tests get a store of their own rather than
+ * resetting the one a demo is sitting in.
+ */
+export const DEFAULT_STORE_PATH = process.env.WORK_AUTH_STORE
+  ? resolve(process.env.WORK_AUTH_STORE)
+  : resolve(repoRoot, ".store/work-auth.db");
 
 const SEED_PATH = resolve(repoRoot, "config/participants.json");
 
