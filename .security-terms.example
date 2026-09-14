@@ -33,11 +33,16 @@
 # docs/reference/ are invented on purpose and are meant to be in the repo.
 # Adding one here blocks every commit until you take it out again.
 #
-# A filled-in file is just a list, and can be as short as this:
+# A filled-in file is just a list, and can be as short as four lines:
 #
-#     Northgate Aerodynamics
-#     Northgate
-#     NGA
-#     Falconridge
+#     <the organization's full name>
+#     <the short form everyone actually says>
+#     <its abbreviation, if it has one>
+#     <a program name from the source documents>
+#
+# Deliberately written as descriptions rather than as plausible fake names. This
+# file is scanned like every other committed file - which is what catches a real
+# name accidentally typed here - so a realistic-looking illustration would flag
+# itself the moment somebody used it as a term.
 #
 # Add yours below this line.
