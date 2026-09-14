@@ -116,7 +116,10 @@ downward, so a department carries its own attributes plus every attribute of the
 entity above it. Attributes are not tied to a level, which is why foreign departments are scattered
 through the hierarchy rather than grouped in one part of it. A department's **name** is not an
 attribute — it is what search matches on, and it is what tells a requester the work a department
-does, since nothing else records that.
+does, since nothing else records that. What is recorded about a department but does *not* narrow the
+list is **detail** — its cost-accounting code, its cost centers, its disclosure treatment — shown
+where it helps a person recognise a department, and never an identifier or a filter
+([ADR-0012](docs/adr/0012-the-store-holds-a-decoded-hierarchy-not-a-transcribed-one.md)).
 _Avoid_: field, property, facet, tag, flag
 
 **Inactive**:

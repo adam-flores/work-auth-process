@@ -108,6 +108,8 @@ is judgment before `git add`.
 ├── src/
 │   ├── shared/             Rules expressed once, imported by the browser and the service
 │   ├── store/             SQLite: schema, seeding, and the disposable store file
+│   ├── hierarchy/          Legal entities, divisions, departments — the seed transformation
+│   │                       and the attribute-and-name reads the picker runs on
 │   ├── service/            The seam — every process decision, as typed functions
 │   ├── server/             A thin HTTP adapter over the service; holds no logic
 │   └── web/                The React app
