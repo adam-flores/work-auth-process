@@ -29,9 +29,8 @@
 >
 > Everything else stands: five recorded states, position derived rather than stored, the
 > department queue with claiming, gate skips recorded with the value that decided them, and the
-> draft's visibility. Note that section 7 of
-> [`docs/open-questions.md`](../open-questions.md) shows this BDR confirmed with "nothing stands
-> out" — that headline confirmation was overtaken by the same reviewer's detailed answers, and the
+> draft's visibility. Note that this record was once confirmed at headline level with *nothing
+> stands out* — that confirmation was overtaken by the same reviewer's detailed answers, and the
 > specifics win.
 
 ## Decision

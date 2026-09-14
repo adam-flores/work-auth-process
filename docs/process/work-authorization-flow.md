@@ -142,9 +142,9 @@ only a Yes branch drawn, so the negative case existed in the flow with no value 
 Company funded is that value. **The routing difference between funding types is therefore
 company-funded versus contract-funded** — one of the five named controls does not run at all for a
 whole class of work — rather than a distinction among the three contract types, which remains
-unstated. Marked **[Derived]**: it follows from the gate's own condition and the field's values, not
-from anything the process owner has said about the skip, and it is in
-[`docs/open-questions.md`](../open-questions.md) for confirmation.
+unstated. **No longer [Derived]:** the process owner has since confirmed that the Contracts gate is
+skipped entirely for company-funded work, and that the three contract types do differ once the gate
+is reached — each triggering a different combination of exception rules.
 
 ### The manual lookup problem
 

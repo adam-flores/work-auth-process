@@ -67,8 +67,7 @@ almost certainly reconcile them or derive the trigger outright.
 
 ## Question for the product owner
 
-Kept here rather than in `docs/open-questions.md` because it is not something to go and look up —
-it needs a direction, and the build proceeds without one.
+It is not something to go and look up — it needs a direction, and the build proceeds without one.
 
 **When Global Trade's step says the two sides are in different countries, what does the product
 look at to know that?** The choices are the location type each side keys today, or something
