@@ -43,7 +43,7 @@ and the system does not solve its own reference data being incomplete. Who maint
 
 ### What the three levels are, on the fixture
 
-`docs/reference/cas-hierarchy.json` was built before
+`docs/reference/organization-hierarchy.json` was built before
 [BDR-0004](0004-the-classification-is-three-levels.md) and reads onto the settled model directly:
 its **three charts are the three legal entities**, their segments and categories are **divisions**,
 and their units are **departments**. 3, 12 and 58 respectively.
@@ -97,9 +97,9 @@ of its scope.
 
 **That foreign/domestic is the jurisdiction attribute, and there is no country.** The source chart
 carries no country field at all — foreign versus domestic is encoded in text colour and nothing
-narrows it further. The specific countries in `docs/reference/cas-hierarchy.json` are invented
+narrows it further. The specific countries in `docs/reference/organization-hierarchy.json` are invented
 enrichment that the source does not have, and are now labelled as such in
-`docs/reference/cas-hierarchy.md`. The picker filters on **foreign/domestic**. Anything finer would
+`docs/reference/organization-hierarchy.md`. The picker filters on **foreign/domestic**. Anything finer would
 demo a capability the real hierarchy cannot supply.
 
 ## What changes if this is overturned

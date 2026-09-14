@@ -59,7 +59,7 @@ is the behaviour hardest to believe without seeing.
 
 **The synthetic hierarchy fixture becomes a seed rather than the canonical data.** For a fixture it
 stays canonical; for a running instance the store is authoritative the moment an Administrator
-edits anything, and the two will diverge. `docs/reference/cas-hierarchy.md` needs that said in it.
+edits anything, and the two will diverge. `docs/reference/organization-hierarchy.md` needs that said in it.
 
 **Seeding requires a transformation, not a load.** The fixture is still shaped as the source chart
 was — charts, segments and units, in the CAS vocabulary that
