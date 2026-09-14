@@ -98,21 +98,54 @@ const CONFIDENTIAL_RULES: [RegExp, string][] = [
   [/\bcontract\s*(?:no\.?|number|#)\s*[:=]?\s*[A-Z0-9-]{6,}/i, "contract number"],
 ];
 
+/**
+ * A missing term list stops the scan rather than reducing it.
+ *
+ * The generic patterns cannot catch a company name, so without this file the
+ * fourth target is not running at all - and the consequence of that leak, once,
+ * was deleting and recreating the repository, because a force-push does not
+ * remove published history (SEC-2). A target that cannot run is not a warning.
+ */
 function localTermRules(): [RegExp, string][] {
   if (!existsSync(".security-terms")) {
-    notes.push(
-      "no .security-terms file - site-specific names (the client, programs, people) are not checked",
-    );
-    return [];
+    console.error("\n  SECURITY SCAN BLOCKED - no .security-terms file\n");
+    console.error("  The confidential-content target cannot run without it, and the generic");
+    console.error("  patterns cannot catch a company or program name. To fix:\n");
+    console.error("    cp .security-terms.example .security-terms");
+    console.error("    # then edit it - it is gitignored and stays on your machine\n");
+    process.exit(1);
   }
-  return readFileSync(".security-terms", "utf8")
-    .split("\n")
-    .map((t) => t.trim())
-    .filter((t) => t && !t.startsWith("#"))
-    .map((term): [RegExp, string] => [
-      new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
-      "term listed in .security-terms",
-    ]);
+  const usableTerms = (path: string): string[] =>
+    readFileSync(path, "utf8")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith("#"));
+
+  const terms = usableTerms(".security-terms");
+  const placeholders = existsSync(".security-terms.example")
+    ? new Set(usableTerms(".security-terms.example").map((t) => t.toLowerCase()))
+    : new Set<string>();
+  const real = terms.filter((t) => !placeholders.has(t.toLowerCase()));
+
+  // A file copied and not edited protects nothing while looking as though it
+  // does, which is worse than not having one - the whole point of stopping on a
+  // missing file is that a target which cannot run must not pass quietly.
+  if (real.length === 0) {
+    console.error("\n  SECURITY SCAN BLOCKED - .security-terms has no real terms in it\n");
+    console.error(
+      terms.length === 0
+        ? "  The file is empty. Add the terms that must never be committed."
+        : "  It still holds only the placeholders from .security-terms.example.",
+    );
+    console.error("  The organization's name, its programs, and any real names from source");
+    console.error("  documents belong here. The file is gitignored and stays on your machine.\n");
+    process.exit(1);
+  }
+
+  return real.map((term): [RegExp, string] => [
+    new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+    "term listed in .security-terms",
+  ]);
 }
 
 // ---- Run -------------------------------------------------------------------

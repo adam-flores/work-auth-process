@@ -1,0 +1,30 @@
+# Terms that must never be committed to this repository.
+#
+# Copy this file to `.security-terms` and fill it in:
+#
+#     cp .security-terms.example .security-terms
+#
+# `.security-terms` is gitignored and stays on your machine. That is deliberate:
+# a scanner that hardcodes the client's name would put the name in the public
+# repository it exists to keep it out of (SEC-1). This example file is committed,
+# so it must contain no real terms - placeholders only.
+#
+# One term per line. Matching is case-insensitive and substring-based, and each
+# line is escaped before use, so punctuation and spaces are safe to include.
+# Lines starting with # are ignored.
+#
+# What belongs here (see README, Data handling):
+#   - the real organization's name, and any abbreviation or trading name
+#   - real program and project names
+#   - real contract numbers not already caught by the generic pattern
+#   - names of real employees who appear in source documents
+#   - internal system and platform names that were genericised in transcription
+#
+# The pre-commit hook refuses to run without this file, because the generic
+# patterns cannot catch a company name and a scan that quietly skips a target is
+# worse than one that stops.
+
+# --- replace everything below with the real terms ---
+ACME AEROSPACE
+Acme
+PROJECT PLACEHOLDER
