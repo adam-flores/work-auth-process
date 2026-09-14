@@ -1,6 +1,10 @@
 # Data store: XML files or SQLite — undecided
 
-**Status:** proposed — deliberately open
+**Status:** superseded by [ADR-0008](0008-sqlite-for-the-prototype-store.md)
+
+> Kept for its reasoning, which is where ADR-0008 argues from — including the part that
+> did not survive. The leaning recorded below rests on the success measures being
+> aggregate queries against the store, and they are not: ADR-0006 computes them as folds.
 
 Persistence for the prototype will be either XML files on disk or SQLite. This is recorded
 now, while undecided, because it is the one stack choice here that is genuinely expensive to

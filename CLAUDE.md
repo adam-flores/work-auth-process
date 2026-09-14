@@ -26,14 +26,18 @@ company.
 
 ## Current state
 
-The problem is defined; the solution is not. The stack has started to settle — React on the
-front end, Node/TypeScript services, and a file-backed data store that is still an open
-choice between XML and SQLite. See `docs/adr/` for each decision and its reasoning; read the
-relevant ADR before working in an area it touches.
+The problem is defined and the capability set is settled; the build has not started. The stack
+is decided — React on the front end, Node/TypeScript services, and **SQLite** as a file-backed
+store ([ADR-0008](docs/adr/0008-sqlite-for-the-prototype-store.md), superseding the open choice
+ADR-0003 held between XML and SQLite). The architecture is recorded too: the transition log is
+the record, the service is a module with HTTP as a thin adapter over it, and reference data is
+split between the store and the repository. See `docs/adr/` for each decision and its reasoning;
+read the relevant ADR before working in an area it touches.
 
-Everything past those three choices is still open: no architecture, module boundaries, or
-solution approach has been settled. Do not assume one — if a task implies a decision that
-isn't already recorded in an ADR, surface it rather than quietly making it.
+The spec for the prototype is
+[issue #46](https://github.com/adam-flores/work-auth-process/issues/46). Module boundaries below
+the level the ADRs fix are still open — if a task implies a decision that isn't already recorded
+in an ADR, surface it rather than quietly making it.
 
 ## Git workflow — important
 

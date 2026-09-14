@@ -3,19 +3,19 @@
 **Status:** accepted
 
 [BDR-0003](../bdr/0003-the-authorization-lifecycle.md) settles what an authorization's
-lifecycle *is*: five explicit states, position in the relay derived rather than stored, and four
-timestamps at every stage. This records the shape that holds it. It is separated from the BDR
-because the business decision survives if this one is wrong, and because
+lifecycle *is*: five explicit states, position in the relay derived rather than stored, and three
+timestamps at every stage — arrived, notified, resolved. This records the shape that holds it. It
+is separated from the BDR because the business decision survives if this one is wrong, and because
 [ADR-0003](0003-data-store-xml-or-sqlite.md) names "deciding the lifecycle late and by accident"
 as the failure mode it exists to prevent — this is the decision that clears it.
 
 Three parts.
 
-**The append-only transition log is the record.** Every advance, denial, hold, claim,
-acknowledgement, gate skip, and mint is appended as a transition carrying its actor, its kind,
-and its timestamp. Nothing is updated in place. Current state — the stage an authorization sits
-at, and whether that stage is awaiting action, has returned it, or is a re-review — is a fold
-over the log, computed on read.
+**The append-only transition log is the record.** Every initiation, arrival, acknowledgement,
+correction request, correction, referral, claim, hold, release, gate skip, mint, withdrawal and
+revocation is appended as a transition carrying its actor, its kind, and its timestamp. Nothing is
+updated in place. Current state — the stage an authorization sits at, and whether that stage is
+awaiting action, has returned it, or is a re-review — is a fold over the log, computed on read.
 
 **One global relay configuration, consulted at each step.** The relay is a single ordered list
 of stages held as configuration, not copied onto each authorization at creation. Each stage is
@@ -64,11 +64,33 @@ that is unanswerable.
 only. If it ever stops being acceptable, the answer is a cached projection rebuilt from the log,
 not a hand-maintained status column — the log stays the record.
 
-**This constrains [ADR-0003](0003-data-store-xml-or-sqlite.md) without deciding it.** An
-append-only log with aggregate queries over transitions is the shape both candidates now have to
-serve, and it is the case that ADR's current leaning already rests on. That ADR stays open.
+**This constrained [ADR-0003](0003-data-store-xml-or-sqlite.md) without deciding it**, and
+[ADR-0008](0008-sqlite-for-the-prototype-store.md) has since decided it. The shape this ADR
+imposes — an append-only log, read in full and folded in TypeScript — is what that decision rests
+on, though not for the reason ADR-0003 anticipated. The aggregate queries it expected the store to
+answer are computed as folds instead, so what carried the choice was the **append** rather than
+the query.
 
 **The `{side, kind, concern}` stage triple is not new here.** It is what
 [BDR-0002](../bdr/0002-the-cast-and-what-each-role-needs.md) settled and what
 [`CONTEXT.md`](../../CONTEXT.md) defines; this ADR only records that routing reads it directly
 rather than mapping it onto bespoke per-stage names.
+
+## Corrections
+
+Recorded rather than folded in silently, because a reader who knew this document in its first
+form should be able to see what moved.
+
+- **Three timestamps per stage, not four.** This ADR was written against
+  [BDR-0003](../bdr/0003-the-authorization-lifecycle.md), which settled four.
+  [BDR-0006](../bdr/0006-what-the-product-records.md) removed `acknowledged` outright — it had
+  lost both its permission and its meaning — leaving *arrived*, *notified* and *resolved*.
+- **The list of transition kinds was stale.** It named a *denial*, which
+  [BDR-0005](../bdr/0005-correction-in-place-and-revocation.md) retired in favour of a
+  **correction request**, and predated referral, revocation, withdrawal and re-review. The
+  list is now the one the command surface actually writes.
+- **The fifth state is Revoked, not Rejected.** The count of five is unchanged, so nothing in
+  this ADR's reasoning turned on it, but BDR-0003's own naming did not survive
+  [BDR-0005](../bdr/0005-correction-in-place-and-revocation.md) and
+  [BDR-0012](../bdr/0012-a-wrong-department-is-a-new-authorization.md), which narrowed
+  revocation to a single cause.

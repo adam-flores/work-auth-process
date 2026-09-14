@@ -24,10 +24,17 @@ recorded on it. The approver is told which.
 **A correction that intersects nothing disturbs nobody.** It is applied, logged, and the
 authorization resumes at the stage that requested it.
 
-**Superseded contributions stay in the log.** Where a correction re-routes an entire side — the
-performing department changing is the case BDR-0005 names — the prior side's contributions and
-acknowledgements are marked superseded rather than deleted. The log is append-only (ADR-0004), and
-what went wrong is the part a pilot most needs to read.
+**Superseded contributions are no longer a case.** This ADR originally held that where a
+correction re-routes an entire side, the prior side's contributions and acknowledgements are
+marked superseded rather than deleted — and the only case it named was the **performing
+department** changing.
+[BDR-0012](../bdr/0012-a-wrong-department-is-a-new-authorization.md) has since fixed that field at
+initiation: a different department is a different request, so the resolution is **withdraw and
+raise again**, and no correction re-routes a side at all. The clause is retired rather than
+rewritten, because nothing else supersedes a whole side's contributions. What it was protecting
+survives without it — the log is append-only
+([ADR-0004](0004-transition-log-and-global-relay-config.md)), so a value a correction replaced
+stays readable whether or not anything marks it as superseded.
 
 ## Considered options
 
@@ -73,6 +80,15 @@ live. This is the same constraint ADR-0004 already accepted at prototype volumes
 every other position: a correction requested and not yet supplied. It adds no row to the five
 recorded states.
 
-**This tightens [ADR-0003](0003-data-store-xml-or-sqlite.md) without deciding it.** Intersecting a
+**This tightened [ADR-0003](0003-data-store-xml-or-sqlite.md) without deciding it**, and
+[ADR-0008](0008-sqlite-for-the-prototype-store.md) has since decided it. Intersecting a
 changed-field set against per-stage dependencies is a read over configuration, not over data, so
-it adds nothing either candidate store has to serve. That ADR stays open.
+it added nothing the store has to serve — which is why it did not bear on the choice.
+
+## Corrections
+
+- **The superseded-contributions clause is retired**, as recorded above. It was the one part of
+  this ADR that rested on a correction being able to change the **performing department**, and
+  [BDR-0012](../bdr/0012-a-wrong-department-is-a-new-authorization.md) removed that possibility.
+  The rest of the ADR is untouched: field dependencies, the intersection, and the two causes of
+  re-review all stand, because none of them depended on that case.

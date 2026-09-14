@@ -31,7 +31,7 @@ is preserved unchanged in [docs/source/project-overview.md](docs/source/project-
 |---|---|
 | **Phase** | Direction set — capability decisions in progress |
 | **Solution approach** | Preserve today's approval flow; rebuild the experience around it ([BDR-0001](docs/bdr/0001-preserve-the-flow-rebuild-the-experience.md)) |
-| **Tech stack** | React front end, Node services; data store still open (see [`docs/adr/`](docs/adr/)) |
+| **Tech stack** | React front end, Node services, SQLite store (see [`docs/adr/`](docs/adr/)) |
 
 Decisions about *what the system should do* are recorded in [`docs/bdr/`](docs/bdr/) and are
 `provisional` until confirmed with the process owner. Decisions about *how it is built* are in
