@@ -79,3 +79,15 @@ data/private/
 *.log
 tmp/
 .tmp/
+
+# ---- Prototype store (ADR-0008: disposable, rebuilt by seeding) ----
+.store/
+
+# ---- Playwright ----
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# Site-specific terms the security scan checks for; never committed
+.security-terms

@@ -1,0 +1,10 @@
+#!/bin/sh
+# SEC-6: a blocking pre-commit hook, so the scan runs whether or not an agent is
+# driving the commit. CI is a backstop, never the primary gate - by the time CI
+# sees a leaked secret it is already published, and a force-push does not remove
+# it (SEC-2).
+#
+# Wired up by `npm install`, whose prepare script sets core.hooksPath.
+set -e
+echo "pre-commit: security scan (SEC-5)"
+exec node scripts/security-scan.ts --staged
