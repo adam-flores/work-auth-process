@@ -1,0 +1,36 @@
+{
+  "name": "work-auth-process",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Prototype for a large aerospace manufacturer's internal work authorization process",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
+    "start": "npm run build && node src/server/index.ts",
+    "build": "vite build",
+    "dev": "vite",
+    "dev:api": "node --watch src/server/index.ts",
+    "reset": "node scripts/reset-store.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/service/*.test.ts",
+    "test:e2e": "playwright test",
+    "security-scan": "node scripts/security-scan.ts"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^24.9.2",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.1",
+    "@vitejs/plugin-react": "^5.0.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.9"
+  }
+}

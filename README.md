@@ -29,13 +29,53 @@ is preserved unchanged in [docs/source/project-overview.md](docs/source/project-
 
 | | |
 |---|---|
-| **Phase** | Direction set — capability decisions in progress |
+| **Phase** | Building — the capability set is settled and the spec is broken into tickets ([#46](https://github.com/adam-flores/work-auth-process/issues/46)) |
 | **Solution approach** | Preserve today's approval flow; rebuild the experience around it ([BDR-0001](docs/bdr/0001-preserve-the-flow-rebuild-the-experience.md)) |
 | **Tech stack** | React front end, Node services, SQLite store (see [`docs/adr/`](docs/adr/)) |
 
 Decisions about *what the system should do* are recorded in [`docs/bdr/`](docs/bdr/) and are
 `provisional` until confirmed with the process owner. Decisions about *how it is built* are in
 [`docs/adr/`](docs/adr/).
+
+---
+
+## Running it
+
+Requires **Node 24 or newer** — the server and the tests run TypeScript natively and the store
+uses the built-in `node:sqlite`, so nothing is transpiled and nothing is compiled on install.
+
+```bash
+npm install
+npm start          # builds the web app and serves everything on http://localhost:3000
+```
+
+That is the whole setup. The SQLite store is created and seeded on first run; there is no
+database to provision and no configuration to supply.
+
+| Command | What it does |
+|---|---|
+| `npm start` | Build the web app and serve it with the API on one URL |
+| `npm run dev` | Vite dev server with hot reload (run `npm run dev:api` alongside it) |
+| `npm run reset` | Return the store to its seeded state |
+| `npm test` | Drive the service in-process against a real store on a temporary file |
+| `npm run test:e2e` | Playwright, against a browser (`npx playwright install` first) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run security-scan` | The SEC-5 scan, over the working tree rather than the staged diff |
+
+**The store is disposable.** It is rebuilt by seeding rather than migrated
+([ADR-0008](docs/adr/0008-sqlite-for-the-prototype-store.md)), so `npm run reset` — or deleting
+`.store/` — always gets you back to a known state. Nothing in it is worth keeping.
+
+**The security scan runs on every commit.** `npm install` points git at `.githooks/`, so the
+pre-commit hook is live on a cold clone without anyone remembering to enable it. It covers the
+four targets SEC-5 names: secrets, dependency advisories, code-level patterns, and confidential
+or export-controlled content. Installing `semgrep` upgrades the third target from built-in
+patterns to a full ruleset.
+
+Optionally, put site-specific names — the real organization, its programs, real people from the
+source documents — one per line in `.security-terms`. It is gitignored and stays on your machine,
+because a scanner that hardcoded the client's name would put that name in the public repository it
+exists to keep it out of. Without it the generic patterns still run.
 
 ---
 
@@ -65,6 +105,17 @@ is judgment before `git add`.
 ├── README.md               You are here
 ├── CONTEXT.md              The glossary — canonical vocabulary for the domain
 ├── CLAUDE.md               Working agreements and context for Claude Code
+├── src/
+│   ├── shared/             Rules expressed once, imported by the browser and the service
+│   ├── store/             SQLite: schema, seeding, and the disposable store file
+│   ├── service/            The seam — every process decision, as typed functions
+│   ├── server/             A thin HTTP adapter over the service; holds no logic
+│   └── web/                The React app
+├── config/                 Reference data that ships with the repo, not the store
+├── tests/
+│   ├── service/            The single seam for process logic
+│   └── e2e/                Playwright, for what the seam cannot express
+├── scripts/                Store reset, and the SEC-5 security scan
 ├── docs/
 │   ├── business-case.md    The live argument: problem, solution direction, targets, the ask
 │   ├── bdr/                Business decision records — what the system should do, and why
