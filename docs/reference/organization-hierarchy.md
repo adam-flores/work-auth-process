@@ -201,6 +201,7 @@ cost-accounting fields is rejected because each is blank for a third of the orga
 | Irregularity | Resolution |
 |---|---|
 | A cost center shared by four departments; two departments with an identical pair | Identity is a deterministic id of the product's own. No code identifies anything, and both departments keep their own disclosure treatment |
+| Every one of those four marked as holding `20514` **alone** | Sharing is computed from the transformed set, not copied from the ink colour: a code several departments carry is marked shared whatever the source said, and a code the source marked shared stays shared |
 | Departments with no code at all | Absent, not blank. A department with no code is as selectable as one with seven |
 | The literal code `various cost centers` | Not carried. A code with a space in it is prose rather than a code, so the rule is general and names nothing |
 | Three codes in one field (`D204, D209, D216`) | Three codes |
@@ -208,13 +209,18 @@ cost-accounting fields is rejected because each is blank for a third of the orga
 | The `null` country, and every other country | **Not carried at all.** The countries are invented enrichment the source cannot supply, so a missing one is not a gap. `foreign`/`domestic` is what the source encodes and what the store holds |
 | The one department with no `foreign` value either | Seeded **inactive**: no jurisdiction is invented for the field a compliance rule is read from, and an inactive department is closed to new work while staying resolvable for ever |
 | One department flagged `foreign` whose text colour says domestic | The flag wins. This document names `foreign` as the faithful field, and the colour is a carrier the store does not read |
+| Seven departments with a white fill (*exempt*) and no `disclosureStatement` | No treatment is recorded. The fixture sets both together elsewhere, so a fill on its own is an absence rather than an exemption, and nothing is read from the colour |
+| One division marked `homeOfficeLevel: true` with no home-office dot | The documented icon is read and the undocumented boolean is not, so that division's departments carry no `home-office-disclosure` at all — recorded as the price of not inventing a filter |
 | The unaffiliated column that is not a division | An ordinary division. Its departments were always selectable; only the name now says it is unaffiliated |
 | Three legal entities of different *shape*, not just different values | Reconciled once, at seeding. `CAL`'s single code column is read as the cost-accounting code its own chart declares as that entity's code scheme |
 | Near-identical sibling names | Distinct departments, distinct ids. Nothing is merged, and a collision would fail seeding rather than pass quietly |
 
 **What is dropped, deliberately:** the countries and division sites (invented geography); `fill`,
-`textColour` and cost-center ink colour (carriers whose decoded values are kept instead); the
-source's layout and code-scheme notes and the division codes (properties of the source document);
+`textColour` and cost-center ink colour (carriers, read only where the fixture gives no decoded field
+of its own — and never read to fill a decoded field the fixture left empty); `homeOfficeLevel` (a
+boolean the fixture never gives a meaning, absent from one legal entity entirely, and contradicted by
+the documented icon on one division); the source's layout and code-scheme notes and the division
+codes (properties of the source document);
 footnote `fn-1` (identical in meaning to the disclosure treatment already kept) and `fn-3`; and the
 per-record `note` fields, which are commentary about this fixture rather than facts about the
 organization. All of it stays here, which is where a reader looking for it would come.

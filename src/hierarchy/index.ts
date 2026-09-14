@@ -6,11 +6,11 @@ import type { DepartmentQuery } from "../shared/rules.ts";
  * Reading the hierarchy: resolve a department to its three levels, narrow on
  * attributes, search what remains by name (BDR-0008).
  *
- * The whole hierarchy is 58 departments, so every read loads it and folds in
- * TypeScript rather than composing SQL. That is ADR-0008's position - the store
- * is there for the atomic ordered append, and aggregates are folds - and it
- * keeps the filter combinations, which are arbitrary by design, out of a query
- * builder.
+ * The hierarchy is small enough - one organization's departments - that every
+ * read loads it whole and folds in TypeScript rather than composing SQL. That is
+ * ADR-0008's position, where the store is there for the atomic ordered append
+ * and aggregates are folds, and it keeps the filter combinations, which are
+ * arbitrary by design, out of a query builder.
  */
 
 export type { CodeKind, NodeKind } from "./transform.ts";
@@ -29,7 +29,7 @@ export type Attribute = {
 export type DepartmentCode = {
   kind: CodeKind;
   code: string;
-  /** The source marked some cost centres as shared with another division. */
+  /** Not held by this department alone, so it cannot be read as identifying it. */
   shared: boolean;
 };
 
@@ -67,6 +67,18 @@ type AttributeRow = { node_kind: NodeKind; node_id: string; name: string; value:
 type CodeRow = { department_id: string; kind: CodeKind; code: string; shared: number };
 
 const LEVELS: NodeKind[] = ["legal-entity", "division", "department"];
+
+/** Rows to a map of lists, keyed by whatever `keyOf` says. */
+function groupBy<Row>(rows: Row[], keyOf: (row: Row) => string): Map<string, Row[]> {
+  const grouped = new Map<string, Row[]>();
+  for (const row of rows) {
+    const key = keyOf(row);
+    const list = grouped.get(key);
+    if (list) list.push(row);
+    else grouped.set(key, [row]);
+  }
+  return grouped;
+}
 
 /** Ordered legal entity first, so `heldAt` reads down the tree. */
 function mergeAttributes(rows: { kind: NodeKind; name: string; value: string }[]): Attribute[] {
@@ -110,15 +122,8 @@ export function readDepartments(db: DatabaseSync): ResolvedDepartment[] {
   const entityById = new Map(entities.map((e) => [e.id, e]));
   const divisionById = new Map(divisions.map((d) => [d.id, d]));
 
-  const attributesFor = new Map<string, AttributeRow[]>();
-  for (const row of attributes) {
-    const key = `${row.node_kind}:${row.node_id}`;
-    attributesFor.set(key, [...(attributesFor.get(key) ?? []), row]);
-  }
-  const codesFor = new Map<string, CodeRow[]>();
-  for (const row of codes) {
-    codesFor.set(row.department_id, [...(codesFor.get(row.department_id) ?? []), row]);
-  }
+  const attributesFor = groupBy(attributes, (row) => `${row.node_kind}:${row.node_id}`);
+  const codesFor = groupBy(codes, (row) => row.department_id);
 
   // Ordered here rather than in SQL: SQLite compares bytes, which files every
   // name beginning "CAL" ahead of every name beginning "Cab". A person reading
@@ -170,7 +175,7 @@ export function readDepartments(db: DatabaseSync): ResolvedDepartment[] {
  * No filter is required and none is privileged: certain of nothing is a legal
  * starting state (BDR-0008).
  */
-export function searchDepartments(
+export function findDepartments(
   db: DatabaseSync,
   query: DepartmentQuery,
 ): ResolvedDepartment[] {

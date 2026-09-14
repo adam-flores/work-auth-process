@@ -9,8 +9,8 @@ import { transform } from "./transform.ts";
  * Order matters: `PRAGMA foreign_keys` is on, so a division cannot be inserted
  * before its legal entity. That is the point of having the foreign keys.
  */
-export function seedHierarchy(db: DatabaseSync, fixturePath?: string): void {
-  const hierarchy = transform(readFixture(fixturePath));
+export function seedHierarchy(db: DatabaseSync): void {
+  const hierarchy = transform(readFixture());
 
   db.exec("DELETE FROM department_codes");
   db.exec("DELETE FROM hierarchy_attributes");

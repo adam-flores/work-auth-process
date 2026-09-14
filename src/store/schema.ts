@@ -8,7 +8,12 @@
  * rather than domain state (ADR-0011), it is a tree, and it is the one thing in
  * the store that foreign keys can usefully police.
  */
-export const SCHEMA_VERSION = 2;
+/**
+ * Bumped for any change to the shape below, not only for a new table: a store on
+ * disk built by an older shape is rebuilt on open (ADR-0008), and without the
+ * bump it survives and then fails on the first write its old constraints refuse.
+ */
+export const SCHEMA_VERSION = 3;
 
 export const SCHEMA = `
   CREATE TABLE IF NOT EXISTS store_meta (
@@ -56,11 +61,11 @@ export const SCHEMA = `
     PRIMARY KEY (node_kind, node_id, name, value)
   );
 
-  /* Detail, never identity: in this data one cost centre is shared by three
+  /* Detail, never identity: in this data one cost center is carried by four
      departments, so nothing may be keyed on a code. */
   CREATE TABLE IF NOT EXISTS department_codes (
     department_id TEXT NOT NULL REFERENCES departments(id),
-    kind          TEXT NOT NULL CHECK (kind IN ('cost-accounting', 'cost-centre')),
+    kind          TEXT NOT NULL CHECK (kind IN ('cost-accounting', 'cost-center')),
     code          TEXT NOT NULL,
     shared        INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (department_id, kind, code)

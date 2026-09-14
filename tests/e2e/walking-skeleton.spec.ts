@@ -36,14 +36,17 @@ test("the switcher chooses who is acting", async ({ page }) => {
 test("the store can be reset from the page", async ({ page }) => {
   await page.goto("/");
 
-  const seeded = page.getByTestId("store-info").locator("dd").nth(1);
-  const before = await seeded.textContent();
+  // The machine-readable timestamp, not the rendered one: the displayed form is
+  // accurate to the second, and a reset moments after a cold seeding falls inside
+  // the same second.
+  const seeded = page.getByTestId("store-info").locator("time");
+  const before = await seeded.getAttribute("dateTime");
 
   await page.getByRole("button", { name: "Reset the store" }).click();
 
   await expect(page.getByRole("button", { name: "Reset the store" })).toBeEnabled();
   await expect(page.getByTestId("participant-count")).toHaveText(/^\d+$/);
-  await expect(seeded).not.toHaveText(before ?? "");
+  await expect(seeded).not.toHaveAttribute("dateTime", before ?? "");
 });
 
 test("the four roles of the cast appear, and Submitter does not", async ({ page }) => {

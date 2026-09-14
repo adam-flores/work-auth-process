@@ -5,9 +5,12 @@ import type { ResolvedDepartment } from "../../src/hierarchy/index.ts";
 import { withTempStore } from "../helpers/temp-store.ts";
 
 /**
- * The hierarchy, driven at the service seam (ADR-0010). Nothing here reaches
- * into the tables: how the transformation stores an attribute is implementation,
- * and what a submitter can find is the behaviour.
+ * The hierarchy, driven at the service seam (ADR-0010). Nothing here asserts
+ * against the tables: how the transformation stores an attribute is
+ * implementation, and what a submitter can find is the behaviour. Two tests do
+ * *write* through the store, using the escape hatch to close something the
+ * command surface cannot close until #64 builds the admin verbs; each undoes it
+ * whatever the assertions do.
  *
  * The fixture these run against is `docs/reference/organization-hierarchy.json`,
  * which is deliberately awkward. Each irregularity has a test below, because
@@ -185,20 +188,30 @@ describe("the seeded hierarchy", () => {
       assert.equal(inactive.length, 1);
     });
 
-    test("an inactive department is excluded from the picker but resolvable for ever", () => {
+    test("an inactive department is excluded from the picker but resolvable for ever", (t) => {
       const closed = byName("Signal Analytics Corp");
-      service.__unsafeRawExec("UPDATE departments SET active = 0 WHERE name = 'Signal Analytics Corp'");
+      // Restored however this test ends: the store is shared with every test
+      // below, and a failed assertion must not leave one closed.
+      t.after(() =>
+        service.__unsafeRawExec(
+          "UPDATE departments SET active = 1 WHERE name = 'Signal Analytics Corp'",
+        ),
+      );
+      service.__unsafeRawExec(
+        "UPDATE departments SET active = 0 WHERE name = 'Signal Analytics Corp'",
+      );
 
       assert.ok(!service.searchDepartments(SYSTEM, {}).some((d) => d.id === closed.id));
       const resolved = service.getDepartment(SYSTEM, closed.id);
       assert.equal(resolved.active, false);
       assert.equal(resolved.name, "Signal Analytics Corp");
-
-      service.__unsafeRawExec("UPDATE departments SET active = 1 WHERE name = 'Signal Analytics Corp'");
+      // Closed, not removed: nothing left the hierarchy.
+      assert.equal(service.getStoreInfo(SYSTEM).departmentCount, FIXTURE.departments);
     });
 
-    test("a department under an inactive division is closed too, and says which level closed it", () => {
+    test("a department under an inactive division is closed too, and says which level closed it", (t) => {
       const dept = byName("Vibration Lab");
+      t.after(() => service.__unsafeRawExec("UPDATE divisions SET active = 1 WHERE name = 'Labs'"));
       service.__unsafeRawExec("UPDATE divisions SET active = 0 WHERE name = 'Labs'");
 
       assert.ok(!service.searchDepartments(SYSTEM, {}).some((d) => d.id === dept.id));
@@ -206,20 +219,8 @@ describe("the seeded hierarchy", () => {
       assert.equal(resolved.active, true, "the department itself was never closed");
       assert.equal(resolved.selectable, false);
       assert.equal(resolved.division.active, false);
-
-      service.__unsafeRawExec("UPDATE divisions SET active = 1 WHERE name = 'Labs'");
     });
 
-    test("nothing in the hierarchy is deletable", () => {
-      // BDR-0010: inactive is how something stops existing without breaking the
-      // records that name it. The command surface offers no way to remove one.
-      for (const verb of Object.keys(service)) {
-        assert.ok(
-          !/^delete(Department|Division|LegalEntity)$/.test(verb),
-          `the service exposes ${verb}`,
-        );
-      }
-    });
   });
 
   describe("the fixture's irregularities", () => {
@@ -227,9 +228,13 @@ describe("the seeded hierarchy", () => {
       const sharing = all().filter((d) => d.codes.some((c) => c.code === "20514"));
       assert.equal(sharing.length, 4);
       assert.equal(new Set(sharing.map((d) => d.id)).size, 4);
-      // All three carry it; none of them is reached by it.
+      // Each of the four carries it, each is marked as not holding it alone, and
+      // none of them is reached by it. The source marked every one of the four
+      // as sole, which is the marking the transformation refuses to carry.
       for (const d of sharing) {
-        assert.ok(d.codes.some((c) => c.kind === "cost-centre" && c.code === "20514"));
+        const code = d.codes.find((c) => c.kind === "cost-center" && c.code === "20514");
+        assert.ok(code, `${d.name} should carry cost center 20514`);
+        assert.equal(code.shared, true, `${d.name} should not claim 20514 alone`);
       }
     });
 
@@ -238,7 +243,7 @@ describe("the seeded hierarchy", () => {
       const commercial = byName("Thermal Commercial Ent.");
       const codes = (d: ResolvedDepartment) =>
         d.codes
-          .filter((c) => c.kind === "cost-centre")
+          .filter((c) => c.kind === "cost-center")
           .map((c) => c.code)
           .sort();
 

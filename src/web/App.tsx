@@ -100,7 +100,12 @@ export function App() {
             <dt>Schema version</dt>
             <dd>{store.schemaVersion}</dd>
             <dt>Seeded</dt>
-            <dd>{new Date(store.seededAt).toLocaleString()}</dd>
+            <dd>
+              {/* The machine-readable value as well as the readable one: the
+                  displayed form is only accurate to the second, and two seedings
+                  can fall inside one second. */}
+              <time dateTime={store.seededAt}>{new Date(store.seededAt).toLocaleString()}</time>
+            </dd>
             <dt>Participants</dt>
             <dd data-testid="participant-count">{store.participantCount}</dd>
           </dl>

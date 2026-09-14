@@ -20,6 +20,8 @@ import { fileURLToPath } from "node:url";
  * from, not the organization. ADR-0012 records which those are and why.
  */
 
+/** The fixture's own spelling, mirroring its `costCentres` key. Everything the
+ *  product names itself uses CONTEXT.md's *cost center*. */
 const CostCentre = z.object({
   code: z.string().trim().min(1),
   sharing: z.enum(["sole", "shared"]),
@@ -69,6 +71,6 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
  */
 export const FIXTURE_PATH = resolve(repoRoot, "docs/reference/organization-hierarchy.json");
 
-export function readFixture(path: string = FIXTURE_PATH): Fixture {
-  return Fixture.parse(JSON.parse(readFileSync(path, "utf8")) as unknown);
+export function readFixture(): Fixture {
+  return Fixture.parse(JSON.parse(readFileSync(FIXTURE_PATH, "utf8")) as unknown);
 }

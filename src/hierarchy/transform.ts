@@ -8,7 +8,7 @@ import type { Fixture } from "./fixture.ts";
  * ADR-0012 records each decision made here and why. In summary:
  *
  *   - Identity is ours. A code never identifies anything, because in this data a
- *     cost centre is shared by three departments and an identical code pair is
+ *     cost center is carried by four departments and an identical code pair is
  *     carried by two with different disclosure treatments (#8's finding).
  *   - An **attribute** is level-agnostic, inherited downward and used to narrow.
  *     Everything else a department carries is **detail**: recorded, shown, never
@@ -22,7 +22,7 @@ import type { Fixture } from "./fixture.ts";
 
 export type NodeKind = "legal-entity" | "division" | "department";
 
-export type CodeKind = "cost-accounting" | "cost-centre";
+export type CodeKind = "cost-accounting" | "cost-center";
 
 export type SeedLegalEntity = { id: string; name: string; active: boolean };
 export type SeedDivision = {
@@ -49,6 +49,7 @@ export type SeedCode = {
   departmentId: string;
   kind: CodeKind;
   code: string;
+  /** Not held by this department alone. */
   shared: boolean;
 };
 
@@ -76,7 +77,7 @@ const CONTRACTING_EXCEPTION_FOOTNOTE = "fn-2";
  * silently merged — two departments becoming one is the failure this ticket
  * exists to prevent.
  */
-export function slug(text: string): string {
+function slug(text: string): string {
   return text
     .normalize("NFKD")
     .toLowerCase()
@@ -154,6 +155,12 @@ export function transform(fixture: Fixture): SeedHierarchy {
 
       // The same attribute hangs at this level for some divisions and at the
       // department level for others. Both are held where they are found.
+      //
+      // Read from the icon, which the fixture's `encodings` block gives a
+      // meaning, rather than from the divisions' undocumented `homeOfficeLevel`
+      // boolean - which says nothing about what it means, is absent from an
+      // entire legal entity, and disagrees with the icon on one division
+      // (ADR-0012).
       if (division.icons?.includes(HOME_OFFICE_ICON)) {
         attribute("division", divisionId, "home-office-disclosure", "included");
       }
@@ -189,7 +196,7 @@ export function transform(fixture: Fixture): SeedHierarchy {
         });
 
         // Detail, not identity. A department with none of it is as usable as one
-        // with six cost centres.
+        // with six cost centers.
         const codes = new Map<string, SeedCode>();
         const addCode = (kind: CodeKind, code: string, shared: boolean): void => {
           codes.set(`${kind}:${code}`, { departmentId, kind, code, shared });
@@ -205,12 +212,37 @@ export function transform(fixture: Fixture): SeedHierarchy {
           addCode("cost-accounting", code, false);
         }
         for (const centre of department.costCentres ?? []) {
-          if (isCode(centre.code)) addCode("cost-centre", centre.code, centre.sharing === "shared");
+          if (isCode(centre.code)) addCode("cost-center", centre.code, centre.sharing === "shared");
         }
         hierarchy.codes.push(...codes.values());
       }
     }
   }
 
+  markSharedCodes(hierarchy.codes);
   return hierarchy;
+}
+
+/**
+ * A code carried by more than one department is shared, whatever the source
+ * said about it.
+ *
+ * The source marks sharing with the ink colour of an individual code, and in
+ * this data that marking is wrong: four departments carry cost center `20514`
+ * and every one of them is marked as holding it alone. Two more carry an
+ * identical pair, also each marked sole. Sharing is a property of the whole
+ * transformed set rather than of one row, so it is computed here rather than
+ * copied - which is #8's finding applied to the codes themselves and not only to
+ * identity. A code the source marked shared stays shared even where this fixture
+ * holds only one of its holders.
+ */
+function markSharedCodes(codes: SeedCode[]): void {
+  const holders = new Map<string, number>();
+  for (const code of codes) {
+    const key = `${code.kind}:${code.code}`;
+    holders.set(key, (holders.get(key) ?? 0) + 1);
+  }
+  for (const code of codes) {
+    if ((holders.get(`${code.kind}:${code.code}`) ?? 0) > 1) code.shared = true;
+  }
 }

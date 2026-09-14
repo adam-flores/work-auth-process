@@ -2,13 +2,11 @@ import { openStore, DEFAULT_STORE_PATH } from "../store/index.ts";
 import {
   ActingParticipant,
   DepartmentQuery,
+  HierarchyId,
   SYSTEM_PARTICIPANT_ID,
 } from "../shared/rules.ts";
 import type { DepartmentQueryInput, Participant } from "../shared/rules.ts";
-import {
-  resolveDepartment,
-  searchDepartments as queryDepartments,
-} from "../hierarchy/index.ts";
+import { findDepartments, resolveDepartment } from "../hierarchy/index.ts";
 import type { ResolvedDepartment } from "../hierarchy/index.ts";
 import { DomainError } from "./errors.ts";
 
@@ -89,7 +87,7 @@ export function createService(options: ServiceOptions = {}) {
           parsed.error.issues[0]?.message ?? "Invalid department query.",
         );
       }
-      return queryDepartments(db, parsed.data);
+      return findDepartments(db, parsed.data);
     },
 
     /**
@@ -99,7 +97,14 @@ export function createService(options: ServiceOptions = {}) {
      */
     getDepartment(ctx: ActingParticipant, departmentId: string): ResolvedDepartment {
       requireParticipant(ctx);
-      const found = resolveDepartment(db, departmentId);
+      const parsed = HierarchyId.safeParse(departmentId);
+      if (!parsed.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsed.error.issues[0]?.message ?? "Invalid department id.",
+        );
+      }
+      const found = resolveDepartment(db, parsed.data);
       if (!found) {
         throw new DomainError(
           "UNKNOWN_DEPARTMENT",

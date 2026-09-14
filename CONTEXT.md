@@ -117,10 +117,17 @@ entity above it. Attributes are not tied to a level, which is why foreign depart
 through the hierarchy rather than grouped in one part of it. A department's **name** is not an
 attribute — it is what search matches on, and it is what tells a requester the work a department
 does, since nothing else records that. What is recorded about a department but does *not* narrow the
-list is **detail** — its cost-accounting code, its cost centers, its disclosure treatment — shown
-where it helps a person recognise a department, and never an identifier or a filter
-([ADR-0012](docs/adr/0012-the-store-holds-a-decoded-hierarchy-not-a-transcribed-one.md)).
+list is **detail**, below.
 _Avoid_: field, property, facet, tag, flag
+
+**Detail**:
+What is recorded about a department but does not narrow the list — its cost-accounting code, its cost
+centers and whether each is held alone, its disclosure treatment, its heritage marker. Shown where it
+helps a person recognise the department in front of them, and **never** an identifier and never a
+filter: in the hierarchy the product runs on, one cost center is carried by four departments at once.
+The distinction from an **attribute** is what it is *for*, not how important it is.
+[ADR-0012](docs/adr/0012-the-store-holds-a-decoded-hierarchy-not-a-transcribed-one.md)
+_Avoid_: metadata, extra fields, properties
 
 **Inactive**:
 A department, division or legal entity closed to new authorizations but still resolvable for ever —

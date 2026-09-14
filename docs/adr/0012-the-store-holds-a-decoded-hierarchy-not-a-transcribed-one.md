@@ -65,11 +65,41 @@ as the gap it is. That is [BDR-0010](../bdr/0010-an-administrator-maintains-the-
 inactive doing the work it was defined for, rather than a new state or a silent guess.
 
 **The decoded value is carried; the carrier is not.** The fixture records both the decoded value and
-the colour, fill or icon that carried it in the source. The store keeps only the value. Where the two
-disagree — one department is flagged `foreign` while its text colour says domestic — the flag wins,
-because the reference document names `foreign` as the faithful field. Recording the carrier would
-put the source document's presentation in the product's reference data, and the carrier is the
-problem this project is removing.
+the colour, fill or icon that carried it in the source. The store keeps only the value, and three
+rules follow from that:
+
+- **Where the two disagree, the decoded field wins.** One department is flagged `foreign` while its
+  text colour says domestic; the flag wins, because the reference document names `foreign` as the
+  faithful field.
+- **Where the decoded field is empty and the colour is not, nothing is read from the colour.** Seven
+  departments have a white fill, which the fixture's encoding table reads as *exempt*, and no
+  disclosure treatment. The fixture sets both together elsewhere, so setting only the fill is an
+  absence rather than an exemption, and the store records no treatment for those seven. This is the
+  same refusal to invent that seeds the unclassifiable department inactive.
+- **Where the carrier is the *only* record of a fact, decoding it is exactly this rule, not an
+  exception to it.** The home-office dot and the star have no textual counterpart anywhere in the
+  source, so what the store holds is the fact under a domain name —
+  `home-office-disclosure=included`, `offshore-shared-service=allocated` — and never the string
+  `home-office-dot`.
+
+Recording a carrier as itself would put the source document's presentation into the product's
+reference data, and the presentation is the problem this project is removing.
+
+**One field is dropped for disagreeing with the encoding the fixture documents.** Divisions in two of
+the three legal entities carry a `homeOfficeLevel` boolean, absent from the third entirely, which no
+part of the fixture gives a meaning to — and on one division it is `true` while the home-office dot
+the encoding table *does* define is absent. The documented carrier is read and the undocumented
+boolean is not, which costs that division's departments the attribute (see Consequences).
+
+**Sharing is computed, not copied.** The source marks a shared cost centre by the ink colour of the
+individual code, and in this data the marking is simply wrong: four departments carry cost centre
+`20514` and every one of them is marked as holding it *alone*, as are the two carrying an identical
+pair. Whether a code is held by more than one department is a property of the whole transformed set
+rather than of one row, so the transformation computes it — a code carried by several departments is
+marked shared whatever the source said, and a code the source marked shared stays shared even where
+the fixture holds only one of its holders. This is #8's finding applied to the codes themselves and
+not only to identity: without it the store would assert four separate departments each hold `20514`
+on their own.
 
 **Which legal entity a department sits in narrows the list as structure, not as an attribute.**
 BDR-0008 calls the three charts *"an attribute with three values, so narrowing on it is one filter
@@ -138,6 +168,14 @@ department without it is inactive, so the rule is never asked a question it cann
 departments share cost centre `20514`; four do. Corrected in both places as part of this work, and
 worth recording as the kind of error hand-transcribed reference data carries — the same class of
 error the product exists to remove.
+
+**One division's departments cannot be narrowed on home-office disclosure.** `Cabin Equipment` is the
+division whose `homeOfficeLevel` boolean says `true` while the documented icon is absent, and none of
+its departments carries the icon either — so none of them is reachable by that filter. That is the
+price of reading the documented carrier rather than the undocumented field, and it is the right way
+round: a filter is a claim about the organization, and the fixture gives no defensible basis for
+making this one here. Reversing it is a one-line change to the transformation if the boolean ever
+acquires a meaning.
 
 **Two facts in the fixture are dropped with no replacement**: the footnote marking one department's
 costs as excluded from government rate pools, and the fixture's per-record notes cataloguing its own
