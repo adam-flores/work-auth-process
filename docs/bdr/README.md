@@ -51,8 +51,15 @@ it, even if an assumption underneath it turned out to be wrong — a wrong assum
 not change the decision is a finding to record, not a reason to reopen. The two stay distinct
 because the answers can move independently, not because they are asked separately: **on this
 project both roles are played by the same person**, and both kinds of question go to them
-together in [`docs/open-questions.md`](../open-questions.md), which is the single collection
-point for anything needing a stakeholder answer.
+together.
+
+**Questions live on the record that depends on them.** A `provisional` record carries its own
+*Question for the product owner* section and loses it when it goes `final`. There was once a
+separate document collecting every outstanding question in one place, for a round of batched
+answers; it was retired on 2026-09-14 once every question in it had been answered and every
+answer carried into the record it changed. If a batched round is ever wanted again, assemble it
+from the `provisional` records rather than maintaining a standing list — a list that outlives its
+questions stops being a backlog and starts being a second copy of the answers.
 
 ## The two waves
 

@@ -1,8 +1,9 @@
 # BDR-0001: The prototype preserves today's approval flow and rebuilds the experience around it
 
-**Status:** provisional
+**Status:** final
 **Date:** 2026-09-10
-**Decided by:** us, provisionally
+**Confirmed:** 2026-09-14
+**Decided by:** us, confirmed by the product owner
 
 ## Decision
 
@@ -74,17 +75,6 @@ set ourselves, not findings.
 and both things can be true: improve the path through the process now, redesign the process
 later. The lifecycle work must therefore keep the sequence swappable rather than hard-coded.
 
-## Question for the product owner
-
-Three, in priority order.
-
-1. When an authorization takes a long time today, where does the time actually go — approvers
-   working through it, or the form sitting somewhere waiting to be noticed and forms coming
-   back for correction? If it is genuinely the former, this decision is wrong.
-2. Is preserving the existing sign-off sequence a requirement, a preference, or simply how it
-   has always been? We have assumed changing it is expensive and unwelcome.
-3. Would you rather see a tool that makes today's process work well, or a proposal for a
-   different process? We have assumed the first.
 
 ## What changes if this is overturned
 
@@ -98,3 +88,20 @@ it should cost a configuration change and a redraw of the flow document, not a r
 The capabilities themselves — validation, derived fields, visibility, batch queues — survive
 either answer. They are orthogonal to the routing, which is the main reason this decision is
 safe to build on while provisional.
+
+
+## Confirmed
+
+All three questions this record was provisional on have been answered.
+
+- **Where the time actually goes** — all three of working, waiting and correcting, with an
+  authorization generally taking more than two weeks end to end. The decision survives: the target
+  never rested on the steps being idle, and the overclaim it once carried was corrected by
+  [BDR-0009](0009-the-business-case-survives.md).
+- **Whether the sign-off sequence must be preserved** — it is to be maintained.
+- **A better tool versus a different process** — streamline the experience of the process that
+  exists.
+
+The assumptions in *What it assumes* were also put to the product owner and confirmed, with one
+exception already recorded above: the claim that *most* elapsed time is idle was overstated and
+BDR-0009 corrected it.

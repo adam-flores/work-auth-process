@@ -60,6 +60,17 @@ route rather than only the review. Whether the three contract types differ from 
 the gate is not yet known.
 _Avoid_: contract type, funding source, customer contract, contract vehicle, CFE, FAR 12, FAR 15
 
+**Location type**:
+Domestic or international, entered by the submitter on each side. It is what the **Global Trade**
+gate's condition is read from — the gate runs when the two sides differ. Decided by us rather than
+answered, and the only `provisional` decision left in the project: the question of what the gate
+reads has been put three times and each answer returned described what the approver *reviews*
+rather than what *routes* to them. It sits awkwardly beside the **department picker**, which exists
+to stop people keying what can be derived — a submitter can pick a foreign department and key
+*domestic*, and nothing notices.
+[BDR-0014](docs/bdr/0014-the-global-trade-gate-triggers-on-the-entered-location-type.md)
+_Avoid_: country, site, geography, domestic flag
+
 **Charge number**:
 The code the performing team books time against, minted at the final stage. Until it exists,
 no work can be booked against the authorization.
@@ -129,8 +140,10 @@ One position in the relay, occupied by a single role, on a single side, with a s
 It routes to a **role at a department**, never to a named person: every holder of that role sees
 it and any of them may **acknowledge** it. So the individual who acts is discovered, not
 addressed — which is why a colleague taking something on needs no mechanism, and why a
-**referral** is for asking someone who could never have held the stage.
-[BDR-0011](docs/bdr/0011-a-referral-shows-it-without-moving-it.md)
+**referral** is for asking someone who could never have held the stage. Confirmed directly: a
+named individual is required so the work has an owner, not so the relay can take a step.
+[BDR-0011](docs/bdr/0011-a-referral-shows-it-without-moving-it.md) ·
+[BDR-0013](docs/bdr/0013-a-named-person-does-the-work-a-role-advances-it.md)
 _Avoid_: step, phase, level
 
 **Gate**:
@@ -258,14 +271,26 @@ _Avoid_: originator, data entry, filler
 **Approver**:
 A role that acknowledges an authorization at one stage, or raises a **correction request**
 against it. Six exist today: a program manager and a finance approver on each side, plus Contracts
-and Global Trade. No approver refuses on the merits; **revocation** is the only way one ends an
-authorization.
+and Global Trade. **No approver refuses on the merits, and none revokes** — an approver's only
+ways to act on an authorization are to **acknowledge** it or to raise a **correction request**
+against it. Four of the six are **named** on the authorization; being named does not make them the
+route. [BDR-0013](docs/bdr/0013-a-named-person-does-the-work-a-role-advances-it.md)
 **The name is deliberately inherited, not accurate.** Nobody approves anything — the act is an
 **acknowledgement** — and the name is kept because it is what the organization's own people
 answer to, while the verbs around it carry the precision instead. Read *Approver* as a job title,
 never as a description of what happens at the stage.
 [BDR-0009](docs/bdr/0009-the-business-case-survives.md)
 _Avoid_: reviewer, signatory, gatekeeper, authorizer
+
+**Named approver**:
+The individual recorded on an authorization as its program manager or its finance approver, on each
+side — four in all, and all four required. Naming them is how the work gets an owner, and it is the
+requesting side saying who it expects to handle this. It is **not** how the work is routed: a
+**stage** still routes to a **role at a department**, so every holder of that role sees it and any
+of them may **acknowledge**. A named approver therefore neither gates the relay nor is gated by it,
+and a **referral** stays necessary for asking someone who could never have held the stage.
+[BDR-0013](docs/bdr/0013-a-named-person-does-the-work-a-role-advances-it.md)
+_Avoid_: signatory, assigned approver, delegate, owner, approver of record
 
 **Charge Number Admin**:
 The role that mints the charge number and thereby completes the authorization. Not an approver:

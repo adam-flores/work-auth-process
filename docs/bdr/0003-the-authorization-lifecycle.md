@@ -1,6 +1,7 @@
 # BDR-0003: Five explicit states, position derived, and four timestamps at every stage
 
-**Status:** provisional, superseded in part
+**Status:** final, superseded in part
+**Confirmed:** 2026-09-14
 **Date:** 2026-09-11
 **Decided by:** us, provisionally
 **Superseded in part by:** [BDR-0005](0005-correction-in-place-and-revocation.md) ·
@@ -28,9 +29,8 @@
 >
 > Everything else stands: five recorded states, position derived rather than stored, the
 > department queue with claiming, gate skips recorded with the value that decided them, and the
-> draft's visibility. Note that section 7 of
-> [`docs/open-questions.md`](../open-questions.md) shows this BDR confirmed with "nothing stands
-> out" — that headline confirmation was overtaken by the same reviewer's detailed answers, and the
+> draft's visibility. Note that this record was once confirmed at headline level with *nothing
+> stands out* — that confirmation was overtaken by the same reviewer's detailed answers, and the
 > specifics win.
 
 ## Decision
@@ -157,22 +157,6 @@ deletion rather than an archive.
 **That nobody but the submitter needs to pause an authorization.** On hold is submitter-only in
 both directions. If an approver or a program can legitimately suspend work, this is wrong.
 
-## Question for the product owner
-
-1. **What actually separates a denial from a rejection in your process?** We have modelled a
-   denial as concerning something fixable and a rejection as concerning the merits of the ask.
-   Do approvers today ever refuse an authorization outright, rather than returning it for
-   correction — and if so, what makes them do one rather than the other?
-2. ~~**Is two weeks the right life for an untouched draft?**~~ **Answered: a month.**
-3. **Is it acceptable in your organization to record when an individual approver first opens
-   an authorization?** Separating *sat unopened* from *under consideration* only pays off if
-   the answer is yes, and it makes approvers individually visible on responsiveness. If that
-   would make the pilot harder to sell, we drop to a single arrival-to-action interval and the
-   cycle-time claim gets correspondingly weaker.
-4. **Can anyone other than the submitter pause an authorization** — an approver, a program
-   manager, a finance lead?
-5. **When work is sent to a performing department, is there a queue anyone there can pick from,
-   or is it handed to a named person by prior arrangement?**
 
 ## What changes if this is overturned
 
@@ -199,3 +183,21 @@ independent of where a denial lands
 ([#11](https://github.com/adam-flores/work-auth-process/issues/11)) and of what gets counted
 ([#13](https://github.com/adam-flores/work-auth-process/issues/13)) — both of which are
 downstream of this decision rather than inputs to it.
+
+
+## Confirmed
+
+Every question this record was provisional on has been answered, and two of them overturned
+part of it — which is why the status is *final, superseded in part* rather than simply final.
+
+- **Approvers do not refuse outright**, so *Rejected* had no cause.
+  [BDR-0005](0005-correction-in-place-and-revocation.md) replaced it with **Revoked**, and
+  [BDR-0012](0012-a-wrong-department-is-a-new-authorization.md) narrowed that to one cause.
+- **Recording when an approver first opens an authorization was declined**, and opening does not
+  reliably mean work has begun. [BDR-0006](0006-what-the-product-records.md) removed the
+  `acknowledged` timestamp outright, leaving three.
+- **Nobody but the submitter needs to pause an authorization.** The assumption holds.
+- **A draft lives a month**, not two weeks.
+- **Work reaches a representative of the performing department** — usually one person, sometimes
+  a few — and the submitter may name a specific representative or leave it to the department
+  queue. Both are modelled: the queue is authoritative and a named contact adds a notification.

@@ -1,8 +1,9 @@
 # BDR-0011: A within-stage handoff is a referral — it shows the authorization to a colleague without moving it
 
-**Status:** provisional
+**Status:** final
 **Date:** 2026-09-12
-**Decided by:** us, provisionally — the product owner delegated it as immaterial at this stage
+**Confirmed:** 2026-09-14
+**Decided by:** us — the load-bearing assumption has since been confirmed by the product owner
 
 ## Decision
 
@@ -107,8 +108,9 @@ either way.
 **Does an approver ever get someone else to sign in their place?** — **Yes, occasionally.**
 Occasional rather than standing, which is what the question was for: a stage has no fixed
 occupant, so the role-shared queue holds and a handoff still moves a question rather than
-authority. The decision stays `provisional` because the product owner delegated the decision
-itself rather than confirming it; what is answered is the process fact underneath it.
+authority. The product owner delegated the decision itself at the time rather than confirming it,
+which is what kept this record provisional; the *Confirmed* section below records the later answer
+that settled the process fact underneath it and took this record to `final`.
 
 ## What changes if this is overturned
 
@@ -124,3 +126,22 @@ thing to watch, and it is a question about the process rather than about this de
 
 **No ADR.** A referral is one transition kind plus a notification, with no design trade-off to
 record and nothing a future reader would wonder about.
+
+
+## Confirmed
+
+**The one thing left open is closed, and it closes in this record's favour.**
+
+This decision rested on a process fact rather than a choice: that no stage's acknowledgement
+carries delegated signature authority tied to a named individual. Asked directly whether the
+program manager and finance approver named on the form are who the stage routes to, the product
+owner separated the two things this record separates — a named individual is required so the work
+has an owner, and is not required for the relay to take a step.
+
+So **the stage still routes to a role at a department**, any holder may acknowledge, and a referral
+remains the mechanism for asking someone who could never have held the stage. The named individuals
+survive on the record for a different reason, recorded in
+[BDR-0013](0013-a-named-person-does-the-work-a-role-advances-it.md).
+
+Had the answer gone the other way, this record would have fallen entirely: a stage would have a
+fixed occupant, queues would stop being role-shared, and reassignment would have been right.

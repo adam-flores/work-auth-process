@@ -40,7 +40,7 @@ by anyone — it is precisely the ambiguity the form imposes on its users, and c
 would preserve the disease as a feature.
 
 A second alternative, **deriving the levels from the fixture**, is ruled out by the fixture's own
-terms: `docs/reference/cas-hierarchy.json` deliberately declines to settle this, because a test
+terms: `docs/reference/organization-hierarchy.json` deliberately declines to settle this, because a test
 fixture should not quietly make a modelling decision.
 
 ## What it assumes

@@ -38,7 +38,7 @@ genericised, and reviewed** before it is committed. Two artifacts came from them
 - [`docs/process/work-authorization-flow.md`](../process/work-authorization-flow.md) — the
   relay, the gates, and the input inventory, with a *Transcription notes* section recording
   exactly what was changed.
-- [`docs/reference/cas-hierarchy.json`](../reference/cas-hierarchy.json) — a wholly fictional
+- [`docs/reference/organization-hierarchy.json`](../reference/organization-hierarchy.json) — a wholly fictional
   hierarchy of the same *shape* as the real chart, sharing none of its content.
 
 ## If a source document is ever committed
