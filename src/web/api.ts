@@ -5,6 +5,7 @@ export type StoreInfo = {
   schemaVersion: number;
   seededAt: string;
   participantCount: number;
+  departmentCount: number;
 };
 
 export class ApiError extends Error {

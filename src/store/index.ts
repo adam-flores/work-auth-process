@@ -2,7 +2,8 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { SCHEMA, SCHEMA_VERSION } from "./schema.ts";
+import { DROP_ALL, SCHEMA, SCHEMA_VERSION } from "./schema.ts";
+import { seedHierarchy } from "../hierarchy/seed.ts";
 import { Participant } from "../shared/rules.ts";
 import type { Participant as ParticipantRecord } from "../shared/rules.ts";
 
@@ -32,6 +33,11 @@ function readSeed(): ParticipantRecord[] {
   return Participant.array().parse(shape);
 }
 
+/**
+ * Build the store's contents from the fixtures it ships with. One transaction,
+ * so a store is either fully seeded or untouched - there is no state in which
+ * half a hierarchy is queryable.
+ */
 function seed(db: DatabaseSync): void {
   const participants = readSeed();
   db.exec("BEGIN");
@@ -41,6 +47,10 @@ function seed(db: DatabaseSync): void {
       "INSERT INTO participants (id, name, role, department) VALUES (?, ?, ?, ?)",
     );
     for (const p of participants) insert.run(p.id, p.name, p.role, p.department);
+
+    // Reference data the Administrator maintains, seeded by transformation
+    // rather than loaded (ADR-0011, ADR-0012).
+    seedHierarchy(db);
 
     const meta = db.prepare("INSERT OR REPLACE INTO store_meta (key, value) VALUES (?, ?)");
     meta.run("schema_version", String(SCHEMA_VERSION));
@@ -68,7 +78,7 @@ function versionOnDisk(db: DatabaseSync): number | null {
 /** Drop everything and build it again. ADR-0008 makes the store disposable
  *  rather than migrated, so this is the whole of the upgrade story. */
 function rebuild(db: DatabaseSync): void {
-  db.exec("DROP TABLE IF EXISTS participants; DROP TABLE IF EXISTS store_meta;");
+  db.exec(DROP_ALL);
   db.exec(SCHEMA);
   seed(db);
 }

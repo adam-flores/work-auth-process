@@ -34,6 +34,34 @@ export const Participant = z.object({
 /** Who is acting. Every service function takes one; nothing reads a session. */
 export const ActingParticipant = z.object({ participantId: ParticipantId });
 
+/**
+ * One narrowing of the department list. An attribute is a name and a value, and
+ * nothing here knows which names exist: they are data in the hierarchy, not a
+ * list in code, so a new one narrows the picker without a change here
+ * (BDR-0008).
+ */
+export const AttributeFilter = z.object({
+  name: z.string().trim().min(1),
+  value: z.string().trim().min(1),
+});
+
+/**
+ * What the picker asks for. Every part is optional, in any combination, with no
+ * order imposed - a submitter certain of nothing searches cold.
+ */
+export const DepartmentQuery = z.object({
+  text: z.string().trim().default(""),
+  attributes: z.array(AttributeFilter).default([]),
+  legalEntityId: z.string().trim().min(1).optional(),
+  divisionId: z.string().trim().min(1).optional(),
+  /** Inactive departments are closed to new authorizations, so the picker never
+   *  asks for them. An administrative or historical read does. */
+  includeInactive: z.boolean().default(false),
+});
+
+export type AttributeFilter = z.infer<typeof AttributeFilter>;
+export type DepartmentQuery = z.infer<typeof DepartmentQuery>;
+export type DepartmentQueryInput = z.input<typeof DepartmentQuery>;
 export type ParticipantRole = z.infer<typeof ParticipantRole>;
 export type Participant = z.infer<typeof Participant>;
 export type ActingParticipant = z.infer<typeof ActingParticipant>;
