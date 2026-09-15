@@ -111,6 +111,15 @@ export const api = {
   listMyQueue: (actor: string) => call<Authorization[]>("/api/queue", actor),
   acknowledge: (actor: string, authorizationId: string) =>
     call<Authorization>(`/api/authorizations/${encodeURIComponent(authorizationId)}/acknowledge`, actor, "POST"),
+  claim: (actor: string, authorizationId: string) =>
+    call<Authorization>(`/api/authorizations/${encodeURIComponent(authorizationId)}/claim`, actor, "POST"),
+  contribute: (actor: string, authorizationId: string, fields: { performingEmployee: string }) =>
+    call<Authorization>(
+      `/api/authorizations/${encodeURIComponent(authorizationId)}/contribute`,
+      actor,
+      "POST",
+      fields,
+    ),
 
   listPermissibilityRules: (actor: string) =>
     call<PermissibilityRule[]>("/api/permissibility-rules", actor),
