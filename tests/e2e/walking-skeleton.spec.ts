@@ -52,6 +52,10 @@ test("the store can be reset from the page", async ({ page }) => {
 test("the four roles of the cast appear, and Submitter does not", async ({ page }) => {
   await page.goto("/");
 
+  // The roster arrives async; read it only once the page has it; other tests
+  // in this file wait the same way (line 20).
+  await expect(page.getByTestId("participant-rows").locator("tr").first()).toBeVisible();
+
   const roleCells = page.getByTestId("participant-rows").locator("td:nth-child(2)");
   const roles = new Set(await roleCells.allTextContents());
 

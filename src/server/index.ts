@@ -7,6 +7,7 @@ import { createService } from "../service/index.ts";
 import type { Service } from "../service/index.ts";
 import { DomainError } from "../service/errors.ts";
 import type { DomainErrorCode } from "../service/errors.ts";
+import type { DepartmentQueryInput } from "../shared/rules.ts";
 
 
 /**
@@ -46,12 +47,43 @@ function actingParticipant(req: IncomingMessage): { participantId: string } {
   return { participantId: id };
 }
 
-type Handler = (service: Service, ctx: { participantId: string }) => unknown;
+type Handler = (
+  service: Service,
+  ctx: { participantId: string },
+  query: URLSearchParams,
+) => unknown;
+
+/**
+ * An attribute filter travels as a repeated `attr` param, `name:value` each -
+ * the query string has no native way to carry a list of pairs. BDR-0008 keeps
+ * attribute names out of code, so this parses whatever the picker sent rather
+ * than a fixed set.
+ */
+function parseDepartmentQuery(query: URLSearchParams): DepartmentQueryInput {
+  // A malformed `attr` (no `:value`) is dropped rather than turned into an
+  // empty-value filter, which AttributeFilter's schema refuses outright and
+  // would otherwise fail the whole query over one bad param.
+  const attributes = query
+    .getAll("attr")
+    .map((raw) => {
+      const sep = raw.indexOf(":");
+      return sep === -1 ? null : { name: raw.slice(0, sep), value: raw.slice(sep + 1) };
+    })
+    .filter((attr) => attr !== null);
+  return {
+    text: query.get("text") ?? undefined,
+    attributes,
+    legalEntityId: query.get("legalEntityId") ?? undefined,
+    divisionId: query.get("divisionId") ?? undefined,
+    includeInactive: query.get("includeInactive") === "true",
+  };
+}
 
 const ROUTES: Record<string, Handler> = {
   "GET /api/participants": (s, ctx) => s.listParticipants(ctx),
   "GET /api/store": (s, ctx) => s.getStoreInfo(ctx),
   "POST /api/store/reset": (s, ctx) => s.resetStore(ctx),
+  "GET /api/departments": (s, ctx, query) => s.searchDepartments(ctx, parseDepartmentQuery(query)),
 };
 
 const MIME: Record<string, string> = {
@@ -90,18 +122,31 @@ async function serveStatic(url: string, res: ServerResponse): Promise<void> {
   }
 }
 
+const DEPARTMENT_PATH = /^\/api\/departments\/([^/]+)$/;
+
 export function createHttpServer(service: Service) {
   return createServer(async (req, res) => {
     const url = req.url ?? "/";
-    const route = ROUTES[`${req.method ?? "GET"} ${url.split("?")[0]}`];
-
-    if (!route) {
-      if (url.startsWith("/api/")) return sendJson(res, 404, { error: "No such endpoint." });
-      return serveStatic(url, res);
-    }
+    const [pathname = "/", queryString] = url.split("?");
+    const query = new URLSearchParams(queryString ?? "");
+    const method = req.method ?? "GET";
 
     try {
-      sendJson(res, 200, route(service, actingParticipant(req)));
+      // The one dynamic path in the surface: a department id, not a second
+      // routing scheme. Everything else stays the flat exact-match table.
+      const departmentMatch = method === "GET" ? DEPARTMENT_PATH.exec(pathname) : null;
+      if (departmentMatch?.[1]) {
+        const ctx = actingParticipant(req);
+        return sendJson(res, 200, service.getDepartment(ctx, decodeURIComponent(departmentMatch[1])));
+      }
+
+      const route = ROUTES[`${method} ${pathname}`];
+      if (!route) {
+        if (pathname.startsWith("/api/")) return sendJson(res, 404, { error: "No such endpoint." });
+        return serveStatic(url, res);
+      }
+
+      sendJson(res, 200, route(service, actingParticipant(req), query));
     } catch (err) {
       if (err instanceof DomainError) {
         return sendJson(res, STATUS_FOR[err.code], { code: err.code, error: err.message });
