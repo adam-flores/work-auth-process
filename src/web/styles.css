@@ -75,6 +75,7 @@ button:disabled { opacity: 0.6; cursor: progress; }
 .acting-detail { margin: 0.75rem 0 0; color: var(--muted); }
 .hint { margin: 0.75rem 0 0; font-size: 0.85rem; color: var(--muted); max-width: 44rem; }
 .error { color: var(--error); font-weight: 600; }
+.field-guidance { margin: 0 0 0.35rem; font-size: 0.85rem; color: var(--muted); max-width: 34rem; }
 
 dl { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 1.25rem; margin: 0 0 1rem; }
 dt { color: var(--muted); font-size: 0.85rem; }
