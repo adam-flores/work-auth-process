@@ -10,6 +10,7 @@ import type { DomainErrorCode } from "../service/errors.ts";
 import type {
   DepartmentQueryInput,
   DraftFieldsInput,
+  PermissibilityRuleInput,
   ResourceInput,
   TransitionOptionsInput,
 } from "../shared/rules.ts";
@@ -33,8 +34,11 @@ const STATUS_FOR: Record<DomainErrorCode, number> = {
   UNKNOWN_DRAFT: 404,
   UNKNOWN_RESOURCE: 404,
   UNKNOWN_AUTHORIZATION: 404,
+  UNKNOWN_PERMISSIBILITY_RULE: 404,
   NOT_DRAFT_OWNER: 403,
+  NOT_ADMINISTRATOR: 403,
   DRAFT_INCOMPLETE: 409,
+  IMPERMISSIBLE_PAIRING: 409,
 };
 
 /**
@@ -113,6 +117,9 @@ const ROUTES: Record<string, Handler> = {
   "GET /api/departments": (s, ctx, query) => s.searchDepartments(ctx, parseDepartmentQuery(query)),
   "POST /api/drafts": (s, ctx, _query, body) => s.createDraft(ctx, body as DraftFieldsInput),
   "GET /api/drafts": (s, ctx) => s.listMyDrafts(ctx),
+  "GET /api/permissibility-rules": (s, ctx) => s.listPermissibilityRules(ctx),
+  "POST /api/permissibility-rules": (s, ctx, _query, body) =>
+    s.addPermissibilityRule(ctx, body as PermissibilityRuleInput),
 };
 
 const MIME: Record<string, string> = {
@@ -157,6 +164,7 @@ const DRAFT_RESOURCES_PATH = /^\/api\/drafts\/([^/]+)\/resources$/;
 const DRAFT_RESOURCE_PATH = /^\/api\/drafts\/([^/]+)\/resources\/([^/]+)$/;
 const DRAFT_INITIATE_PATH = /^\/api\/drafts\/([^/]+)\/initiate$/;
 const AUTHORIZATION_PATH = /^\/api\/authorizations\/([^/]+)$/;
+const PERMISSIBILITY_RULE_PATH = /^\/api\/permissibility-rules\/([^/]+)$/;
 
 export function createHttpServer(service: Service) {
   return createServer(async (req, res) => {
@@ -226,6 +234,16 @@ export function createHttpServer(service: Service) {
           res,
           200,
           service.initiateDraft(ctx, decodeURIComponent(initiateMatch[1]), body as TransitionOptionsInput),
+        );
+      }
+
+      const permissibilityRuleMatch = method === "DELETE" ? PERMISSIBILITY_RULE_PATH.exec(pathname) : null;
+      if (permissibilityRuleMatch?.[1]) {
+        const ctx = actingParticipant(req);
+        return sendJson(
+          res,
+          200,
+          service.removePermissibilityRule(ctx, decodeURIComponent(permissibilityRuleMatch[1])),
         );
       }
 

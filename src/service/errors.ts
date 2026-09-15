@@ -9,8 +9,11 @@ export type DomainErrorCode =
   | "UNKNOWN_DRAFT"
   | "UNKNOWN_RESOURCE"
   | "UNKNOWN_AUTHORIZATION"
+  | "UNKNOWN_PERMISSIBILITY_RULE"
   | "NOT_DRAFT_OWNER"
+  | "NOT_ADMINISTRATOR"
   | "DRAFT_INCOMPLETE"
+  | "IMPERMISSIBLE_PAIRING"
   | "INVALID_REQUEST";
 
 export class DomainError extends Error {

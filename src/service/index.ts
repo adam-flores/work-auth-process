@@ -5,6 +5,7 @@ import {
   DepartmentQuery,
   DraftFields,
   HierarchyId,
+  PermissibilityRuleInput,
   ResourceInput,
   TransitionOptions,
   SYSTEM_PARTICIPANT_ID,
@@ -17,6 +18,14 @@ import type {
 } from "../shared/rules.ts";
 import { findDepartments, resolveDepartment } from "../hierarchy/index.ts";
 import type { ResolvedDepartment } from "../hierarchy/index.ts";
+import {
+  addPermissibilityRule as addRule,
+  isPairingPermitted,
+  listPermissibilityRules as listRules,
+  permissibilityRuleExists,
+  removePermissibilityRule as removeRule,
+} from "../permissibility/index.ts";
+import type { PermissibilityRule } from "../permissibility/index.ts";
 import {
   addResource as addDraftResource,
   deleteDraftRows,
@@ -92,14 +101,47 @@ export function createService(options: ServiceOptions = {}) {
     return participantId;
   }
 
+  /** The permissibility list is an Administrator's responsibility (BDR-0010,
+   *  ADR-0011: "an Administrator maintains ... the permissibility rules") -
+   *  the one command surface in this ticket where *who* is acting is
+   *  load-bearing, not just *that* they exist. Reading the list stays open
+   *  to everyone, the same as every other reference-data read; only adding
+   *  and removing a pairing checks the role. */
+  function requireAdministrator(ctx: unknown): string {
+    const participantId = requireParticipant(ctx);
+    const participant = db.prepare("SELECT role FROM participants WHERE id = ?").get(participantId) as
+      | { role: string }
+      | undefined;
+    if (participant?.role !== "Administrator") {
+      throw new DomainError("NOT_ADMINISTRATOR", "Only an Administrator may change the permissibility rules.");
+    }
+    return participantId;
+  }
+
   /** A department id a draft names has to resolve to something real - the
    *  same rule `getDepartment` already enforces, applied here because a
    *  draft can be written directly through this seam, not only through the
-   *  picker that is the UI's only route to one. */
-  function requireDepartmentIfSet(departmentId: string | null): void {
-    if (departmentId && !resolveDepartment(db, departmentId)) {
+   *  picker that is the UI's only route to one. Returns the resolved
+   *  department so the permissibility check below does not re-read it. */
+  function resolveDepartmentIfSet(departmentId: string | null): ResolvedDepartment | null {
+    if (!departmentId) return null;
+    const found = resolveDepartment(db, departmentId);
+    if (!found) {
       throw new DomainError("UNKNOWN_DEPARTMENT", `No department with id "${departmentId}".`);
     }
+    return found;
+  }
+
+  /** #53: refused at entry, the moment both departments are set on a draft,
+   *  rather than days later at a gate. Names the pairing - it is the
+   *  pairing that is not permitted, not either department that is
+   *  incapable of the work. */
+  function requirePermissiblePairing(requesting: ResolvedDepartment, performing: ResolvedDepartment): void {
+    if (isPairingPermitted(db, requesting, performing)) return;
+    throw new DomainError(
+      "IMPERMISSIBLE_PAIRING",
+      `"${performing.name}" performing work for "${requesting.name}" is not a permitted pairing.`,
+    );
   }
 
   /** `undefined` is the only "nothing given" this treats as an empty draft
@@ -125,8 +167,9 @@ export function createService(options: ServiceOptions = {}) {
       performingFinanceApprover: f.performingFinanceApprover ?? null,
       performingContact: f.performingContact ?? null,
     };
-    requireDepartmentIfSet(fields.requestingDepartmentId);
-    requireDepartmentIfSet(fields.performingDepartmentId);
+    const requestingDept = resolveDepartmentIfSet(fields.requestingDepartmentId);
+    const performingDept = resolveDepartmentIfSet(fields.performingDepartmentId);
+    if (requestingDept && performingDept) requirePermissiblePairing(requestingDept, performingDept);
     return fields;
   }
 
@@ -359,6 +402,43 @@ export function createService(options: ServiceOptions = {}) {
         throw err;
       }
       return authorization;
+    },
+
+    /** The whole permissibility list, for the Administrator's surface and
+     *  for anyone who wants to see what it currently refuses (#53,
+     *  ADR-0011). Short enough to show as a list, not paged. */
+    listPermissibilityRules(ctx: ActingParticipant): PermissibilityRule[] {
+      requireParticipant(ctx);
+      return listRules(db);
+    },
+
+    /** An Administrator adds a pairing; it takes effect on the next draft
+     *  saved, with no build (#53). Re-adding a pairing already on the list
+     *  is a no-op, not an error. */
+    addPermissibilityRule(ctx: ActingParticipant, rule: unknown): PermissibilityRule {
+      requireAdministrator(ctx);
+      const parsed = PermissibilityRuleInput.safeParse(rule);
+      if (!parsed.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsed.error.issues[0]?.message ?? "Invalid permissibility rule.",
+        );
+      }
+      return addRule(db, parsed.data);
+    },
+
+    /** An Administrator removes a pairing; departments that were refused
+     *  become permitted on the next draft saved. */
+    removePermissibilityRule(ctx: ActingParticipant, ruleId: string): { deleted: true } {
+      requireAdministrator(ctx);
+      if (!permissibilityRuleExists(db, ruleId)) {
+        throw new DomainError(
+          "UNKNOWN_PERMISSIBILITY_RULE",
+          `No permissibility rule with id "${ruleId}".`,
+        );
+      }
+      removeRule(db, ruleId);
+      return { deleted: true };
     },
 
     /** Read back an initiated authorization - open to any known participant,
