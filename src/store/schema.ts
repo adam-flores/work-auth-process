@@ -13,7 +13,7 @@
  * disk built by an older shape is rebuilt on open (ADR-0008), and without the
  * bump it survives and then fails on the first write its old constraints refuse.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const SCHEMA = `
   CREATE TABLE IF NOT EXISTS store_meta (
@@ -70,6 +70,42 @@ export const SCHEMA = `
     shared        INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (department_id, kind, code)
   );
+
+  /* Mutable, updated in place, with no history (ADR-0009) - the opposite
+     discipline from every table above departments. A submitter edits a row
+     directly; nothing about a draft is ever appended anywhere. Every field
+     but the two timestamps may be NULL, because a draft is allowed to be
+     incomplete and completeness is only required at initiation. */
+  CREATE TABLE IF NOT EXISTS drafts (
+    id                          TEXT PRIMARY KEY,
+    submitter_id                TEXT NOT NULL REFERENCES participants(id),
+    project                     TEXT,
+    requesting_department_id    TEXT REFERENCES departments(id),
+    performing_department_id    TEXT REFERENCES departments(id),
+    funding_type                TEXT CHECK (funding_type IN (
+                                   'commercial-contract', 'government-commercial-item-contract',
+                                   'government-negotiated-contract', 'company-funded'
+                                 )),
+    requesting_location_type    TEXT CHECK (requesting_location_type IN ('domestic', 'international')),
+    performing_location_type    TEXT CHECK (performing_location_type IN ('domestic', 'international')),
+    requesting_program_manager  TEXT,
+    requesting_finance_approver TEXT,
+    performing_program_manager  TEXT,
+    performing_finance_approver TEXT,
+    performing_contact          TEXT,
+    created_at                  TEXT NOT NULL,
+    updated_at                  TEXT NOT NULL
+  );
+
+  /* One-to-many, added and removed freely while the draft stands (BDR-0007).
+     No FK to a completion state to police - a draft cannot be initiated at
+     all, so there is nothing yet for a resource count to satisfy. */
+  CREATE TABLE IF NOT EXISTS draft_resources (
+    id           TEXT PRIMARY KEY,
+    draft_id     TEXT NOT NULL REFERENCES drafts(id),
+    budget_hours REAL NOT NULL,
+    labor_rate   REAL NOT NULL
+  );
 `;
 
 /**
@@ -78,6 +114,8 @@ export const SCHEMA = `
  * list is the whole of the upgrade story.
  */
 export const DROP_ALL = `
+  DROP TABLE IF EXISTS draft_resources;
+  DROP TABLE IF EXISTS drafts;
   DROP TABLE IF EXISTS department_codes;
   DROP TABLE IF EXISTS hierarchy_attributes;
   DROP TABLE IF EXISTS departments;
