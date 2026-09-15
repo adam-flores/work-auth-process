@@ -15,7 +15,7 @@
     "dev:api": "node --watch src/server/index.ts",
     "reset": "node scripts/reset-store.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/service/*.test.ts",
+    "test": "node --test tests/service/*.test.ts tests/shared/*.test.ts",
     "test:e2e": "playwright test",
     "security-scan": "node scripts/security-scan.ts"
   },

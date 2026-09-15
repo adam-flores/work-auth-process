@@ -9,7 +9,9 @@ import {
   LOCATION_TYPE_VALUES,
 } from "../shared/constants.ts";
 import type { FundingType, LocationType } from "../shared/constants.ts";
+import { DraftFields } from "../shared/rules.ts";
 import type { DraftFieldsInput } from "../shared/rules.ts";
+import { FIELD_GUIDANCE } from "../guidance/content.ts";
 
 /**
  * One draft, open for editing (#51, ADR-0009). Saved as a whole: every field
@@ -19,7 +21,25 @@ import type { DraftFieldsInput } from "../shared/rules.ts";
  * completeness - that is initiation's job, in a later ticket). Resources are
  * the one exception, added and removed immediately rather than staged for
  * Save, because BDR-0007 describes them as changing freely on their own.
+ *
+ * Every field carries its guidance at the point of entry (#52), read from
+ * the same content the criteria that guidance explains will be (a later
+ * ticket, once an approver surface exists). `DraftFields` - the same rule
+ * module the service imports - runs here too, before "Save" ever reaches
+ * the network: the browser's copy is for immediacy, and is never the
+ * enforcement, so the server still re-validates everything it receives.
  */
+
+/** Guidance rendered next to the field it belongs to, not a tooltip
+ *  (CONTEXT.md: avoid "help text, tooltip, hint") - visible at the point of
+ *  entry rather than behind a hover. */
+function Guidance({ field }: { field: keyof typeof FIELD_GUIDANCE }) {
+  return (
+    <p className="field-guidance" data-testid={`guidance-${field}`}>
+      {FIELD_GUIDANCE[field].text}
+    </p>
+  );
+}
 
 /** An empty text input means "not entered," not the empty string - it is
  *  sent as `null` so a field can be cleared, not just filled in. */
@@ -122,7 +142,6 @@ export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: Draf
   }, [draft.id, actingId]);
 
   const save = async () => {
-    setBusy(true);
     setError(null);
     const fields: DraftFieldsInput = {
       project: orNull(project),
@@ -137,6 +156,17 @@ export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: Draf
       performingFinanceApprover: orNull(performingFinanceApprover),
       performingContact: orNull(performingContact),
     };
+
+    // Validation fires before submission (#52), reusing the exact schema
+    // the service will apply anyway - so a malformed field is caught here,
+    // at entry, rather than surfacing only after a round trip.
+    const parsed = DraftFields.safeParse(fields);
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Invalid draft fields.");
+      return;
+    }
+
+    setBusy(true);
     try {
       const saved = await api.updateDraft(actingId, draft.id, fields);
       setCurrent(saved);
@@ -209,26 +239,34 @@ export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: Draf
       )}
 
       <label htmlFor="draft-project">Project</label>
+      <Guidance field="project" />
       <input id="draft-project" type="text" value={project} onChange={(e) => setProject(e.target.value)} />
 
       <div className="department-pickers">
-        <DepartmentPicker
-          testId="draft-requesting-department"
-          label="Requesting department"
-          actingId={actingId}
-          selected={requestingDept}
-          onSelect={setRequestingDept}
-        />
-        <DepartmentPicker
-          testId="draft-performing-department"
-          label="Performing department"
-          actingId={actingId}
-          selected={performingDept}
-          onSelect={setPerformingDept}
-        />
+        <div>
+          <Guidance field="requestingDepartmentId" />
+          <DepartmentPicker
+            testId="draft-requesting-department"
+            label="Requesting department"
+            actingId={actingId}
+            selected={requestingDept}
+            onSelect={setRequestingDept}
+          />
+        </div>
+        <div>
+          <Guidance field="performingDepartmentId" />
+          <DepartmentPicker
+            testId="draft-performing-department"
+            label="Performing department"
+            actingId={actingId}
+            selected={performingDept}
+            onSelect={setPerformingDept}
+          />
+        </div>
       </div>
 
       <label htmlFor="draft-funding-type">Funding type</label>
+      <Guidance field="fundingType" />
       <select
         id="draft-funding-type"
         value={fundingType}
@@ -245,6 +283,7 @@ export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: Draf
       <div className="draft-location-types">
         <div>
           <label htmlFor="draft-requesting-location-type">Requesting location type</label>
+          <Guidance field="requestingLocationType" />
           <select
             id="draft-requesting-location-type"
             value={requestingLocationType}
@@ -260,6 +299,7 @@ export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: Draf
         </div>
         <div>
           <label htmlFor="draft-performing-location-type">Performing location type</label>
+          <Guidance field="performingLocationType" />
           <select
             id="draft-performing-location-type"
             value={performingLocationType}
@@ -278,6 +318,7 @@ export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: Draf
       <div className="draft-named-approvers">
         <div>
           <label htmlFor="draft-requesting-program-manager">Requesting program manager</label>
+          <Guidance field="requestingProgramManager" />
           <input
             id="draft-requesting-program-manager"
             type="text"
@@ -285,6 +326,7 @@ export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: Draf
             onChange={(e) => setRequestingProgramManager(e.target.value)}
           />
           <label htmlFor="draft-requesting-finance-approver">Requesting finance approver</label>
+          <Guidance field="requestingFinanceApprover" />
           <input
             id="draft-requesting-finance-approver"
             type="text"
@@ -294,6 +336,7 @@ export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: Draf
         </div>
         <div>
           <label htmlFor="draft-performing-program-manager">Performing program manager</label>
+          <Guidance field="performingProgramManager" />
           <input
             id="draft-performing-program-manager"
             type="text"
@@ -301,6 +344,7 @@ export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: Draf
             onChange={(e) => setPerformingProgramManager(e.target.value)}
           />
           <label htmlFor="draft-performing-finance-approver">Performing finance approver</label>
+          <Guidance field="performingFinanceApprover" />
           <input
             id="draft-performing-finance-approver"
             type="text"
@@ -308,6 +352,7 @@ export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: Draf
             onChange={(e) => setPerformingFinanceApprover(e.target.value)}
           />
           <label htmlFor="draft-performing-contact">Performing-side contact (optional)</label>
+          <Guidance field="performingContact" />
           <input
             id="draft-performing-contact"
             type="text"
@@ -319,6 +364,7 @@ export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: Draf
 
       <section aria-labelledby="draft-resources-heading" data-testid="draft-resources">
         <h4 id="draft-resources-heading">Resources</h4>
+        <Guidance field="resources" />
         <ul>
           {current.resources.map((resource) => (
             <li key={resource.id} data-testid="draft-resource-row">
