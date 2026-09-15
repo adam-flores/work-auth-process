@@ -7,7 +7,12 @@ import { createService } from "../service/index.ts";
 import type { Service } from "../service/index.ts";
 import { DomainError } from "../service/errors.ts";
 import type { DomainErrorCode } from "../service/errors.ts";
-import type { DepartmentQueryInput, DraftFieldsInput, ResourceInput } from "../shared/rules.ts";
+import type {
+  DepartmentQueryInput,
+  DraftFieldsInput,
+  ResourceInput,
+  TransitionOptionsInput,
+} from "../shared/rules.ts";
 
 
 /**
@@ -27,7 +32,9 @@ const STATUS_FOR: Record<DomainErrorCode, number> = {
   UNKNOWN_DEPARTMENT: 404,
   UNKNOWN_DRAFT: 404,
   UNKNOWN_RESOURCE: 404,
+  UNKNOWN_AUTHORIZATION: 404,
   NOT_DRAFT_OWNER: 403,
+  DRAFT_INCOMPLETE: 409,
 };
 
 /**
@@ -148,6 +155,8 @@ const DEPARTMENT_PATH = /^\/api\/departments\/([^/]+)$/;
 const DRAFT_PATH = /^\/api\/drafts\/([^/]+)$/;
 const DRAFT_RESOURCES_PATH = /^\/api\/drafts\/([^/]+)\/resources$/;
 const DRAFT_RESOURCE_PATH = /^\/api\/drafts\/([^/]+)\/resources\/([^/]+)$/;
+const DRAFT_INITIATE_PATH = /^\/api\/drafts\/([^/]+)\/initiate$/;
+const AUTHORIZATION_PATH = /^\/api\/authorizations\/([^/]+)$/;
 
 export function createHttpServer(service: Service) {
   return createServer(async (req, res) => {
@@ -163,6 +172,18 @@ export function createHttpServer(service: Service) {
       if (departmentMatch?.[1]) {
         const ctx = actingParticipant(req);
         return sendJson(res, 200, service.getDepartment(ctx, decodeURIComponent(departmentMatch[1])));
+      }
+
+      // An authorization's id - the record initiation discharges a draft
+      // into (#54), read back the same way a department or a draft is.
+      const authorizationMatch = method === "GET" ? AUTHORIZATION_PATH.exec(pathname) : null;
+      if (authorizationMatch?.[1]) {
+        const ctx = actingParticipant(req);
+        return sendJson(
+          res,
+          200,
+          service.getAuthorization(ctx, decodeURIComponent(authorizationMatch[1])),
+        );
       }
 
       // A draft's id, and a resource's id nested under it - the same
@@ -194,6 +215,17 @@ export function createHttpServer(service: Service) {
           res,
           200,
           service.addResource(ctx, decodeURIComponent(resourcesMatch[1]), body as ResourceInput),
+        );
+      }
+
+      const initiateMatch = DRAFT_INITIATE_PATH.exec(pathname);
+      if (initiateMatch?.[1] && method === "POST") {
+        const ctx = actingParticipant(req);
+        const body = await readJsonBody(req);
+        return sendJson(
+          res,
+          200,
+          service.initiateDraft(ctx, decodeURIComponent(initiateMatch[1]), body as TransitionOptionsInput),
         );
       }
 

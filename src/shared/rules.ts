@@ -196,4 +196,18 @@ export type DraftFields = z.infer<typeof DraftFields>;
 export type DraftFieldsInput = z.input<typeof DraftFields>;
 export type CompleteDraftFields = z.infer<typeof CompleteDraftFields>;
 
+/**
+ * What a caller may say about a transition it is causing (#54, ADR-0004: "a
+ * transition carries ... its timestamp, the timestamp supplied by the caller
+ * and defaulted from the clock"). `occurredAt` is business time, not the
+ * log's append order - the store's `transitions.seq` is what that is read
+ * from, never this.
+ */
+export const TransitionOptions = z.object({
+  occurredAt: z.string().datetime({ message: "occurredAt must be an ISO 8601 timestamp." }).optional(),
+});
+
+export type TransitionOptions = z.infer<typeof TransitionOptions>;
+export type TransitionOptionsInput = z.input<typeof TransitionOptions>;
+
 export { SYSTEM_PARTICIPANT_ID, FUNDING_TYPE_VALUES, LOCATION_TYPE_VALUES } from "./constants.ts";
