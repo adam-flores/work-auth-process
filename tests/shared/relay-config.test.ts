@@ -1,18 +1,19 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { RELAY_CONFIG, isGateStage, firstStage } from "../../src/relay/config.ts";
+import { RELAY_CONFIG, isGateStage, isContributionStage, firstStage } from "../../src/relay/config.ts";
 import type { DraftFieldValues } from "../../src/drafts/index.ts";
 
 /**
- * The relay configuration (#54): one ordered artifact, read directly rather
- * than seeded (ADR-0004, ADR-0011). This proves its shape - order, side,
- * kind, and that a condition exists on every gate and only on a gate -
+ * The relay configuration (#54, #56): one ordered artifact, read directly
+ * rather than seeded (ADR-0004, ADR-0011). This proves its shape - order,
+ * side, kind, and that a condition exists on every gate and only on a gate -
  * without a store, the same way `guidance.test.ts` checks content alone.
  */
 
 const STAGE_IDS_IN_ORDER = [
   "requesting-program-manager",
   "requesting-finance",
+  "performing-department",
   "performing-program-manager",
   "performing-finance",
   "contracts",
@@ -37,7 +38,7 @@ function emptyFields(overrides: Partial<DraftFieldValues> = {}): DraftFieldValue
 }
 
 describe("the relay configuration", () => {
-  test("is the six stages, in the flow document's order", () => {
+  test("is the six flow-document stages plus the performing-department claim, in order", () => {
     assert.deepEqual(
       RELAY_CONFIG.map((s) => s.id),
       STAGE_IDS_IN_ORDER,
@@ -69,6 +70,20 @@ describe("the relay configuration", () => {
   test("the requesting finance approver's sign-off declares no dependencies (ADR-0005)", () => {
     const stage = RELAY_CONFIG.find((s) => s.id === "requesting-finance")!;
     assert.deepEqual(stage.fieldDependencies, []);
+  });
+
+  test("the performing department stage is a contribution, resolved by claiming rather than acknowledging (#56)", () => {
+    const stage = RELAY_CONFIG.find((s) => s.id === "performing-department")!;
+    assert.ok(isContributionStage(stage));
+    assert.equal(stage.side, "performing");
+    assert.ok(!isGateStage(stage));
+    assert.ok(!("condition" in stage));
+  });
+
+  test("the performing department stage sits between requesting finance and performing program manager", () => {
+    const index = RELAY_CONFIG.findIndex((s) => s.id === "performing-department");
+    assert.equal(RELAY_CONFIG[index - 1]!.id, "requesting-finance");
+    assert.equal(RELAY_CONFIG[index + 1]!.id, "performing-program-manager");
   });
 
   test("the Contracts gate runs for every contract-funded type and skips company-funded work", () => {

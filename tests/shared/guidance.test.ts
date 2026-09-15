@@ -28,6 +28,7 @@ const DRAFT_FIELD_KEYS: DraftFieldKey[] = [
 const STAGE_IDS: StageId[] = [
   "requesting-program-manager",
   "requesting-finance",
+  "performing-department",
   "performing-program-manager",
   "performing-finance",
   "contracts",
