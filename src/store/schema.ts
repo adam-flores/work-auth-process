@@ -14,7 +14,7 @@
  * disk built by an older shape is rebuilt on open (ADR-0008), and without the
  * bump it survives and then fails on the first write its old constraints refuse.
  */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 export const SCHEMA = `
   CREATE TABLE IF NOT EXISTS store_meta (
@@ -131,13 +131,21 @@ export const SCHEMA = `
      payload carries whatever the transition's kind needs (an initiation's
      draft contents, a correction's changed fields, ...) as JSON, because the
      shape differs by kind and this table does not model the domain
-     relationally (see the file header). */
+     relationally (see the file header).
+
+     actor_id carries no foreign key: an arrival or a notification is caused
+     by the system (BDR-0003), and the system sentinel is deliberately not a
+     row in participants (it holds no role and belongs to no department) -
+     the same sentinel every other command already accepts (requireParticipant
+     in src/service/index.ts). Every actor_id, human or system, is validated
+     there before a transition is ever appended; this column just holds
+     whatever was validated. */
   CREATE TABLE IF NOT EXISTS transitions (
     seq              INTEGER PRIMARY KEY AUTOINCREMENT,
     id               TEXT NOT NULL UNIQUE,
     authorization_id TEXT NOT NULL,
     kind             TEXT NOT NULL,
-    actor_id         TEXT NOT NULL REFERENCES participants(id),
+    actor_id         TEXT NOT NULL,
     occurred_at      TEXT NOT NULL,
     payload          TEXT NOT NULL
   );

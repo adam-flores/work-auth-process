@@ -37,6 +37,7 @@ const STATUS_FOR: Record<DomainErrorCode, number> = {
   UNKNOWN_PERMISSIBILITY_RULE: 404,
   NOT_DRAFT_OWNER: 403,
   NOT_ADMINISTRATOR: 403,
+  NOT_IN_QUEUE: 403,
   DRAFT_INCOMPLETE: 409,
   IMPERMISSIBLE_PAIRING: 409,
 };
@@ -117,6 +118,7 @@ const ROUTES: Record<string, Handler> = {
   "GET /api/departments": (s, ctx, query) => s.searchDepartments(ctx, parseDepartmentQuery(query)),
   "POST /api/drafts": (s, ctx, _query, body) => s.createDraft(ctx, body as DraftFieldsInput),
   "GET /api/drafts": (s, ctx) => s.listMyDrafts(ctx),
+  "GET /api/queue": (s, ctx) => s.listMyQueue(ctx),
   "GET /api/permissibility-rules": (s, ctx) => s.listPermissibilityRules(ctx),
   "POST /api/permissibility-rules": (s, ctx, _query, body) =>
     s.addPermissibilityRule(ctx, body as PermissibilityRuleInput),
@@ -164,6 +166,7 @@ const DRAFT_RESOURCES_PATH = /^\/api\/drafts\/([^/]+)\/resources$/;
 const DRAFT_RESOURCE_PATH = /^\/api\/drafts\/([^/]+)\/resources\/([^/]+)$/;
 const DRAFT_INITIATE_PATH = /^\/api\/drafts\/([^/]+)\/initiate$/;
 const AUTHORIZATION_PATH = /^\/api\/authorizations\/([^/]+)$/;
+const AUTHORIZATION_ACKNOWLEDGE_PATH = /^\/api\/authorizations\/([^/]+)\/acknowledge$/;
 const PERMISSIBILITY_RULE_PATH = /^\/api\/permissibility-rules\/([^/]+)$/;
 
 export function createHttpServer(service: Service) {
@@ -191,6 +194,17 @@ export function createHttpServer(service: Service) {
           res,
           200,
           service.getAuthorization(ctx, decodeURIComponent(authorizationMatch[1])),
+        );
+      }
+
+      const acknowledgeMatch = method === "POST" ? AUTHORIZATION_ACKNOWLEDGE_PATH.exec(pathname) : null;
+      if (acknowledgeMatch?.[1]) {
+        const ctx = actingParticipant(req);
+        const body = await readJsonBody(req);
+        return sendJson(
+          res,
+          200,
+          service.acknowledge(ctx, decodeURIComponent(acknowledgeMatch[1]), body as TransitionOptionsInput),
         );
       }
 

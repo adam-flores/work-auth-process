@@ -23,11 +23,16 @@ import type { DraftFieldValues } from "../drafts/index.ts";
 /**
  * Which side of the authorization a stage's role belongs to. The four
  * mandatory approvals route to a role at one side's named department
- * (CONTEXT.md: "a stage routes to a role at a department"). The two gates are
- * centralized compliance functions tied to neither side - nothing in the
- * relay's own decision records fixes this, so it is recorded here rather than
- * left implicit: surface it if it turns out to matter to how a gate's queue
- * is staffed (a later ticket's concern).
+ * (CONTEXT.md: "a stage routes to a role at a department") - `queues/index.ts`
+ * (#55) reads `requestingDepartmentId` or `performingDepartmentId` off the
+ * authorization itself for these. The two gates are centralized compliance
+ * functions tied to neither side, and this did turn out to matter once
+ * queues were built: resolved as a fixed department of its own per gate
+ * ("Contracts", "Global Trade"), seeded like any other Approver's rather than
+ * drawn from the org hierarchy. Not yet wired up - #57 builds the two gates
+ * and is where that seeding belongs - so `queues/index.ts` throws on a
+ * "neutral" stage today rather than guessing at a department that does not
+ * exist yet.
  */
 export type StageSide = "requesting" | "performing" | "neutral";
 

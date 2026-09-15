@@ -8,10 +8,12 @@ import type {
 import type { ResolvedDepartment } from "../hierarchy/index.ts";
 import type { Draft } from "../drafts/index.ts";
 import type { PermissibilityRule } from "../permissibility/index.ts";
+import type { Authorization } from "../authorizations/index.ts";
 
 export type { ResolvedDepartment, Attribute } from "../hierarchy/index.ts";
 export type { Draft, Resource } from "../drafts/index.ts";
 export type { PermissibilityRule } from "../permissibility/index.ts";
+export type { Authorization, StageVisit } from "../authorizations/index.ts";
 
 /** What the service returns about the store it is reading. */
 export type StoreInfo = {
@@ -101,6 +103,14 @@ export const api = {
       actor,
       "DELETE",
     ),
+  initiateDraft: (actor: string, draftId: string) =>
+    call<Authorization>(`/api/drafts/${encodeURIComponent(draftId)}/initiate`, actor, "POST"),
+
+  getAuthorization: (actor: string, authorizationId: string) =>
+    call<Authorization>(`/api/authorizations/${encodeURIComponent(authorizationId)}`, actor),
+  listMyQueue: (actor: string) => call<Authorization[]>("/api/queue", actor),
+  acknowledge: (actor: string, authorizationId: string) =>
+    call<Authorization>(`/api/authorizations/${encodeURIComponent(authorizationId)}/acknowledge`, actor, "POST"),
 
   listPermissibilityRules: (actor: string) =>
     call<PermissibilityRule[]>("/api/permissibility-rules", actor),

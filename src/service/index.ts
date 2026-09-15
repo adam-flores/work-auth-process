@@ -39,8 +39,13 @@ import {
   resourceExists,
 } from "../drafts/index.ts";
 import type { Draft, DraftFieldValues } from "../drafts/index.ts";
-import { appendInitiationTransition, findAuthorization } from "../authorizations/index.ts";
+import {
+  appendAcknowledgementTransition,
+  appendInitiationTransition,
+  findAuthorization,
+} from "../authorizations/index.ts";
 import type { Authorization, AuthorizationFields } from "../authorizations/index.ts";
+import { isQueuedFor, listApproverQueue } from "../queues/index.ts";
 import { DomainError } from "./errors.ts";
 
 /**
@@ -116,6 +121,15 @@ export function createService(options: ServiceOptions = {}) {
       throw new DomainError("NOT_ADMINISTRATOR", "Only an Administrator may change the permissibility rules.");
     }
     return participantId;
+  }
+
+  /** A participant's role and department, or `undefined` for anyone not on
+   *  the roster - `system` included, which is why queue membership checks
+   *  read through this rather than assuming a match. */
+  function readParticipant(participantId: string): { role: string; department: string } | undefined {
+    return db.prepare("SELECT role, department FROM participants WHERE id = ?").get(participantId) as
+      | { role: string; department: string }
+      | undefined;
   }
 
   /** A department id a draft names has to resolve to something real - the
@@ -450,6 +464,56 @@ export function createService(options: ServiceOptions = {}) {
         throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
       }
       return authorization;
+    },
+
+    /** What is waiting on this participant's action (#55, BDR-0002/BDR-0003:
+     *  "what is waiting on your action"). Empty for anyone who is not an
+     *  Approver, `system` included - a queue is not an error to ask for, it
+     *  is simply empty for a role that holds none. */
+    listMyQueue(ctx: ActingParticipant): Authorization[] {
+      const participantId = requireParticipant(ctx);
+      const participant = readParticipant(participantId);
+      if (!participant || participant.role !== "Approver") return [];
+      return listApproverQueue(db, participant.department);
+    },
+
+    /**
+     * An Approver signs off on the stage an authorization currently sits at
+     * (#55). Checked against the same rule that built the queue they found
+     * it in - a role at a department, never a named person (BDR-0013) - so
+     * calling this directly cannot reach what the queue itself would have
+     * refused to show. On success the authorization advances to whatever the
+     * relay configuration names next and leaves this Approver's queue.
+     */
+    acknowledge(
+      ctx: ActingParticipant,
+      authorizationId: string,
+      options?: TransitionOptionsInput,
+    ): Authorization {
+      const participantId = requireParticipant(ctx);
+      const authorization = findAuthorization(db, authorizationId);
+      if (!authorization) {
+        throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
+      }
+
+      const participant = readParticipant(participantId);
+      if (!participant || !isQueuedFor(db, authorization, participant)) {
+        throw new DomainError(
+          "NOT_IN_QUEUE",
+          "Only an Approver at this stage's department may acknowledge it.",
+        );
+      }
+
+      const parsedOptions = TransitionOptions.safeParse(options ?? {});
+      if (!parsedOptions.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsedOptions.error.issues[0]?.message ?? "Invalid transition options.",
+        );
+      }
+      const occurredAt = parsedOptions.data.occurredAt ?? new Date().toISOString();
+
+      return appendAcknowledgementTransition(db, { authorizationId, actorId: participantId, occurredAt });
     },
 
     close(): void {

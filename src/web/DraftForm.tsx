@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "./api.ts";
-import type { Draft, ResolvedDepartment } from "./api.ts";
+import type { Authorization, Draft, ResolvedDepartment } from "./api.ts";
 import { DepartmentPicker } from "./DepartmentPicker.tsx";
 import {
   FUNDING_TYPE_LABELS,
@@ -67,10 +67,11 @@ export type DraftFormProps = {
   draft: Draft;
   onSaved: (draft: Draft) => void;
   onDeleted: () => void;
+  onInitiated: (authorization: Authorization) => void;
   onClose: () => void;
 };
 
-export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: DraftFormProps) {
+export function DraftForm({ actingId, draft, onSaved, onDeleted, onInitiated, onClose }: DraftFormProps) {
   const [current, setCurrent] = useState(draft);
   const [project, setProject] = useState(draft.project ?? "");
   const [requestingDept, setRequestingDept] = useState<ResolvedDepartment | null>(null);
@@ -141,9 +142,13 @@ export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: Draf
     // `draft` itself changes identity on every parent re-render.
   }, [draft.id, actingId]);
 
-  const save = async () => {
-    setError(null);
-    const fields: DraftFieldsInput = {
+  // What "Save" and "Initiate" both send: initiating acts on the draft as
+  // stored, not on whatever is still sitting unsaved in these fields, so it
+  // has to save the same snapshot "Save" would before it releases the draft
+  // - otherwise a submitter's last edits would be silently dropped rather
+  // than carried into the authorization.
+  function currentFields(): DraftFieldsInput {
+    return {
       project: orNull(project),
       requestingDepartmentId: requestingDept?.id ?? null,
       performingDepartmentId: performingDept?.id ?? null,
@@ -156,6 +161,11 @@ export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: Draf
       performingFinanceApprover: orNull(performingFinanceApprover),
       performingContact: orNull(performingContact),
     };
+  }
+
+  const save = async () => {
+    setError(null);
+    const fields = currentFields();
 
     // Validation fires before submission (#52), reusing the exact schema
     // the service will apply anyway - so a malformed field is caught here,
@@ -184,6 +194,33 @@ export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: Draf
     try {
       await api.deleteDraft(actingId, draft.id);
       onDeleted();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+      setBusy(false);
+    }
+  };
+
+  /** Releases the draft into the relay (#54, #55, ADR-0009): saves whatever
+   *  is currently in the form, then initiates that same saved state.
+   *  Completeness beyond `DraftFields`' shape is enforced on the server -
+   *  an incomplete draft surfaces its refusal through the same error banner
+   *  "Save" already uses, rather than a second validation pass here. */
+  const initiate = async () => {
+    setError(null);
+    const fields = currentFields();
+    const parsed = DraftFields.safeParse(fields);
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Invalid draft fields.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const saved = await api.updateDraft(actingId, draft.id, fields);
+      setCurrent(saved);
+      onSaved(saved);
+      const authorization = await api.initiateDraft(actingId, draft.id);
+      onInitiated(authorization);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err));
       setBusy(false);
@@ -403,6 +440,9 @@ export function DraftForm({ actingId, draft, onSaved, onDeleted, onClose }: Draf
       <div className="draft-form-actions">
         <button type="button" onClick={() => void save()} disabled={busy}>
           {busy ? "Saving…" : "Save"}
+        </button>
+        <button type="button" onClick={() => void initiate()} disabled={busy} data-testid="initiate-draft">
+          {busy ? "Initiating…" : "Initiate"}
         </button>
         <button type="button" onClick={onClose} disabled={busy}>
           Close
