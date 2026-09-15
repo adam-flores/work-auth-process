@@ -56,6 +56,16 @@ export type Authorization = AuthorizationFields & {
   /** Every stage reached so far, in the order it was reached, each with its
    *  own three timestamps. The last entry is always `currentStageId`'s. */
   stageHistory: StageVisit[];
+  /** Who claimed the performing-department stage (#56, CONTEXT.md: "Claim"),
+   *  `null` while it sits there unclaimed. Set once and never cleared - the
+   *  same contributor owns the performing-side section for the
+   *  authorization's whole life, the way the submitter owns the requesting
+   *  side. */
+  performingContributorId: string | null;
+  /** The employee who will perform the work, recorded by the performing
+   *  contributor - "a name on the record, not a participant in the process"
+   *  (CONTEXT.md). `null` until the contributor completes the stage. */
+  performingEmployee: string | null;
 };
 
 type TransitionRow = {
@@ -70,6 +80,7 @@ type TransitionRow = {
 
 type InitiationPayload = { fields: AuthorizationFields };
 type StagePayload = { stageId: StageId };
+type ContributionPayload = { stageId: StageId; performingEmployee: string };
 
 function readTransitions(db: DatabaseSync, authorizationId: string): TransitionRow[] {
   return db
@@ -87,13 +98,14 @@ function nextStageId(stageId: StageId): StageId {
 }
 
 /**
- * What resolves a stage - acknowledging it (#55) or skipping a gate (a later
- * ticket, #57). Kept as a set for the same reason it was before either kind
- * existed: it is what `foldStageHistory` below reads to fill in a stage's
- * `resolvedAt`, and a gate skip fills that in exactly like an acknowledgement
- * does once it starts appearing in the log.
+ * What resolves a stage - acknowledging it (#55), a contributor completing
+ * the performing-department stage (#56), or skipping a gate (a later ticket,
+ * #57). Kept as a set for the same reason it was before any but the first
+ * kind existed: it is what `foldStageHistory` below reads to fill in a
+ * stage's `resolvedAt`, and each later kind fills that in exactly like an
+ * acknowledgement does.
  */
-const RESOLVING_KINDS = new Set(["acknowledgement", "gate-skip"]);
+const RESOLVING_KINDS = new Set(["acknowledgement", "contribution", "gate-skip"]);
 
 /**
  * Every stage reached so far, each with its own three timestamps (#55,
@@ -137,12 +149,23 @@ function foldAuthorization(authorizationId: string, transitions: TransitionRow[]
   if (!initiation) return null;
   const { fields } = JSON.parse(initiation.payload) as InitiationPayload;
   const stageHistory = foldStageHistory(transitions, initiation);
+
+  // Claiming and contributing are each recorded once - the same contributor
+  // owns the performing-department stage for the authorization's whole life
+  // (#56) - so the first row of each kind is the only one there ever is.
+  const claim = transitions.find((row) => row.kind === "claim");
+  const contribution = transitions.find((row) => row.kind === "contribution");
+
   return {
     id: authorizationId,
     submitterId: initiation.actor_id,
     initiatedAt: initiation.occurred_at,
     currentStageId: stageHistory[stageHistory.length - 1]!.stageId,
     stageHistory,
+    performingContributorId: claim ? claim.actor_id : null,
+    performingEmployee: contribution
+      ? (JSON.parse(contribution.payload) as ContributionPayload).performingEmployee
+      : null,
     ...fields,
   };
 }
@@ -192,6 +215,38 @@ function appendStageArrival(
   ).run(`transition-${randomUUID()}`, authorizationId, SYSTEM_PARTICIPANT_ID, occurredAt, JSON.stringify(payload));
 }
 
+/** The one-off notification a submitter's named performing-side contact gets
+ *  on arrival at the performing-department stage (#56, CONTEXT.md: "Claim" -
+ *  "a submitter may name a performing-side contact, but that only adds a
+ *  notification - the department queue stays authoritative"). Recorded as
+ *  its own transition kind, distinct from the role@department `notification`
+ *  `appendStageArrival` writes, because it names an individual rather than a
+ *  role and carries no timestamp pair of its own - there is nothing for a
+ *  contact to resolve. */
+function appendContactNotification(
+  db: DatabaseSync,
+  authorizationId: string,
+  contact: string,
+  occurredAt: string,
+): void {
+  db.prepare(
+    `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+     VALUES (?, ?, 'contact-notification', ?, ?, ?)`,
+  ).run(
+    `transition-${randomUUID()}`,
+    authorizationId,
+    SYSTEM_PARTICIPANT_ID,
+    occurredAt,
+    JSON.stringify({ contact }),
+  );
+}
+
+/** Whether `stageId` is the performing-department stage - checked by id
+ *  rather than by importing `relay/config.ts`'s stage kind here, so this
+ *  module stays free of the relay configuration the way it was before #56
+ *  (`nextStageId` above already reads `RELAY_CONFIG` for ordering only). */
+const PERFORMING_DEPARTMENT_STAGE_ID: StageId = "performing-department";
+
 /**
  * The relay's one advancing act built so far (#55): an Approver signs off on
  * the stage an authorization currently sits at, and it moves to whatever the
@@ -217,6 +272,66 @@ export function appendAcknowledgementTransition(
     db.prepare(
       `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
        VALUES (?, ?, 'acknowledgement', ?, ?, ?)`,
+    ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt, JSON.stringify(payload));
+
+    const upcoming = nextStageId(stageId);
+    if (upcoming !== stageId) {
+      appendStageArrival(db, input.authorizationId, upcoming, input.occurredAt);
+      if (upcoming === PERFORMING_DEPARTMENT_STAGE_ID && before.performingContact) {
+        appendContactNotification(db, input.authorizationId, before.performingContact, input.occurredAt);
+      }
+    }
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+
+  return findAuthorization(db, input.authorizationId)!;
+}
+
+/**
+ * A contributor claiming the performing-department stage (#56, CONTEXT.md:
+ * "Claim"): names them as the authorization's performing contributor. Does
+ * not resolve the stage or move the authorization anywhere - it only records
+ * who owns it, the way a claim in the domain always has. The service checks
+ * eligibility (`isQueuedForClaim` in `queues/index.ts`) before this is
+ * reached; this function trusts the caller the same way
+ * `appendAcknowledgementTransition` does.
+ */
+export function appendClaimTransition(
+  db: DatabaseSync,
+  input: { authorizationId: string; actorId: string; occurredAt: string },
+): Authorization {
+  db.prepare(
+    `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+     VALUES (?, ?, 'claim', ?, ?, '{}')`,
+  ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt);
+  return findAuthorization(db, input.authorizationId)!;
+}
+
+/**
+ * The performing contributor completing the performing-department stage
+ * (#56, BDR-0003: "complete a contribution stage"): records the employee who
+ * will perform the work and resolves the stage, exactly as an acknowledgement
+ * does for an approval stage - same transaction discipline, same
+ * `nextStageId` routing. Who may contribute, and that the authorization sits
+ * at this stage at all, is the service's job to have already checked.
+ */
+export function appendContributionTransition(
+  db: DatabaseSync,
+  input: { authorizationId: string; actorId: string; occurredAt: string; performingEmployee: string },
+): Authorization {
+  const before = findAuthorization(db, input.authorizationId);
+  if (!before) throw new Error(`No authorization with id "${input.authorizationId}".`);
+  const stageId = before.currentStageId;
+
+  db.exec("BEGIN");
+  try {
+    const payload: ContributionPayload = { stageId, performingEmployee: input.performingEmployee };
+    db.prepare(
+      `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+       VALUES (?, ?, 'contribution', ?, ?, ?)`,
     ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt, JSON.stringify(payload));
 
     const upcoming = nextStageId(stageId);
