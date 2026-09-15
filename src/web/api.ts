@@ -1,9 +1,17 @@
-import type { Participant, AttributeFilter, DraftFieldsInput, ResourceInput } from "../shared/rules.ts";
+import type {
+  Participant,
+  AttributeFilter,
+  DraftFieldsInput,
+  PermissibilityRuleInput,
+  ResourceInput,
+} from "../shared/rules.ts";
 import type { ResolvedDepartment } from "../hierarchy/index.ts";
 import type { Draft } from "../drafts/index.ts";
+import type { PermissibilityRule } from "../permissibility/index.ts";
 
 export type { ResolvedDepartment, Attribute } from "../hierarchy/index.ts";
 export type { Draft, Resource } from "../drafts/index.ts";
+export type { PermissibilityRule } from "../permissibility/index.ts";
 
 /** What the service returns about the store it is reading. */
 export type StoreInfo = {
@@ -90,6 +98,17 @@ export const api = {
   removeResource: (actor: string, draftId: string, resourceId: string) =>
     call<Draft>(
       `/api/drafts/${encodeURIComponent(draftId)}/resources/${encodeURIComponent(resourceId)}`,
+      actor,
+      "DELETE",
+    ),
+
+  listPermissibilityRules: (actor: string) =>
+    call<PermissibilityRule[]>("/api/permissibility-rules", actor),
+  addPermissibilityRule: (actor: string, rule: PermissibilityRuleInput) =>
+    call<PermissibilityRule>("/api/permissibility-rules", actor, "POST", rule),
+  removePermissibilityRule: (actor: string, ruleId: string) =>
+    call<{ deleted: true }>(
+      `/api/permissibility-rules/${encodeURIComponent(ruleId)}`,
       actor,
       "DELETE",
     ),
