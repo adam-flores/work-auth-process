@@ -190,6 +190,17 @@ export function replaceDraftFields(db: DatabaseSync, draftId: string, fields: Dr
   return findDraft(db, draftId)!;
 }
 
+/** The two deletes that erase a draft, with no transaction of their own -
+ *  exported so a caller that is already inside a transaction (initiation
+ *  discharging a draft into the log, ADR-0009) can compose it with other
+ *  writes atomically instead of nesting a second BEGIN inside the first,
+ *  which SQLite refuses. `removeDraft` below is this same pair for a caller
+ *  that is not already in one. */
+export function deleteDraftRows(db: DatabaseSync, draftId: string): void {
+  db.prepare("DELETE FROM draft_resources WHERE draft_id = ?").run(draftId);
+  db.prepare("DELETE FROM drafts WHERE id = ?").run(draftId);
+}
+
 /** Deletes the draft and every resource on it in one transaction - deleting
  *  or expiring a draft leaves no trace anywhere (the acceptance criterion,
  *  and ADR-0009's "nothing is appended, because nothing is being recorded
@@ -197,8 +208,7 @@ export function replaceDraftFields(db: DatabaseSync, draftId: string, fields: Dr
 export function removeDraft(db: DatabaseSync, draftId: string): void {
   db.exec("BEGIN");
   try {
-    db.prepare("DELETE FROM draft_resources WHERE draft_id = ?").run(draftId);
-    db.prepare("DELETE FROM drafts WHERE id = ?").run(draftId);
+    deleteDraftRows(db, draftId);
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");

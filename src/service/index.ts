@@ -1,17 +1,25 @@
 import { openStore, DEFAULT_STORE_PATH } from "../store/index.ts";
 import {
   ActingParticipant,
+  CompleteDraftFields,
   DepartmentQuery,
   DraftFields,
   HierarchyId,
   ResourceInput,
+  TransitionOptions,
   SYSTEM_PARTICIPANT_ID,
 } from "../shared/rules.ts";
-import type { DepartmentQueryInput, DraftFieldsInput, Participant } from "../shared/rules.ts";
+import type {
+  DepartmentQueryInput,
+  DraftFieldsInput,
+  Participant,
+  TransitionOptionsInput,
+} from "../shared/rules.ts";
 import { findDepartments, resolveDepartment } from "../hierarchy/index.ts";
 import type { ResolvedDepartment } from "../hierarchy/index.ts";
 import {
   addResource as addDraftResource,
+  deleteDraftRows,
   findDraft,
   insertDraft,
   listDraftsBySubmitter,
@@ -22,6 +30,8 @@ import {
   resourceExists,
 } from "../drafts/index.ts";
 import type { Draft, DraftFieldValues } from "../drafts/index.ts";
+import { appendInitiationTransition, findAuthorization } from "../authorizations/index.ts";
+import type { Authorization, AuthorizationFields } from "../authorizations/index.ts";
 import { DomainError } from "./errors.ts";
 
 /**
@@ -279,6 +289,87 @@ export function createService(options: ServiceOptions = {}) {
         throw new DomainError("UNKNOWN_RESOURCE", `No resource with id "${resourceId}" on this draft.`);
       }
       return removeDraftResource(db, draftId, resourceId);
+    },
+
+    /**
+     * The submitter releases a draft into the relay (ADR-0009). Completeness
+     * is required here and nowhere earlier - `CompleteDraftFields` is the
+     * same rule set `DraftFields` relaxes, evaluated at initiation's
+     * strictness. On success the draft is discharged: the first transition
+     * carries its contents forward, and the draft itself leaves no trace,
+     * same as any other way a draft ends.
+     */
+    initiateDraft(ctx: ActingParticipant, draftId: string, options?: TransitionOptionsInput): Authorization {
+      const participantId = requireParticipant(ctx);
+      const draft = requireOwnedDraft(participantId, draftId);
+
+      const parsedOptions = TransitionOptions.safeParse(options ?? {});
+      if (!parsedOptions.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsedOptions.error.issues[0]?.message ?? "Invalid transition options.",
+        );
+      }
+      const occurredAt = parsedOptions.data.occurredAt ?? new Date().toISOString();
+
+      const complete = CompleteDraftFields.safeParse({
+        project: draft.project,
+        requestingDepartmentId: draft.requestingDepartmentId,
+        performingDepartmentId: draft.performingDepartmentId,
+        fundingType: draft.fundingType,
+        requestingLocationType: draft.requestingLocationType,
+        performingLocationType: draft.performingLocationType,
+        requestingProgramManager: draft.requestingProgramManager,
+        requestingFinanceApprover: draft.requestingFinanceApprover,
+        performingProgramManager: draft.performingProgramManager,
+        performingFinanceApprover: draft.performingFinanceApprover,
+        performingContact: draft.performingContact,
+        resources: draft.resources,
+      });
+      if (!complete.success) {
+        throw new DomainError(
+          "DRAFT_INCOMPLETE",
+          complete.error.issues[0]?.message ?? "This draft is not yet complete.",
+        );
+      }
+
+      // `complete.data.resources` validated only shape (budgetHours,
+      // laborRate) and drops the ids a draft's resources already have -
+      // `draft.resources` is carried forward instead so the authorization
+      // keeps them.
+      const fields: AuthorizationFields = {
+        ...complete.data,
+        performingContact: complete.data.performingContact ?? null,
+        resources: draft.resources,
+      };
+
+      // One transaction: the draft is discharged into the log at the moment
+      // it becomes the record (ADR-0009), not in two separate commits that a
+      // crash between them could leave half-done - an authorization with no
+      // draft to have come from, or a draft still sitting there to be
+      // initiated a second time.
+      db.exec("BEGIN");
+      let authorization: Authorization;
+      try {
+        authorization = appendInitiationTransition(db, { actorId: participantId, occurredAt, fields });
+        deleteDraftRows(db, draftId);
+        db.exec("COMMIT");
+      } catch (err) {
+        db.exec("ROLLBACK");
+        throw err;
+      }
+      return authorization;
+    },
+
+    /** Read back an initiated authorization - open to any known participant,
+     *  the same visibility every authorization has (BDR-0007). */
+    getAuthorization(ctx: ActingParticipant, authorizationId: string): Authorization {
+      requireParticipant(ctx);
+      const authorization = findAuthorization(db, authorizationId);
+      if (!authorization) {
+        throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
+      }
+      return authorization;
     },
 
     close(): void {

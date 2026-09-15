@@ -1,8 +1,9 @@
 /**
  * The store holds two shapes (ADR-0009): tables that are updated in place, and
  * tables that are only ever appended to. Nothing here models the domain
- * relationally (ADR-0008) - the authorization record is a log, and it arrives
- * with the relay in a later ticket.
+ * relationally (ADR-0008) - the authorization record is the `transitions` log
+ * below, and the relay configuration it is routed against ships with the
+ * repository instead (ADR-0011, `src/relay/config.ts`).
  *
  * The hierarchy is the exception, and deliberately so: it is reference data
  * rather than domain state (ADR-0011), it is a tree, and it is the one thing in
@@ -13,7 +14,7 @@
  * disk built by an older shape is rebuilt on open (ADR-0008), and without the
  * bump it survives and then fails on the first write its old constraints refuse.
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export const SCHEMA = `
   CREATE TABLE IF NOT EXISTS store_meta (
@@ -106,6 +107,32 @@ export const SCHEMA = `
     budget_hours REAL NOT NULL,
     labor_rate   REAL NOT NULL
   );
+
+  /* The record, once an authorization exists (ADR-0004, ADR-0009): appended
+     only, never updated and never deleted. Position in the relay and every
+     field's current value are folded from this table on read
+     (src/authorizations/index.ts) - there is no status column and no field
+     column here to drift from it. seq is the true append order; occurred_at
+     is caller-suppliable business time and is not trusted for ordering.
+     payload carries whatever the transition's kind needs (an initiation's
+     draft contents, a correction's changed fields, ...) as JSON, because the
+     shape differs by kind and this table does not model the domain
+     relationally (see the file header). */
+  CREATE TABLE IF NOT EXISTS transitions (
+    seq              INTEGER PRIMARY KEY AUTOINCREMENT,
+    id               TEXT NOT NULL UNIQUE,
+    authorization_id TEXT NOT NULL,
+    kind             TEXT NOT NULL,
+    actor_id         TEXT NOT NULL REFERENCES participants(id),
+    occurred_at      TEXT NOT NULL,
+    payload          TEXT NOT NULL
+  );
+
+  /* Every read of an authorization - folding its position, its fields, this
+     transition's own append - is "every transition naming this authorization
+     id, in order". Without this, that scan is over every transition ever
+     appended, for every authorization there is. */
+  CREATE INDEX IF NOT EXISTS idx_transitions_authorization_id ON transitions(authorization_id);
 `;
 
 /**
@@ -114,6 +141,7 @@ export const SCHEMA = `
  * list is the whole of the upgrade story.
  */
 export const DROP_ALL = `
+  DROP TABLE IF EXISTS transitions;
   DROP TABLE IF EXISTS draft_resources;
   DROP TABLE IF EXISTS drafts;
   DROP TABLE IF EXISTS department_codes;
