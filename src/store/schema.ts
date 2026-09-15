@@ -14,7 +14,7 @@
  * disk built by an older shape is rebuilt on open (ADR-0008), and without the
  * bump it survives and then fails on the first write its old constraints refuse.
  */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export const SCHEMA = `
   CREATE TABLE IF NOT EXISTS store_meta (
@@ -70,6 +70,20 @@ export const SCHEMA = `
     code          TEXT NOT NULL,
     shared        INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (department_id, kind, code)
+  );
+
+  /* A configurable list of disallowed pairings (BDR-0007, ADR-0011), edited
+     by an Administrator and taking effect without a build. Each rule names
+     the requesting side's jurisdiction and the performing side's -
+     direction matters, since "foreign may not perform for domestic" is not
+     the same rule as its reverse. Not a department pair: jurisdiction is
+     the one compliance attribute the hierarchy carries (ADR-0012), and the
+     pairing is evaluated against it. */
+  CREATE TABLE IF NOT EXISTS permissibility_rules (
+    id                      TEXT PRIMARY KEY,
+    requesting_jurisdiction TEXT NOT NULL CHECK (requesting_jurisdiction IN ('foreign', 'domestic')),
+    performing_jurisdiction TEXT NOT NULL CHECK (performing_jurisdiction IN ('foreign', 'domestic')),
+    UNIQUE (requesting_jurisdiction, performing_jurisdiction)
   );
 
   /* Mutable, updated in place, with no history (ADR-0009) - the opposite
@@ -144,6 +158,7 @@ export const DROP_ALL = `
   DROP TABLE IF EXISTS transitions;
   DROP TABLE IF EXISTS draft_resources;
   DROP TABLE IF EXISTS drafts;
+  DROP TABLE IF EXISTS permissibility_rules;
   DROP TABLE IF EXISTS department_codes;
   DROP TABLE IF EXISTS hierarchy_attributes;
   DROP TABLE IF EXISTS departments;

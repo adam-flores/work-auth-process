@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DROP_ALL, SCHEMA, SCHEMA_VERSION } from "./schema.ts";
 import { seedHierarchy } from "../hierarchy/seed.ts";
+import { seedPermissibilityRules } from "../permissibility/index.ts";
 import { Participant } from "../shared/rules.ts";
 import type { Participant as ParticipantRecord } from "../shared/rules.ts";
 
@@ -59,6 +60,7 @@ function seed(db: DatabaseSync): void {
     // Reference data the Administrator maintains, seeded by transformation
     // rather than loaded (ADR-0011, ADR-0012).
     seedHierarchy(db);
+    seedPermissibilityRules(db);
 
     const meta = db.prepare("INSERT OR REPLACE INTO store_meta (key, value) VALUES (?, ?)");
     meta.run("schema_version", String(SCHEMA_VERSION));
