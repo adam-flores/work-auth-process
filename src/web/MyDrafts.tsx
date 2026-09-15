@@ -66,6 +66,14 @@ export function MyDrafts({ actingId }: MyDraftsProps) {
     setOpenId(null);
   };
 
+  // Initiation discharges the draft the same way deletion does (ADR-0009) -
+  // it leaves this list and the form closes. Where it goes next is the
+  // Approver's queue it just arrived in, not this component's concern.
+  const onInitiated = () => {
+    setDrafts((prev) => (prev ?? []).filter((d) => d.id !== openId));
+    setOpenId(null);
+  };
+
   const open = drafts?.find((d) => d.id === openId) ?? null;
   const canSubmit = actingId !== SYSTEM_PARTICIPANT_ID;
 
@@ -113,7 +121,14 @@ export function MyDrafts({ actingId }: MyDraftsProps) {
       </ul>
 
       {open && (
-        <DraftForm actingId={actingId} draft={open} onSaved={onSaved} onDeleted={onDeleted} onClose={() => setOpenId(null)} />
+        <DraftForm
+          actingId={actingId}
+          draft={open}
+          onSaved={onSaved}
+          onDeleted={onDeleted}
+          onInitiated={onInitiated}
+          onClose={() => setOpenId(null)}
+        />
       )}
     </section>
   );
