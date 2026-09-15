@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api.ts";
-import type { ResolvedDepartment, StoreInfo } from "./api.ts";
-import { DepartmentPicker } from "./DepartmentPicker.tsx";
+import type { StoreInfo } from "./api.ts";
+import { MyDrafts } from "./MyDrafts.tsx";
 import { SYSTEM_PARTICIPANT_ID } from "../shared/constants.ts";
 import type { Participant } from "../shared/rules.ts";
 
@@ -17,8 +17,6 @@ export function App() {
   const [store, setStore] = useState<StoreInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [requestingDept, setRequestingDept] = useState<ResolvedDepartment | null>(null);
-  const [performingDept, setPerformingDept] = useState<ResolvedDepartment | null>(null);
 
   // Switching actor twice quickly leaves two reads in flight. Only the newest
   // may paint - otherwise a slow failure from the actor you just left lands on
@@ -49,10 +47,6 @@ export function App() {
     try {
       setStore(await api.resetStore(actingId));
       await load(actingId);
-      // A reseed can rebuild department ids from scratch, so a selection made
-      // against the old store may no longer resolve to anything real.
-      setRequestingDept(null);
-      setPerformingDept(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err));
     } finally {
@@ -150,30 +144,7 @@ export function App() {
         </table>
       </section>
 
-      <section aria-labelledby="department-picker-heading">
-        <h2 id="department-picker-heading">Find a department</h2>
-        <p className="hint">
-          One picker, used for both sides of an authorization (BDR-0008): narrow on any
-          attribute, then search what remains by name. Shown standalone here, ahead of the
-          draft it will be embedded in (#51) — reset the store above to clear a selection.
-        </p>
-        <div className="department-pickers">
-          <DepartmentPicker
-            testId="requesting-department"
-            label="Requesting department"
-            actingId={actingId}
-            selected={requestingDept}
-            onSelect={setRequestingDept}
-          />
-          <DepartmentPicker
-            testId="performing-department"
-            label="Performing department"
-            actingId={actingId}
-            selected={performingDept}
-            onSelect={setPerformingDept}
-          />
-        </div>
-      </section>
+      <MyDrafts actingId={actingId} />
     </main>
   );
 }

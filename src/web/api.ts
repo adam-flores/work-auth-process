@@ -1,7 +1,9 @@
-import type { Participant, AttributeFilter } from "../shared/rules.ts";
+import type { Participant, AttributeFilter, DraftFieldsInput, ResourceInput } from "../shared/rules.ts";
 import type { ResolvedDepartment } from "../hierarchy/index.ts";
+import type { Draft } from "../drafts/index.ts";
 
 export type { ResolvedDepartment, Attribute } from "../hierarchy/index.ts";
+export type { Draft, Resource } from "../drafts/index.ts";
 
 /** What the service returns about the store it is reading. */
 export type StoreInfo = {
@@ -26,10 +28,19 @@ export class ApiError extends Error {
   }
 }
 
-async function call<T>(path: string, actingParticipantId: string, method = "GET"): Promise<T> {
+async function call<T>(
+  path: string,
+  actingParticipantId: string,
+  method = "GET",
+  payload?: unknown,
+): Promise<T> {
   const res = await fetch(path, {
     method,
-    headers: { "x-acting-participant": actingParticipantId },
+    headers: {
+      "x-acting-participant": actingParticipantId,
+      ...(payload === undefined ? {} : { "Content-Type": "application/json" }),
+    },
+    body: payload === undefined ? undefined : JSON.stringify(payload),
   });
   const body: unknown = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -66,4 +77,20 @@ export const api = {
 
   getDepartment: (actor: string, departmentId: string) =>
     call<ResolvedDepartment>(`/api/departments/${encodeURIComponent(departmentId)}`, actor),
+
+  createDraft: (actor: string, fields: DraftFieldsInput = {}) => call<Draft>("/api/drafts", actor, "POST", fields),
+  listMyDrafts: (actor: string) => call<Draft[]>("/api/drafts", actor),
+  getDraft: (actor: string, draftId: string) => call<Draft>(`/api/drafts/${encodeURIComponent(draftId)}`, actor),
+  updateDraft: (actor: string, draftId: string, fields: DraftFieldsInput) =>
+    call<Draft>(`/api/drafts/${encodeURIComponent(draftId)}`, actor, "PATCH", fields),
+  deleteDraft: (actor: string, draftId: string) =>
+    call<{ deleted: true }>(`/api/drafts/${encodeURIComponent(draftId)}`, actor, "DELETE"),
+  addResource: (actor: string, draftId: string, resource: ResourceInput) =>
+    call<Draft>(`/api/drafts/${encodeURIComponent(draftId)}/resources`, actor, "POST", resource),
+  removeResource: (actor: string, draftId: string, resourceId: string) =>
+    call<Draft>(
+      `/api/drafts/${encodeURIComponent(draftId)}/resources/${encodeURIComponent(resourceId)}`,
+      actor,
+      "DELETE",
+    ),
 };
