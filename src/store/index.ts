@@ -42,6 +42,14 @@ function seed(db: DatabaseSync): void {
   const participants = readSeed();
   db.exec("BEGIN");
   try {
+    // A draft may name a real participant as its submitter (ADR-0009), and
+    // re-seeding deletes every participant before reinserting them under the
+    // same deterministic ids. Deferred checking is what makes that legal:
+    // SQLite otherwise enforces the foreign key the instant the row is
+    // deleted, before the reinsert a few statements later has a chance to
+    // put it back. Reverts to immediate automatically at COMMIT, so nothing
+    // outside this transaction is any less strict.
+    db.exec("PRAGMA defer_foreign_keys = ON");
     db.exec("DELETE FROM participants");
     const insert = db.prepare(
       "INSERT INTO participants (id, name, role, department) VALUES (?, ?, ?, ?)",

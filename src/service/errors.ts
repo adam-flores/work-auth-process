@@ -6,6 +6,9 @@
 export type DomainErrorCode =
   | "UNKNOWN_PARTICIPANT"
   | "UNKNOWN_DEPARTMENT"
+  | "UNKNOWN_DRAFT"
+  | "UNKNOWN_RESOURCE"
+  | "NOT_DRAFT_OWNER"
   | "INVALID_REQUEST";
 
 export class DomainError extends Error {

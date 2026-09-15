@@ -7,7 +7,20 @@ import type { Locator, Page } from "@playwright/test";
  * rendered surface, with the derived division and legal entity shown rather
  * than asked for. Exercised twice per page, since one component serves both
  * the requesting and the performing side.
+ *
+ * Reached through a draft (#51), the surface it was always headed for: a new
+ * draft is created and opened before each test, and the two pickers under
+ * test are the ones embedded in that draft's form.
  */
+
+async function openNewDraft(page: Page): Promise<void> {
+  await page.goto("/");
+  // `system` cannot submit a draft (it owns no work); a draft needs a real
+  // accountable submitter, so acting as one is the first step every time.
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByTestId("new-draft").click();
+  await expect(page.getByTestId("draft-form")).toBeVisible();
+}
 
 function picker(page: Page, testId: string) {
   const root = page.getByTestId(testId);
@@ -36,8 +49,8 @@ async function resultCount(items: Locator): Promise<number> {
 test("searching narrows to name matches, and selecting shows the derived division and legal entity", async ({
   page,
 }) => {
-  await page.goto("/");
-  const requesting = picker(page, "requesting-department");
+  await openNewDraft(page);
+  const requesting = picker(page, "draft-requesting-department");
 
   await requesting.search.fill("Rotor Hubs");
   await expect(requesting.result("Rotor Hubs")).toBeVisible();
@@ -60,8 +73,8 @@ test("searching narrows to name matches, and selecting shows the derived divisio
 test("attribute filters narrow, combine with search text, and inactive departments never appear", async ({
   page,
 }) => {
-  await page.goto("/");
-  const performing = picker(page, "performing-department");
+  await openNewDraft(page);
+  const performing = picker(page, "draft-performing-department");
 
   await expect.poll(() => resultCount(performing.resultItems)).toBeGreaterThan(0);
   const unfiltered = await resultCount(performing.resultItems);
@@ -88,9 +101,9 @@ test("attribute filters narrow, combine with search text, and inactive departmen
 test("the two pickers act independently, and there is no free-text entry for the department itself", async ({
   page,
 }) => {
-  await page.goto("/");
-  const requesting = picker(page, "requesting-department");
-  const performing = picker(page, "performing-department");
+  await openNewDraft(page);
+  const requesting = picker(page, "draft-requesting-department");
+  const performing = picker(page, "draft-performing-department");
 
   await requesting.search.fill("Rotor Hubs");
   await requesting.result("Rotor Hubs").click();

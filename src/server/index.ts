@@ -7,7 +7,7 @@ import { createService } from "../service/index.ts";
 import type { Service } from "../service/index.ts";
 import { DomainError } from "../service/errors.ts";
 import type { DomainErrorCode } from "../service/errors.ts";
-import type { DepartmentQueryInput } from "../shared/rules.ts";
+import type { DepartmentQueryInput, DraftFieldsInput, ResourceInput } from "../shared/rules.ts";
 
 
 /**
@@ -25,6 +25,9 @@ const STATUS_FOR: Record<DomainErrorCode, number> = {
   INVALID_REQUEST: 400,
   UNKNOWN_PARTICIPANT: 403,
   UNKNOWN_DEPARTMENT: 404,
+  UNKNOWN_DRAFT: 404,
+  UNKNOWN_RESOURCE: 404,
+  NOT_DRAFT_OWNER: 403,
 };
 
 /**
@@ -51,7 +54,24 @@ type Handler = (
   service: Service,
   ctx: { participantId: string },
   query: URLSearchParams,
+  body: unknown,
 ) => unknown;
+
+/** The body of a POST or PATCH, parsed once per request. A route with
+ *  nothing to read from it (every GET, DELETE, and `POST /api/store/reset`)
+ *  simply never looks at the result. */
+async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) chunks.push(chunk as Buffer);
+  if (chunks.length === 0) return undefined;
+  const raw = Buffer.concat(chunks).toString("utf8");
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new DomainError("INVALID_REQUEST", "The request body must be valid JSON.");
+  }
+}
 
 /**
  * An attribute filter travels as a repeated `attr` param, `name:value` each -
@@ -84,6 +104,8 @@ const ROUTES: Record<string, Handler> = {
   "GET /api/store": (s, ctx) => s.getStoreInfo(ctx),
   "POST /api/store/reset": (s, ctx) => s.resetStore(ctx),
   "GET /api/departments": (s, ctx, query) => s.searchDepartments(ctx, parseDepartmentQuery(query)),
+  "POST /api/drafts": (s, ctx, _query, body) => s.createDraft(ctx, body as DraftFieldsInput),
+  "GET /api/drafts": (s, ctx) => s.listMyDrafts(ctx),
 };
 
 const MIME: Record<string, string> = {
@@ -123,6 +145,9 @@ async function serveStatic(url: string, res: ServerResponse): Promise<void> {
 }
 
 const DEPARTMENT_PATH = /^\/api\/departments\/([^/]+)$/;
+const DRAFT_PATH = /^\/api\/drafts\/([^/]+)$/;
+const DRAFT_RESOURCES_PATH = /^\/api\/drafts\/([^/]+)\/resources$/;
+const DRAFT_RESOURCE_PATH = /^\/api\/drafts\/([^/]+)\/resources\/([^/]+)$/;
 
 export function createHttpServer(service: Service) {
   return createServer(async (req, res) => {
@@ -140,13 +165,56 @@ export function createHttpServer(service: Service) {
         return sendJson(res, 200, service.getDepartment(ctx, decodeURIComponent(departmentMatch[1])));
       }
 
+      // A draft's id, and a resource's id nested under it - the same
+      // dynamic-path treatment as a department id above, not a second
+      // routing scheme. Order does not matter between these three: each
+      // pattern is fully anchored and matches a different path shape.
+      const resourceMatch = DRAFT_RESOURCE_PATH.exec(pathname);
+      if (resourceMatch?.[1] && resourceMatch[2] && method === "DELETE") {
+        const ctx = actingParticipant(req);
+        return sendJson(
+          res,
+          200,
+          service.removeResource(
+            ctx,
+            decodeURIComponent(resourceMatch[1]),
+            decodeURIComponent(resourceMatch[2]),
+          ),
+        );
+      }
+
+      const resourcesMatch = DRAFT_RESOURCES_PATH.exec(pathname);
+      if (resourcesMatch?.[1] && method === "POST") {
+        const ctx = actingParticipant(req);
+        const body = await readJsonBody(req);
+        // 200, not 201: nothing else in this adapter distinguishes creation
+        // by status code (POST /api/drafts included), and every response
+        // body already carries the created or updated record back.
+        return sendJson(
+          res,
+          200,
+          service.addResource(ctx, decodeURIComponent(resourcesMatch[1]), body as ResourceInput),
+        );
+      }
+
+      const draftMatch = DRAFT_PATH.exec(pathname);
+      if (draftMatch?.[1] && (method === "GET" || method === "PATCH" || method === "DELETE")) {
+        const ctx = actingParticipant(req);
+        const draftId = decodeURIComponent(draftMatch[1]);
+        if (method === "GET") return sendJson(res, 200, service.getDraft(ctx, draftId));
+        if (method === "DELETE") return sendJson(res, 200, service.deleteDraft(ctx, draftId));
+        const body = await readJsonBody(req);
+        return sendJson(res, 200, service.updateDraft(ctx, draftId, body as DraftFieldsInput));
+      }
+
       const route = ROUTES[`${method} ${pathname}`];
       if (!route) {
         if (pathname.startsWith("/api/")) return sendJson(res, 404, { error: "No such endpoint." });
         return serveStatic(url, res);
       }
 
-      sendJson(res, 200, route(service, actingParticipant(req), query));
+      const body = method === "POST" || method === "PATCH" ? await readJsonBody(req) : undefined;
+      sendJson(res, 200, route(service, actingParticipant(req), query, body));
     } catch (err) {
       if (err instanceof DomainError) {
         return sendJson(res, STATUS_FOR[err.code], { code: err.code, error: err.message });

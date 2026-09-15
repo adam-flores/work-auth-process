@@ -9,3 +9,39 @@
  * who they are. A real build replaces it with an authenticated principal.
  */
 export const SYSTEM_PARTICIPANT_ID = "system";
+
+/**
+ * The four funding types (CONTEXT.md), in this project's own vocabulary rather
+ * than the source form's. What the Contracts gate's condition is read from -
+ * a later ticket's concern, not this one's; here they are just a bounded list
+ * a draft may name.
+ */
+export const FUNDING_TYPE_VALUES = [
+  "commercial-contract",
+  "government-commercial-item-contract",
+  "government-negotiated-contract",
+  "company-funded",
+] as const;
+
+export type FundingType = (typeof FUNDING_TYPE_VALUES)[number];
+
+export const FUNDING_TYPE_LABELS: Record<FundingType, string> = {
+  "commercial-contract": "Commercial contract",
+  "government-commercial-item-contract": "Government commercial-item contract",
+  "government-negotiated-contract": "Government negotiated contract",
+  "company-funded": "Company funded",
+};
+
+/**
+ * Domestic or international, entered on each side (CONTEXT.md). What the
+ * Global Trade gate's condition is read from (BDR-0014) - again, a later
+ * ticket's consumer.
+ */
+export const LOCATION_TYPE_VALUES = ["domestic", "international"] as const;
+
+export type LocationType = (typeof LOCATION_TYPE_VALUES)[number];
+
+export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
+  domestic: "Domestic",
+  international: "International",
+};
