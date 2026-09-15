@@ -45,3 +45,19 @@ export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
   domestic: "Domestic",
   international: "International",
 };
+
+/**
+ * Foreign or domestic, held on a department as the `jurisdiction` attribute
+ * (ADR-0012) - what the seeded permissibility rule is evaluated against
+ * (BDR-0007, #53). Distinct from `LocationType` above: that is entered on a
+ * draft and describes where the work happens; this is inherited hierarchy
+ * data and describes what the department itself is.
+ */
+export const JURISDICTION_VALUES = ["foreign", "domestic"] as const;
+
+export type Jurisdiction = (typeof JURISDICTION_VALUES)[number];
+
+export const JURISDICTION_LABELS: Record<Jurisdiction, string> = {
+  foreign: "Foreign",
+  domestic: "Domestic",
+};

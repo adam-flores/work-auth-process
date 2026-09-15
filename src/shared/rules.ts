@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FUNDING_TYPE_VALUES, LOCATION_TYPE_VALUES } from "./constants.ts";
+import { FUNDING_TYPE_VALUES, JURISDICTION_VALUES, LOCATION_TYPE_VALUES } from "./constants.ts";
 
 /**
  * Rules expressed once and imported by both the browser and the service
@@ -210,4 +210,21 @@ export const TransitionOptions = z.object({
 export type TransitionOptions = z.infer<typeof TransitionOptions>;
 export type TransitionOptionsInput = z.input<typeof TransitionOptions>;
 
-export { SYSTEM_PARTICIPANT_ID, FUNDING_TYPE_VALUES, LOCATION_TYPE_VALUES } from "./constants.ts";
+/**
+ * A permissibility rule (#53, BDR-0007): a pairing of jurisdictions that may
+ * not work together, held as data rather than code so a new pairing costs no
+ * build. The seeded rule reads "a foreign department may not perform work
+ * for a domestic one" as `requestingJurisdiction: "domestic"`,
+ * `performingJurisdiction: "foreign"` - direction matters, since the reverse
+ * pairing is not what the rule names.
+ */
+export const Jurisdiction = z.enum(JURISDICTION_VALUES);
+export const PermissibilityRuleInput = z.object({
+  requestingJurisdiction: Jurisdiction,
+  performingJurisdiction: Jurisdiction,
+});
+
+export type Jurisdiction = z.infer<typeof Jurisdiction>;
+export type PermissibilityRuleInput = z.infer<typeof PermissibilityRuleInput>;
+
+export { SYSTEM_PARTICIPANT_ID, FUNDING_TYPE_VALUES, LOCATION_TYPE_VALUES, JURISDICTION_VALUES } from "./constants.ts";

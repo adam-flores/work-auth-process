@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api.ts";
 import type { StoreInfo } from "./api.ts";
 import { MyDrafts } from "./MyDrafts.tsx";
+import { PermissibilityRules } from "./PermissibilityRules.tsx";
 import { SYSTEM_PARTICIPANT_ID } from "../shared/constants.ts";
 import type { Participant } from "../shared/rules.ts";
 
@@ -145,6 +146,8 @@ export function App() {
       </section>
 
       <MyDrafts actingId={actingId} />
+
+      <PermissibilityRules actingId={actingId} isAdministrator={acting?.role === "Administrator"} />
     </main>
   );
 }
