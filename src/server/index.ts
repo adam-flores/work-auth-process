@@ -38,6 +38,7 @@ const STATUS_FOR: Record<DomainErrorCode, number> = {
   NOT_DRAFT_OWNER: 403,
   NOT_ADMINISTRATOR: 403,
   NOT_IN_QUEUE: 403,
+  NOT_CLAIMANT: 403,
   DRAFT_INCOMPLETE: 409,
   IMPERMISSIBLE_PAIRING: 409,
 };
@@ -167,6 +168,8 @@ const DRAFT_RESOURCE_PATH = /^\/api\/drafts\/([^/]+)\/resources\/([^/]+)$/;
 const DRAFT_INITIATE_PATH = /^\/api\/drafts\/([^/]+)\/initiate$/;
 const AUTHORIZATION_PATH = /^\/api\/authorizations\/([^/]+)$/;
 const AUTHORIZATION_ACKNOWLEDGE_PATH = /^\/api\/authorizations\/([^/]+)\/acknowledge$/;
+const AUTHORIZATION_CLAIM_PATH = /^\/api\/authorizations\/([^/]+)\/claim$/;
+const AUTHORIZATION_CONTRIBUTE_PATH = /^\/api\/authorizations\/([^/]+)\/contribute$/;
 const PERMISSIBILITY_RULE_PATH = /^\/api\/permissibility-rules\/([^/]+)$/;
 
 export function createHttpServer(service: Service) {
@@ -206,6 +209,24 @@ export function createHttpServer(service: Service) {
           200,
           service.acknowledge(ctx, decodeURIComponent(acknowledgeMatch[1]), body as TransitionOptionsInput),
         );
+      }
+
+      const claimMatch = method === "POST" ? AUTHORIZATION_CLAIM_PATH.exec(pathname) : null;
+      if (claimMatch?.[1]) {
+        const ctx = actingParticipant(req);
+        const body = await readJsonBody(req);
+        return sendJson(
+          res,
+          200,
+          service.claim(ctx, decodeURIComponent(claimMatch[1]), body as TransitionOptionsInput),
+        );
+      }
+
+      const contributeMatch = method === "POST" ? AUTHORIZATION_CONTRIBUTE_PATH.exec(pathname) : null;
+      if (contributeMatch?.[1]) {
+        const ctx = actingParticipant(req);
+        const body = await readJsonBody(req);
+        return sendJson(res, 200, service.contribute(ctx, decodeURIComponent(contributeMatch[1]), body));
       }
 
       // A draft's id, and a resource's id nested under it - the same

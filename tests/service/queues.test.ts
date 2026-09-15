@@ -28,6 +28,7 @@ describe("queues and acknowledgement", () => {
   let requestingApproverB: string;
   let performingApproverA: string;
   let contributorAtRequestingDept: string;
+  let contributorAtPerformingDept: string;
   let requestingDeptId: string;
   let performingDeptId: string;
 
@@ -41,6 +42,7 @@ describe("queues and acknowledgement", () => {
     requestingApproverB = people.find((p) => p.id === "p-hugo-strand")!.id;
     performingApproverA = people.find((p) => p.id === "p-mira-devane")!.id;
     contributorAtRequestingDept = people.find((p) => p.id === "p-avery-lund")!.id;
+    contributorAtPerformingDept = people.find((p) => p.id === "p-nils-oyelaran")!.id;
 
     const departments = service.searchDepartments({ participantId: "system" });
     requestingDeptId = departments.find((d) => d.name === "Heat Exchange Products")!.id;
@@ -143,16 +145,21 @@ describe("queues and acknowledgement", () => {
     const authorization = initiateAuthorization("Leaves on department change");
 
     // Two acknowledgements at the requesting side (both stages route to the
-    // same department) before the relay reaches the performing side.
+    // same department) before the relay reaches the performing side, which
+    // now lands in the performing department's *contribution* queue (#56) -
+    // an Approver's queue, not a Contributor's.
     service.acknowledge({ participantId: requestingApproverA }, authorization.id);
     const advanced = service.acknowledge({ participantId: requestingApproverB }, authorization.id);
-    assert.equal(advanced.currentStageId, "performing-program-manager");
+    assert.equal(advanced.currentStageId, "performing-department");
 
     const requestingQueue = service.listMyQueue({ participantId: requestingApproverA });
     assert.ok(!requestingQueue.some((a) => a.id === authorization.id));
 
-    const performingQueue = service.listMyQueue({ participantId: performingApproverA });
-    assert.ok(performingQueue.some((a) => a.id === authorization.id));
+    const performingApproverQueue = service.listMyQueue({ participantId: performingApproverA });
+    assert.ok(!performingApproverQueue.some((a) => a.id === authorization.id));
+
+    const performingContributorQueue = service.listMyQueue({ participantId: contributorAtPerformingDept });
+    assert.ok(performingContributorQueue.some((a) => a.id === authorization.id));
   });
 
   test("an unknown authorization id is refused on acknowledgement", () => {
@@ -163,12 +170,17 @@ describe("queues and acknowledgement", () => {
   });
 
   test("an authorization that reaches a gate stage is in nobody's queue yet, and does not break anyone else's", () => {
-    // Nothing stops acknowledging straight through the four mandatory
-    // stages into a gate (#57 has not built the two gates yet) - a queue
-    // read must tolerate that rather than throwing for every caller.
+    // Nothing stops acknowledging and contributing straight through the
+    // relay's mandatory stages into a gate (#57 has not built the two gates
+    // yet) - a queue read must tolerate that rather than throwing for every
+    // caller.
     const authorization = initiateAuthorization("Reaches a gate");
     service.acknowledge({ participantId: requestingApproverA }, authorization.id); // -> requesting-finance
-    service.acknowledge({ participantId: requestingApproverB }, authorization.id); // -> performing-program-manager
+    service.acknowledge({ participantId: requestingApproverB }, authorization.id); // -> performing-department
+    service.claim({ participantId: contributorAtPerformingDept }, authorization.id);
+    service.contribute({ participantId: contributorAtPerformingDept }, authorization.id, {
+      performingEmployee: "Jade Okafor",
+    }); // -> performing-program-manager
     service.acknowledge({ participantId: performingApproverA }, authorization.id); // -> performing-finance
     const atGate = service.acknowledge({ participantId: performingApproverA }, authorization.id); // -> contracts
     assert.equal(atGate.currentStageId, "contracts");

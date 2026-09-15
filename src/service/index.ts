@@ -2,6 +2,7 @@ import { openStore, DEFAULT_STORE_PATH } from "../store/index.ts";
 import {
   ActingParticipant,
   CompleteDraftFields,
+  ContributeFields,
   DepartmentQuery,
   DraftFields,
   HierarchyId,
@@ -41,11 +42,14 @@ import {
 import type { Draft, DraftFieldValues } from "../drafts/index.ts";
 import {
   appendAcknowledgementTransition,
+  appendClaimTransition,
+  appendContributionTransition,
   appendInitiationTransition,
   findAuthorization,
 } from "../authorizations/index.ts";
 import type { Authorization, AuthorizationFields } from "../authorizations/index.ts";
-import { isQueuedFor, listApproverQueue } from "../queues/index.ts";
+import { isQueuedFor, isQueuedForClaim, listApproverQueue, listContributorQueue } from "../queues/index.ts";
+import { isContributionStage, RELAY_CONFIG } from "../relay/config.ts";
 import { DomainError } from "./errors.ts";
 
 /**
@@ -467,14 +471,19 @@ export function createService(options: ServiceOptions = {}) {
     },
 
     /** What is waiting on this participant's action (#55, BDR-0002/BDR-0003:
-     *  "what is waiting on your action"). Empty for anyone who is not an
-     *  Approver, `system` included - a queue is not an error to ask for, it
-     *  is simply empty for a role that holds none. */
+     *  "what is waiting on your action"). Empty for `system` and for the
+     *  Charge Number Admin and Administrator, who hold no queue - a queue is
+     *  not an error to ask for, it is simply empty for a role that holds
+     *  none. An Approver's queue is what has arrived at their stage; a
+     *  Contributor's is their department's performing-department queue
+     *  (#56), claimed and unclaimed authorizations alike. */
     listMyQueue(ctx: ActingParticipant): Authorization[] {
       const participantId = requireParticipant(ctx);
       const participant = readParticipant(participantId);
-      if (!participant || participant.role !== "Approver") return [];
-      return listApproverQueue(db, participant.department);
+      if (!participant) return [];
+      if (participant.role === "Approver") return listApproverQueue(db, participant.department);
+      if (participant.role === "Contributor") return listContributorQueue(db, participant.department);
+      return [];
     },
 
     /**
@@ -514,6 +523,93 @@ export function createService(options: ServiceOptions = {}) {
       const occurredAt = parsedOptions.data.occurredAt ?? new Date().toISOString();
 
       return appendAcknowledgementTransition(db, { authorizationId, actorId: participantId, occurredAt });
+    },
+
+    /**
+     * A contributor in the performing department claims an unclaimed
+     * authorization (#56, CONTEXT.md: "Claim"), which is what names them as
+     * its performing contributor - so corrections against the performing
+     * section have a target. Checked against the same rule that built the
+     * queue they found it in: a Contributor at the stage's department, and
+     * only while nobody has claimed it yet (`isQueuedForClaim` in
+     * `queues/index.ts`). Does not advance the relay - claiming only takes
+     * ownership; `contribute` is what resolves the stage.
+     */
+    claim(ctx: ActingParticipant, authorizationId: string, options?: TransitionOptionsInput): Authorization {
+      const participantId = requireParticipant(ctx);
+      const authorization = findAuthorization(db, authorizationId);
+      if (!authorization) {
+        throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
+      }
+
+      const participant = readParticipant(participantId);
+      if (!participant || !isQueuedForClaim(db, authorization, participant)) {
+        throw new DomainError(
+          "NOT_IN_QUEUE",
+          "Only a Contributor at this stage's department may claim an unclaimed authorization.",
+        );
+      }
+
+      const parsedOptions = TransitionOptions.safeParse(options ?? {});
+      if (!parsedOptions.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsedOptions.error.issues[0]?.message ?? "Invalid transition options.",
+        );
+      }
+      const occurredAt = parsedOptions.data.occurredAt ?? new Date().toISOString();
+
+      return appendClaimTransition(db, { authorizationId, actorId: participantId, occurredAt });
+    },
+
+    /**
+     * The performing contributor who claimed this authorization fills the
+     * performing-side section - today, just the employee who will perform
+     * the work (#56, CONTEXT.md: "a name on the record, not a participant in
+     * the process"). Only the contributor who claimed it may complete it;
+     * being at the right department is not enough once it is claimed, the
+     * same way only the submitter may act on their own draft. On success the
+     * stage resolves and the authorization advances to whatever the relay
+     * configuration names next.
+     */
+    contribute(ctx: ActingParticipant, authorizationId: string, fields: unknown): Authorization {
+      const participantId = requireParticipant(ctx);
+      const authorization = findAuthorization(db, authorizationId);
+      if (!authorization) {
+        throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
+      }
+
+      const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
+      if (!isContributionStage(stage) || authorization.performingContributorId !== participantId) {
+        throw new DomainError(
+          "NOT_CLAIMANT",
+          "Only the contributor who claimed this authorization may fill the performing-side section.",
+        );
+      }
+
+      const parsedFields = ContributeFields.safeParse(fields);
+      if (!parsedFields.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsedFields.error.issues[0]?.message ?? "Invalid performing-side fields.",
+        );
+      }
+
+      const parsedOptions = TransitionOptions.safeParse(fields ?? {});
+      if (!parsedOptions.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsedOptions.error.issues[0]?.message ?? "Invalid transition options.",
+        );
+      }
+      const occurredAt = parsedOptions.data.occurredAt ?? new Date().toISOString();
+
+      return appendContributionTransition(db, {
+        authorizationId,
+        actorId: participantId,
+        occurredAt,
+        performingEmployee: parsedFields.data.performingEmployee,
+      });
     },
 
     close(): void {
