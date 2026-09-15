@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import { RELAY_CONFIG } from "../relay/config.ts";
+import { RELAY_CONFIG, isContributionStage } from "../relay/config.ts";
 import type { RelayStage } from "../relay/config.ts";
 import { resolveDepartment } from "../hierarchy/index.ts";
 import { listAuthorizations } from "../authorizations/index.ts";
@@ -53,7 +53,7 @@ function queueDepartment(db: DatabaseSync, authorization: Authorization, stage: 
 export function listApproverQueue(db: DatabaseSync, department: string): Authorization[] {
   return listAuthorizations(db).filter((authorization) => {
     const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
-    return queueDepartment(db, authorization, stage) === department;
+    return stage.kind === "approval" && queueDepartment(db, authorization, stage) === department;
   });
 }
 
@@ -67,5 +67,34 @@ export function isQueuedFor(
 ): boolean {
   if (participant.role !== "Approver") return false;
   const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
-  return queueDepartment(db, authorization, stage) === participant.department;
+  return stage.kind === "approval" && queueDepartment(db, authorization, stage) === participant.department;
+}
+
+/**
+ * Every authorization sitting at the performing-department stage for
+ * `department` (#56) - claimed and unclaimed alike. A department's queue
+ * distinguishes claimed from unclaimed rather than filtering one out
+ * (CONTEXT.md: "Queue"); `authorization.performingContributorId` is what a
+ * caller reads to tell them apart.
+ */
+export function listContributorQueue(db: DatabaseSync, department: string): Authorization[] {
+  return listAuthorizations(db).filter((authorization) => {
+    const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
+    return isContributionStage(stage) && queueDepartment(db, authorization, stage) === department;
+  });
+}
+
+/** Whether `participant` may claim `authorization` - a Contributor at the
+ *  performing-department stage's own department, and only while it sits
+ *  unclaimed (CONTEXT.md: "Claim" - claiming is what names the performing
+ *  contributor, so once one exists there is nobody left to name). */
+export function isQueuedForClaim(
+  db: DatabaseSync,
+  authorization: Authorization,
+  participant: { role: string; department: string },
+): boolean {
+  if (participant.role !== "Contributor") return false;
+  if (authorization.performingContributorId !== null) return false;
+  const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
+  return isContributionStage(stage) && queueDepartment(db, authorization, stage) === participant.department;
 }

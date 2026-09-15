@@ -3,14 +3,16 @@ import { api, ApiError } from "./api.ts";
 import type { Authorization, ResolvedDepartment } from "./api.ts";
 import { FUNDING_TYPE_LABELS, LOCATION_TYPE_LABELS } from "../shared/constants.ts";
 import { STAGE_CRITERIA } from "../guidance/content.ts";
+import { RELAY_CONFIG, isContributionStage } from "../relay/config.ts";
 
 /**
- * An Approver's queue (#55, BDR-0002): what has arrived at this participant's
- * role and department, derived from the log rather than a list anyone
- * maintains. Opening an item shows the whole authorization - no stage sees
- * less of one than any other (BDR-0007) - and acknowledging it is the one
- * action this surface offers; there is no denial or rejection here
- * (CONTEXT.md: "no approver refuses on the merits").
+ * A queue (#55, #56, BDR-0002): what has arrived at this participant's role
+ * and department, derived from the log rather than a list anyone maintains.
+ * Opening an item shows the whole authorization - no stage sees less of one
+ * than any other (BDR-0007). An Approver acknowledges; there is no denial or
+ * rejection here (CONTEXT.md: "no approver refuses on the merits"). A
+ * Contributor claims an unclaimed item and then completes it by naming the
+ * employee who will perform the work (CONTEXT.md: "Claim").
  */
 
 export type MyQueueProps = { actingId: string };
@@ -45,25 +47,56 @@ function useResolvedDepartments(
 function OpenAuthorization({
   actingId,
   authorization,
-  onAcknowledged,
+  onResolved,
+  onClaimed,
   onClose,
 }: {
   actingId: string;
   authorization: Authorization;
-  onAcknowledged: (authorization: Authorization) => void;
+  onResolved: (authorization: Authorization) => void;
+  onClaimed: (authorization: Authorization) => void;
   onClose: () => void;
 }) {
   const { requesting, performing } = useResolvedDepartments(actingId, authorization);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const stage = STAGE_CRITERIA[authorization.currentStageId];
+  const [employeeName, setEmployeeName] = useState("");
+  const criteria = STAGE_CRITERIA[authorization.currentStageId];
+  const relayStage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
+  const isContribution = isContributionStage(relayStage);
+  const isClaimant = authorization.performingContributorId === actingId;
 
   const acknowledge = async () => {
     setBusy(true);
     setError(null);
     try {
       const updated = await api.acknowledge(actingId, authorization.id);
-      onAcknowledged(updated);
+      onResolved(updated);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+      setBusy(false);
+    }
+  };
+
+  const claim = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await api.claim(actingId, authorization.id);
+      onClaimed(updated);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const contribute = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await api.contribute(actingId, authorization.id, { performingEmployee: employeeName });
+      onResolved(updated);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err));
       setBusy(false);
@@ -99,6 +132,20 @@ function OpenAuthorization({
         <dd>{authorization.performingProgramManager}</dd>
         <dt>Performing finance approver</dt>
         <dd>{authorization.performingFinanceApprover}</dd>
+        {(isContribution || authorization.performingContributorId !== null) && (
+          <>
+            <dt>Claim status</dt>
+            <dd data-testid="claim-status">
+              {authorization.performingContributorId === null ? "Unclaimed" : "Claimed"}
+            </dd>
+          </>
+        )}
+        {authorization.performingEmployee !== null && (
+          <>
+            <dt>Employee performing the work</dt>
+            <dd>{authorization.performingEmployee}</dd>
+          </>
+        )}
       </dl>
 
       <ul data-testid="queue-item-resources">
@@ -112,14 +159,45 @@ function OpenAuthorization({
       <section aria-labelledby="queue-item-stage-heading" data-testid="queue-item-stage">
         <h4 id="queue-item-stage-heading">This stage's criteria</h4>
         <p>
-          <strong>{stage.concern}:</strong> {stage.criteria}
+          <strong>{criteria.concern}:</strong> {criteria.criteria}
         </p>
       </section>
 
       <div className="queue-item-actions">
-        <button type="button" onClick={() => void acknowledge()} disabled={busy} data-testid="acknowledge">
-          {busy ? "Acknowledging…" : "Acknowledge"}
-        </button>
+        {isContribution ? (
+          authorization.performingContributorId === null ? (
+            <button type="button" onClick={() => void claim()} disabled={busy} data-testid="claim">
+              {busy ? "Claiming…" : "Claim"}
+            </button>
+          ) : isClaimant ? (
+            <>
+              <label htmlFor="performing-employee">Employee performing the work</label>
+              <input
+                id="performing-employee"
+                type="text"
+                value={employeeName}
+                onChange={(e) => setEmployeeName(e.target.value)}
+                disabled={busy}
+              />
+              <button
+                type="button"
+                onClick={() => void contribute()}
+                disabled={busy || employeeName.trim().length === 0}
+                data-testid="contribute"
+              >
+                {busy ? "Completing…" : "Complete"}
+              </button>
+            </>
+          ) : (
+            <p className="hint" data-testid="claimed-by-other">
+              Claimed. Only the contributor who claimed it may fill in the rest.
+            </p>
+          )
+        ) : (
+          <button type="button" onClick={() => void acknowledge()} disabled={busy} data-testid="acknowledge">
+            {busy ? "Acknowledging…" : "Acknowledge"}
+          </button>
+        )}
         <button type="button" onClick={onClose} disabled={busy}>
           Close
         </button>
@@ -156,10 +234,21 @@ export function MyQueue({ actingId }: MyQueueProps) {
   // this same department (both requesting-side stages do), in which case
   // the authorization never actually left this participant's queue - it is
   // simply awaiting a different stage now. Only a genuine re-fetch can tell
-  // the two cases apart.
-  const onAcknowledged = () => {
+  // the two cases apart. Used after both an acknowledgement and a
+  // contribution - either one resolves the current stage.
+  const onResolved = () => {
     setOpenId(null);
     void load(actingId);
+  };
+
+  // A claim does not resolve anything - it only names the contributor - so
+  // the item stays exactly where it is, still open, now showing as claimed
+  // (#56). Patched in from what `claim` already returned rather than
+  // reloaded: a reload is async and would race the click handler's own
+  // `busy` reset, re-enabling the Claim button before the refreshed data
+  // lands and inviting a second, redundant claim attempt.
+  const onClaimed = (updated: Authorization) => {
+    setItems((prev) => prev?.map((a) => (a.id === updated.id ? updated : a)) ?? prev);
   };
 
   const open = items?.find((a) => a.id === openId) ?? null;
@@ -169,7 +258,7 @@ export function MyQueue({ actingId }: MyQueueProps) {
       <h2 id="queue-heading">My queue</h2>
       <p className="hint">
         What has arrived at your role and department, derived from the log - not a list anyone
-        maintains. Every holder of the role sees the same queue, and any of them may acknowledge
+        maintains. Every holder of the role sees the same queue, and any of them may act on it
         (BDR-0013).
       </p>
 
@@ -185,14 +274,22 @@ export function MyQueue({ actingId }: MyQueueProps) {
         ) : items.length === 0 ? (
           <li className="hint">Nothing is waiting on you.</li>
         ) : (
-          items.map((authorization) => (
-            <li key={authorization.id} data-testid="queue-row">
-              <span>{authorization.project}</span>
-              <button type="button" onClick={() => setOpenId(authorization.id)}>
-                Open
-              </button>
-            </li>
-          ))
+          items.map((authorization) => {
+            const relayStage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
+            return (
+              <li key={authorization.id} data-testid="queue-row">
+                <span>{authorization.project}</span>
+                {isContributionStage(relayStage) && (
+                  <span data-testid="claim-status">
+                    {authorization.performingContributorId === null ? "Unclaimed" : "Claimed"}
+                  </span>
+                )}
+                <button type="button" onClick={() => setOpenId(authorization.id)}>
+                  Open
+                </button>
+              </li>
+            );
+          })
         )}
       </ul>
 
@@ -200,7 +297,8 @@ export function MyQueue({ actingId }: MyQueueProps) {
         <OpenAuthorization
           actingId={actingId}
           authorization={open}
-          onAcknowledged={onAcknowledged}
+          onResolved={onResolved}
+          onClaimed={onClaimed}
           onClose={() => setOpenId(null)}
         />
       )}

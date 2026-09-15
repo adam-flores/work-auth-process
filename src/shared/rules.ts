@@ -110,6 +110,19 @@ const ProjectNameRequired = z
   .max(200);
 export const ProjectName = ProjectNameRequired.nullish();
 
+/**
+ * What a contributor supplies to complete the performing-department stage
+ * (#56): the employee who will perform the work - "a name on the record, not
+ * a participant in the process" (CONTEXT.md), so the same free-text rule a
+ * named approver follows applies here too, rather than a lookup against the
+ * roster.
+ */
+export const ContributeFields = z.object({
+  performingEmployee: NamedPersonRequired,
+});
+export type ContributeFields = z.infer<typeof ContributeFields>;
+export type ContributeFieldsInput = z.input<typeof ContributeFields>;
+
 export const ResourceInput = z.object({
   budgetHours: z.number().positive("Budget hours must be greater than zero."),
   laborRate: z.number().positive("Labor rate must be greater than zero."),

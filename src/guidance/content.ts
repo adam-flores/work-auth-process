@@ -12,16 +12,19 @@
  *
  * `StageId` names the six judging checkpoints the flow document and the
  * business case already describe - the four mandatory approvals and the two
- * conditional gates (docs/process/work-authorization-flow.md). It is a
- * vocabulary for addressing criteria by stage, not the relay configuration
- * itself: the ordered artifact with side, kind and fieldDependencies that
- * ADR-0004 and ADR-0011 describe is #54's build, and nothing here assumes
- * its shape.
+ * conditional gates (docs/process/work-authorization-flow.md) - plus
+ * `performing-department`, the one stage that is not a judgement: the
+ * performing department claiming ownership and naming who does the work
+ * (#56). It is a vocabulary for addressing criteria by stage, not the relay
+ * configuration itself: the ordered artifact with side, kind and
+ * fieldDependencies that ADR-0004 and ADR-0011 describe is #54's build, and
+ * nothing here assumes its shape.
  */
 
 export type StageId =
   | "requesting-program-manager"
   | "requesting-finance"
+  | "performing-department"
   | "performing-program-manager"
   | "performing-finance"
   | "contracts"
@@ -46,6 +49,12 @@ export const STAGE_CRITERIA: Record<StageId, StageCriteria> = {
   "requesting-finance": {
     concern: "funds available",
     criteria: "The requesting department has budget behind the resources requested.",
+  },
+  "performing-department": {
+    concern: "ownership",
+    criteria:
+      "A contributor in the performing department has claimed the authorization and named the " +
+      "employee who will perform the work.",
   },
   "performing-program-manager": {
     concern: "scope",

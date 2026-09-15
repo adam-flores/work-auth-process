@@ -4,6 +4,7 @@
     { "id": "p-avery-lund",     "name": "Avery Lund",     "role": "Contributor",        "department": "Heat Exchange Products" },
     { "id": "p-rosa-imbert",    "name": "Rosa Imbert",    "role": "Contributor",        "department": "Thermal Coatings" },
     { "id": "p-nils-oyelaran",  "name": "Nils Oyelaran",  "role": "Contributor",        "department": "Rotor Hubs" },
+    { "id": "p-lena-birch",     "name": "Lena Birch",     "role": "Contributor",        "department": "Rotor Hubs" },
     { "id": "p-cate-marchetti", "name": "Cate Marchetti", "role": "Approver",           "department": "Heat Exchange Products" },
     { "id": "p-hugo-strand",    "name": "Hugo Strand",    "role": "Approver",           "department": "Heat Exchange Products" },
     { "id": "p-mira-devane",    "name": "Mira Devane",    "role": "Approver",           "department": "Rotor Hubs" },

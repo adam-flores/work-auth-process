@@ -49,6 +49,18 @@ type StageCommon = {
 
 export type ApprovalStage = StageCommon & { readonly kind: "approval" };
 
+/**
+ * A stage a Contributor resolves by claiming and completing it, rather than
+ * an Approver acknowledging it (#56, BDR-0003: "Contributor: claim
+ * (performing side) - complete a contribution stage"). Exactly one exists
+ * today - the performing department taking ownership of the authorization -
+ * so this is not yet proven against a second case, but the shape is kept
+ * distinct from `ApprovalStage` rather than reusing it under a different
+ * label, since the two resolve by different acts and route to a different
+ * role.
+ */
+export type ContributionStage = StageCommon & { readonly kind: "contribution" };
+
 export type GateStage = StageCommon & {
   readonly kind: "gate";
   /** Whether this gate runs at all, read off the authorization's current
@@ -57,7 +69,7 @@ export type GateStage = StageCommon & {
   readonly condition: (fields: DraftFieldValues) => boolean;
 };
 
-export type RelayStage = ApprovalStage | GateStage;
+export type RelayStage = ApprovalStage | ContributionStage | GateStage;
 
 function approval(
   id: StageId,
@@ -65,6 +77,14 @@ function approval(
   fieldDependencies: readonly DraftFieldKey[],
 ): ApprovalStage {
   return { id, side, kind: "approval", concern: STAGE_CRITERIA[id].concern, fieldDependencies };
+}
+
+function contribution(
+  id: StageId,
+  side: StageSide,
+  fieldDependencies: readonly DraftFieldKey[],
+): ContributionStage {
+  return { id, side, kind: "contribution", concern: STAGE_CRITERIA[id].concern, fieldDependencies };
 }
 
 function gate(
@@ -92,6 +112,10 @@ export const RELAY_CONFIG: readonly RelayStage[] = [
   // exists outside this process (ADR-0005's live case), so no correction to
   // the form can invalidate this sign-off.
   approval("requesting-finance", "requesting", []),
+  // No dependencies: nothing on the draft determines who claims it or what
+  // employee they name (#56) - a correction to any intake field leaves the
+  // claim standing.
+  contribution("performing-department", "performing", []),
   approval("performing-program-manager", "performing", ["project", "performingDepartmentId"]),
   approval("performing-finance", "performing", ["resources"]),
   gate(
@@ -116,6 +140,10 @@ export const RELAY_CONFIG: readonly RelayStage[] = [
 
 export function isGateStage(stage: RelayStage): stage is GateStage {
   return stage.kind === "gate";
+}
+
+export function isContributionStage(stage: RelayStage): stage is ContributionStage {
+  return stage.kind === "contribution";
 }
 
 /** The stage an authorization sits at the moment it is initiated - the relay's
