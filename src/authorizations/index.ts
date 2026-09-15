@@ -4,6 +4,7 @@ import type { StageId } from "../guidance/content.ts";
 import { RELAY_CONFIG } from "../relay/config.ts";
 import type { Resource } from "../drafts/index.ts";
 import type { FundingType, LocationType } from "../shared/constants.ts";
+import { SYSTEM_PARTICIPANT_ID } from "../shared/constants.ts";
 
 /**
  * The transition log: the append-only half of ADR-0009, and the record
@@ -34,11 +35,27 @@ export type AuthorizationFields = {
   resources: Resource[];
 };
 
+/**
+ * One stage's three timestamps (#55, BDR-0006, ADR-0004) - arrived, notified,
+ * resolved, and no fourth. `resolvedAt` is null while the stage is still the
+ * one an authorization sits at; every earlier stage in `stageHistory` always
+ * carries one.
+ */
+export type StageVisit = {
+  stageId: StageId;
+  arrivedAt: string;
+  notifiedAt: string;
+  resolvedAt: string | null;
+};
+
 export type Authorization = AuthorizationFields & {
   id: string;
   submitterId: string;
   currentStageId: StageId;
   initiatedAt: string;
+  /** Every stage reached so far, in the order it was reached, each with its
+   *  own three timestamps. The last entry is always `currentStageId`'s. */
+  stageHistory: StageVisit[];
 };
 
 type TransitionRow = {
@@ -52,6 +69,7 @@ type TransitionRow = {
 };
 
 type InitiationPayload = { fields: AuthorizationFields };
+type StagePayload = { stageId: StageId };
 
 function readTransitions(db: DatabaseSync, authorizationId: string): TransitionRow[] {
   return db
@@ -59,37 +77,72 @@ function readTransitions(db: DatabaseSync, authorizationId: string): TransitionR
     .all(authorizationId) as TransitionRow[];
 }
 
-/**
- * No transition kind advancing a stage exists yet - acknowledging (#55) and
- * skipping a gate (a later ticket) are what will append one. Until then this
- * always resolves to the relay's first entry, but it is written to keep
- * working once those kinds start appearing in the log: it finds the
- * furthest-along stage any such transition names and reports whatever the
- * relay configuration says comes next.
- */
-const ADVANCING_KINDS = new Set(["acknowledgement", "gate-skip"]);
-
-function foldCurrentStage(transitions: TransitionRow[]): StageId {
-  let resolvedIndex = -1;
-  for (const row of transitions) {
-    if (!ADVANCING_KINDS.has(row.kind)) continue;
-    const payload = JSON.parse(row.payload) as { stageId: StageId };
-    const index = RELAY_CONFIG.findIndex((stage) => stage.id === payload.stageId);
-    if (index > resolvedIndex) resolvedIndex = index;
-  }
-  const nextIndex = Math.min(resolvedIndex + 1, RELAY_CONFIG.length - 1);
+/** The stage that follows `stageId` in the relay - clamped to the last entry,
+ *  since acknowledging the final stage has nowhere further to advance to
+ *  (completion is a later ticket's build). */
+function nextStageId(stageId: StageId): StageId {
+  const index = RELAY_CONFIG.findIndex((stage) => stage.id === stageId);
+  const nextIndex = Math.min(index + 1, RELAY_CONFIG.length - 1);
   return RELAY_CONFIG[nextIndex]!.id;
+}
+
+/**
+ * What resolves a stage - acknowledging it (#55) or skipping a gate (a later
+ * ticket, #57). Kept as a set for the same reason it was before either kind
+ * existed: it is what `foldStageHistory` below reads to fill in a stage's
+ * `resolvedAt`, and a gate skip fills that in exactly like an acknowledgement
+ * does once it starts appearing in the log.
+ */
+const RESOLVING_KINDS = new Set(["acknowledgement", "gate-skip"]);
+
+/**
+ * Every stage reached so far, each with its own three timestamps (#55,
+ * BDR-0006). The first stage's arrival and notification are not separate
+ * rows - initiation discharges the draft and arrives it at the relay's first
+ * entry in the same instant, so `initiation`'s own timestamp serves both.
+ * Every later stage gets an explicit `arrival` transition, appended the
+ * moment the one before it resolves (`appendAcknowledgementTransition`
+ * below), immediately followed by a `notification` transition - the system
+ * notifies on arrival, so the two are recorded back to back rather than
+ * carrying a fabricated delay between them.
+ */
+function foldStageHistory(transitions: TransitionRow[], initiation: TransitionRow): StageVisit[] {
+  const first = RELAY_CONFIG[0]!.id;
+  const order: StageId[] = [first];
+  const byStage = new Map<StageId, StageVisit>([
+    [first, { stageId: first, arrivedAt: initiation.occurred_at, notifiedAt: initiation.occurred_at, resolvedAt: null }],
+  ]);
+
+  for (const row of transitions) {
+    if (row.kind === "arrival") {
+      const { stageId } = JSON.parse(row.payload) as StagePayload;
+      order.push(stageId);
+      byStage.set(stageId, { stageId, arrivedAt: row.occurred_at, notifiedAt: row.occurred_at, resolvedAt: null });
+    } else if (row.kind === "notification") {
+      const { stageId } = JSON.parse(row.payload) as StagePayload;
+      const visit = byStage.get(stageId);
+      if (visit) visit.notifiedAt = row.occurred_at;
+    } else if (RESOLVING_KINDS.has(row.kind)) {
+      const { stageId } = JSON.parse(row.payload) as StagePayload;
+      const visit = byStage.get(stageId);
+      if (visit) visit.resolvedAt = row.occurred_at;
+    }
+  }
+
+  return order.map((stageId) => byStage.get(stageId)!);
 }
 
 function foldAuthorization(authorizationId: string, transitions: TransitionRow[]): Authorization | null {
   const initiation = transitions.find((row) => row.kind === "initiation");
   if (!initiation) return null;
   const { fields } = JSON.parse(initiation.payload) as InitiationPayload;
+  const stageHistory = foldStageHistory(transitions, initiation);
   return {
     id: authorizationId,
     submitterId: initiation.actor_id,
     initiatedAt: initiation.occurred_at,
-    currentStageId: foldCurrentStage(transitions),
+    currentStageId: stageHistory[stageHistory.length - 1]!.stageId,
+    stageHistory,
     ...fields,
   };
 }
@@ -117,4 +170,75 @@ export function appendInitiationTransition(
      VALUES (?, ?, 'initiation', ?, ?, ?)`,
   ).run(transitionId, authorizationId, input.actorId, input.occurredAt, JSON.stringify(payload));
   return findAuthorization(db, authorizationId)!;
+}
+
+/** The system's arrival and notification, back to back, for a stage newly
+ *  reached. Never the first stage - that one is initiation's own timestamp
+ *  (see `foldStageHistory`'s header). */
+function appendStageArrival(
+  db: DatabaseSync,
+  authorizationId: string,
+  stageId: StageId,
+  occurredAt: string,
+): void {
+  const payload: StagePayload = { stageId };
+  db.prepare(
+    `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+     VALUES (?, ?, 'arrival', ?, ?, ?)`,
+  ).run(`transition-${randomUUID()}`, authorizationId, SYSTEM_PARTICIPANT_ID, occurredAt, JSON.stringify(payload));
+  db.prepare(
+    `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+     VALUES (?, ?, 'notification', ?, ?, ?)`,
+  ).run(`transition-${randomUUID()}`, authorizationId, SYSTEM_PARTICIPANT_ID, occurredAt, JSON.stringify(payload));
+}
+
+/**
+ * The relay's one advancing act built so far (#55): an Approver signs off on
+ * the stage an authorization currently sits at, and it moves to whatever the
+ * relay configuration names next - arriving there in the same transaction
+ * (ADR-0009's discipline for any multi-statement write here), so a crash
+ * between the acknowledgement and the next stage's arrival cannot leave a
+ * stage resolved with nowhere current to point to. Which stage is being
+ * acknowledged is read from the authorization itself, not taken from the
+ * caller - the service checks the caller belongs there (`isQueuedFor` in
+ * `queues/index.ts`) before this is reached.
+ */
+export function appendAcknowledgementTransition(
+  db: DatabaseSync,
+  input: { authorizationId: string; actorId: string; occurredAt: string },
+): Authorization {
+  const before = findAuthorization(db, input.authorizationId);
+  if (!before) throw new Error(`No authorization with id "${input.authorizationId}".`);
+  const stageId = before.currentStageId;
+
+  db.exec("BEGIN");
+  try {
+    const payload: StagePayload = { stageId };
+    db.prepare(
+      `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+       VALUES (?, ?, 'acknowledgement', ?, ?, ?)`,
+    ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt, JSON.stringify(payload));
+
+    const upcoming = nextStageId(stageId);
+    if (upcoming !== stageId) appendStageArrival(db, input.authorizationId, upcoming, input.occurredAt);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+
+  return findAuthorization(db, input.authorizationId)!;
+}
+
+/**
+ * Every initiated authorization there is - what a queue is filtered from
+ * (#55). "Holds live work only" is trivially true today: nothing here can
+ * yet reach a terminal state (completion, withdrawal, revocation are later
+ * tickets), so every initiated authorization is in-flight work.
+ */
+export function listAuthorizations(db: DatabaseSync): Authorization[] {
+  const rows = db
+    .prepare("SELECT DISTINCT authorization_id FROM transitions WHERE kind = 'initiation'")
+    .all() as { authorization_id: string }[];
+  return rows.map((row) => findAuthorization(db, row.authorization_id)!);
 }
