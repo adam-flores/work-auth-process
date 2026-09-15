@@ -75,8 +75,10 @@ taxonomy nobody has written.
 **Filtering on cost-accounting attributes** — CAS code, cost center, disclosure treatment,
 heritage. Rejected on the data before the retired-vocabulary argument applies: each is present on
 36 of 58 departments. A filter that is blank for a third of the organization misleads more than it
-narrows. Cost centers are additionally disqualified — three departments share `20514`, so the code
-does not identify the department.
+narrows. Cost centers are additionally disqualified — four departments share `20514`, so the code
+does not identify the department. (Three, until
+[#49](https://github.com/adam-flores/work-auth-process/issues/49) counted them; the argument is
+unchanged and slightly stronger.)
 
 ## What it assumes
 

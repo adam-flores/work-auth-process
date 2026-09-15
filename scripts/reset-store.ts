@@ -10,7 +10,8 @@ const service = createService();
 try {
   const info = service.resetStore({ participantId: SYSTEM_PARTICIPANT_ID });
   console.log(
-    `store reset - schema v${info.schemaVersion}, ${info.participantCount} participants, seeded ${info.seededAt}`,
+    `store reset - schema v${info.schemaVersion}, ${info.participantCount} participants, ` +
+      `${info.departmentCount} departments, seeded ${info.seededAt}`,
   );
 } finally {
   service.close();

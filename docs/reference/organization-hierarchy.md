@@ -146,8 +146,11 @@ This is the part worth reading before prototyping against the data.
 
 **Codes**
 
-6. **Cost centers do not identify departments.** Three departments in Thermal Systems share cost
-   center `20514`. Two share the pair `61237` / `4BQX7` but have *different* disclosure treatments.
+6. **Cost centers do not identify departments.** Four departments in Thermal Systems share cost
+   center `20514` — this document and the fixture's own note said three until
+   [#49](https://github.com/adam-flores/work-auth-process/issues/49) counted them, which is itself
+   the kind of error hand-transcribed reference data carries. Two departments share the pair
+   `61237` / `4BQX7` but have *different* disclosure treatments.
 7. **One department, many cost centers.** `Inertial Reference Systems` carries six.
 8. **Missing codes.** Several departments have no cost-accounting code, no cost center, or neither.
 9. **Unresolvable codes.** Two `CAL` entries have the literal code `various cost centers`.
@@ -164,6 +167,64 @@ This is the part worth reading before prototyping against the data.
     own division. Three departments carry `*` — no DS of their own. One `CAL` department is
     excluded from government rate pools by a free-text annotation.
 
+## What seeding does to it
+
+[ADR-0011](../adr/0011-reference-data-in-the-store-configuration-in-the-repo.md) has the product read
+a hierarchy held in its own store, transformed from this file, and
+[ADR-0012](../adr/0012-the-store-holds-a-decoded-hierarchy-not-a-transcribed-one.md) records what the
+transformation decides and why. Summarised here so a reader of the fixture knows what the product
+does and does not see.
+
+**Nothing about this file changes.** It is an input. The store diverges from it at the first
+Administrator edit, and this file stays as it is.
+
+**What the store keeps**
+
+| From the fixture | In the store | As |
+|---|---|---|
+| the three levels | `legal_entities` → `divisions` → `departments` | one parent each, with an `active` flag at every level |
+| `foreign` | `jurisdiction` = `foreign` \| `domestic` | an **attribute**, held at the department |
+| the entity's `affiliation` | `affiliation` | an attribute, held at the **legal entity** and read by every department below it |
+| the home-office dot icon | `home-office-disclosure` | an attribute, held at the **division** for some and at the **department** for others |
+| the star icon | `offshore-shared-service` | an attribute, held at the department |
+| footnote `**` | `contracting-exception` | an attribute, held at the department |
+| `costAccountingCode`, `costCentres`, CAL's `code` | one code list per department, each tagged by kind | **detail**: recorded and shown, never filtered on, never an identifier |
+| `heritage`, `disclosureStatement` | columns on the department | detail |
+
+An **attribute** narrows the picker and is inherited downward, so a department carries its own plus
+every attribute above it. **Detail** is recorded and displayed and nothing depends on it. Which is
+which follows [BDR-0008](../bdr/0008-finding-a-department.md), where filtering on the
+cost-accounting fields is rejected because each is blank for a third of the organization.
+
+**How each irregularity is resolved**
+
+| Irregularity | Resolution |
+|---|---|
+| A cost center shared by four departments; two departments with an identical pair | Identity is a deterministic id of the product's own. No code identifies anything, and both departments keep their own disclosure treatment |
+| Every one of those four marked as holding `20514` **alone** | Sharing is computed from the transformed set, not copied from the ink colour: a code several departments carry is marked shared whatever the source said, and a code the source marked shared stays shared |
+| Departments with no code at all | Absent, not blank. A department with no code is as selectable as one with seven |
+| The literal code `various cost centers` | Not carried. A code with a space in it is prose rather than a code, so the rule is general and names nothing |
+| Three codes in one field (`D204, D209, D216`) | Three codes |
+| A cost center marked as shared with another division | Kept as a flag on the code, not as an attribute of the department |
+| The `null` country, and every other country | **Not carried at all.** The countries are invented enrichment the source cannot supply, so a missing one is not a gap. `foreign`/`domestic` is what the source encodes and what the store holds |
+| The one department with no `foreign` value either | Seeded **inactive**: no jurisdiction is invented for the field a compliance rule is read from, and an inactive department is closed to new work while staying resolvable for ever |
+| One department flagged `foreign` whose text colour says domestic | The flag wins. This document names `foreign` as the faithful field, and the colour is a carrier the store does not read |
+| Seven departments with a white fill (*exempt*) and no `disclosureStatement` | No treatment is recorded. The fixture sets both together elsewhere, so a fill on its own is an absence rather than an exemption, and nothing is read from the colour |
+| One division marked `homeOfficeLevel: true` with no home-office dot | The documented icon is read and the undocumented boolean is not, so that division's departments carry no `home-office-disclosure` at all — recorded as the price of not inventing a filter |
+| The unaffiliated column that is not a division | An ordinary division. Its departments were always selectable; only the name now says it is unaffiliated |
+| Three legal entities of different *shape*, not just different values | Reconciled once, at seeding. `CAL`'s single code column is read as the cost-accounting code its own chart declares as that entity's code scheme |
+| Near-identical sibling names | Distinct departments, distinct ids. Nothing is merged, and a collision would fail seeding rather than pass quietly |
+
+**What is dropped, deliberately:** the countries and division sites (invented geography); `fill`,
+`textColour` and cost-center ink colour (carriers, read only where the fixture gives no decoded field
+of its own — and never read to fill a decoded field the fixture left empty); `homeOfficeLevel` (a
+boolean the fixture never gives a meaning, absent from one legal entity entirely, and contradicted by
+the documented icon on one division); the source's layout and code-scheme notes and the division
+codes (properties of the source document);
+footnote `fn-1` (identical in meaning to the disclosure treatment already kept) and `fn-3`; and the
+per-record `note` fields, which are commentary about this fixture rather than facts about the
+organization. All of it stays here, which is where a reader looking for it would come.
+
 ## What this dataset does not do
 
 - **It does not decide the data store.** JSON was chosen for readability at this stage, and the
@@ -175,6 +236,5 @@ This is the part worth reading before prototyping against the data.
   something else must.
 - **It does not resolve every irregularity.** The vocabulary is now the product's, but the
   awkwardness is not cleaned up: shared cost centers, missing codes and the `null` country are all
-  still here, because they are the point.
-  [#49](https://github.com/adam-flores/work-auth-process/issues/49) is where they get resolved
-  into the store, and it has to decide each one explicitly rather than carrying it.
+  still here, because they are the point. Resolving them is *seeding's* job, not this file's —
+  see **What seeding does to it** above.

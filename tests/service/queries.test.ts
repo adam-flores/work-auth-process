@@ -1,6 +1,7 @@
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createService } from "../../src/service/index.ts";
+import { SCHEMA_VERSION } from "../../src/store/schema.ts";
 import { withTempStore } from "../helpers/temp-store.ts";
 
 describe("queries", () => {
@@ -18,7 +19,7 @@ describe("queries", () => {
 
   test("the store is created and seeded on first use", () => {
     const info = service.getStoreInfo({ participantId: "system" });
-    assert.equal(info.schemaVersion, 1);
+    assert.equal(info.schemaVersion, SCHEMA_VERSION);
     assert.ok(info.participantCount > 0, "expected seeded participants");
     assert.ok(info.seededAt.length > 0, "expected a seeded timestamp");
   });

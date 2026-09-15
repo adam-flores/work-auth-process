@@ -1,6 +1,13 @@
 import { openStore, DEFAULT_STORE_PATH } from "../store/index.ts";
-import { ActingParticipant, SYSTEM_PARTICIPANT_ID } from "../shared/rules.ts";
-import type { Participant } from "../shared/rules.ts";
+import {
+  ActingParticipant,
+  DepartmentQuery,
+  HierarchyId,
+  SYSTEM_PARTICIPANT_ID,
+} from "../shared/rules.ts";
+import type { DepartmentQueryInput, Participant } from "../shared/rules.ts";
+import { findDepartments, resolveDepartment } from "../hierarchy/index.ts";
+import type { ResolvedDepartment } from "../hierarchy/index.ts";
 import { DomainError } from "./errors.ts";
 
 /**
@@ -16,6 +23,7 @@ export type StoreInfo = {
   schemaVersion: number;
   seededAt: string;
   participantCount: number;
+  departmentCount: number;
 };
 
 export type ServiceOptions = { storePath?: string };
@@ -47,11 +55,12 @@ export function createService(options: ServiceOptions = {}) {
       value: string;
     }[];
     const byKey = new Map(meta.map((row) => [row.key, row.value]));
-    const count = db.prepare("SELECT COUNT(*) AS n FROM participants").get() as { n: number };
+    const count = (sql: string): number => (db.prepare(sql).get() as { n: number }).n;
     return {
       schemaVersion: Number(byKey.get("schema_version") ?? 0),
       seededAt: byKey.get("seeded_at") ?? "",
-      participantCount: count.n,
+      participantCount: count("SELECT COUNT(*) AS n FROM participants"),
+      departmentCount: count("SELECT COUNT(*) AS n FROM departments"),
     };
   }
 
@@ -62,6 +71,47 @@ export function createService(options: ServiceOptions = {}) {
       return db
         .prepare("SELECT id, name, role, department FROM participants ORDER BY name")
         .all() as Participant[];
+    },
+
+    /**
+     * Find a department: narrow on any attributes in any combination, then
+     * search what remains by name (BDR-0008). Nothing is required - a submitter
+     * certain of nothing gets the whole selectable list.
+     */
+    searchDepartments(ctx: ActingParticipant, query?: DepartmentQueryInput): ResolvedDepartment[] {
+      requireParticipant(ctx);
+      const parsed = DepartmentQuery.safeParse(query ?? {});
+      if (!parsed.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsed.error.issues[0]?.message ?? "Invalid department query.",
+        );
+      }
+      return findDepartments(db, parsed.data);
+    },
+
+    /**
+     * One department with the two levels above it derived, so nothing is keyed
+     * that can be resolved. Inactive departments resolve too - that is what
+     * marking one inactive instead of deleting it is for (BDR-0010).
+     */
+    getDepartment(ctx: ActingParticipant, departmentId: string): ResolvedDepartment {
+      requireParticipant(ctx);
+      const parsed = HierarchyId.safeParse(departmentId);
+      if (!parsed.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsed.error.issues[0]?.message ?? "Invalid department id.",
+        );
+      }
+      const found = resolveDepartment(db, parsed.data);
+      if (!found) {
+        throw new DomainError(
+          "UNKNOWN_DEPARTMENT",
+          `No department with id "${departmentId}".`,
+        );
+      }
+      return found;
     },
 
     /** What the store is, so a demo can tell which seeding it is looking at. */

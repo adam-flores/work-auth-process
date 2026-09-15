@@ -23,6 +23,7 @@ const PORT = Number(process.env.PORT ?? 3000);
 const STATUS_FOR: Record<DomainErrorCode, number> = {
   INVALID_REQUEST: 400,
   UNKNOWN_PARTICIPANT: 403,
+  UNKNOWN_DEPARTMENT: 404,
 };
 
 /**

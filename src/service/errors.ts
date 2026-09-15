@@ -3,7 +3,10 @@
  * `code` to a status through a lookup table - it never inspects domain state to
  * decide (ADR-0010).
  */
-export type DomainErrorCode = "UNKNOWN_PARTICIPANT" | "INVALID_REQUEST";
+export type DomainErrorCode =
+  | "UNKNOWN_PARTICIPANT"
+  | "UNKNOWN_DEPARTMENT"
+  | "INVALID_REQUEST";
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
