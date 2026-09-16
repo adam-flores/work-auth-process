@@ -113,6 +113,14 @@ export function classificationOf(department: {
   };
 }
 
+/** One span the authorization spent on hold (#61, CONTEXT.md: "On hold"):
+ *  `releasedAt` is null while the span is still open, exactly as
+ *  `StageVisit.resolvedAt` is while a stage is still current. Held time is
+ *  never folded into a stage's own clock - it is reported separately
+ *  (BDR-0006) - so these spans are read alongside `stageHistory` rather than
+ *  merged into it. */
+export type HoldInterval = { heldAt: string; releasedAt: string | null };
+
 export type Authorization = AuthorizationFields & {
   id: string;
   submitterId: string;
@@ -153,11 +161,29 @@ export type Authorization = AuthorizationFields & {
    *  exists, not because a final judgement was rendered") - there is no
    *  separate stored state for completion to drift from this. */
   chargeNumber: string | null;
-  /** The three resolved levels for each side, frozen at the instant of
-   *  minting (ADR-0007) - `null` while the authorization is still live, at
-   *  which point a caller resolves classification from the hierarchy
-   *  instead (`resolveDepartment`) and never reads this. */
+  /** The three resolved levels for each side, frozen at the instant a
+   *  terminal transition is appended - completion (minting) or withdrawal
+   *  today, revocation once #64 builds it (ADR-0007) - `null` while the
+   *  authorization is still live, at which point a caller resolves
+   *  classification from the hierarchy instead (`resolveDepartment`) and
+   *  never reads this. */
   classification: { requesting: FrozenClassification; performing: FrozenClassification } | null;
+  /** Every span the submitter has held this authorization for (#61), in the
+   *  order they occurred - a hold and the release that closes it are each
+   *  their own transition, folded the same way a correction request and its
+   *  correction are (`foldCorrectionState` below), except a hold can recur
+   *  any number of times rather than at most once. */
+  holdIntervals: HoldInterval[];
+  /** Whether the authorization is currently on hold - the last interval in
+   *  `holdIntervals` still open (CONTEXT.md: "In nobody's queue while
+   *  held"). Folded rather than stored, the same discipline `awaitingCorrection`
+   *  already follows. */
+  onHold: boolean;
+  /** When the submitter withdrew this authorization (#61, CONTEXT.md:
+   *  "Withdrawn"), `null` while it is still live. Terminal, like
+   *  `chargeNumber` existing - the two are mutually exclusive, and
+   *  `classification` above is frozen by whichever of them happens. */
+  withdrawnAt: string | null;
 };
 
 type TransitionRow = {
@@ -201,6 +227,15 @@ type GateSkipPayload = { stageId: StageId; fields: Partial<AuthorizationFields> 
 type CompletionPayload = {
   stageId: StageId;
   chargeNumber: string;
+  classification: { requesting: FrozenClassification; performing: FrozenClassification };
+};
+/** The submitter withdrawing an authorization (#61, CONTEXT.md: "Withdrawn"):
+ *  a terminal transition like completion's, so it carries the same frozen
+ *  classification (ADR-0007) rather than leaving it to be re-derived from a
+ *  hierarchy that may since have changed. No `stageId`, unlike completion's
+ *  payload - withdrawal does not resolve a stage, it ends the authorization
+ *  wherever it happens to sit. */
+type WithdrawalPayload = {
   classification: { requesting: FrozenClassification; performing: FrozenClassification };
 };
 
@@ -318,6 +353,29 @@ function foldCorrectionState(transitions: TransitionRow[]): {
   return { fieldOverrides, performingEmployeeOverride, outstanding };
 }
 
+/**
+ * Every span the authorization has been held for (#61): a `hold` opens one,
+ * the `release` that follows closes it, and there is never more than one
+ * open at a time - `service/index.ts`'s `hold` and `release` each refuse to
+ * repeat themselves (`ALREADY_ON_HOLD`, `NOT_ON_HOLD`) before either of
+ * these is ever appended. Unlike `foldCorrectionState`, which only ever
+ * needs the latest of either kind, a hold can recur any number of times
+ * over an authorization's life and every span is kept - BDR-0006 needs the
+ * total held time, not just whether it is currently held.
+ */
+function foldHoldIntervals(transitions: TransitionRow[]): HoldInterval[] {
+  const intervals: HoldInterval[] = [];
+  for (const row of transitions) {
+    if (row.kind === "hold") {
+      intervals.push({ heldAt: row.occurred_at, releasedAt: null });
+    } else if (row.kind === "release") {
+      const open = intervals[intervals.length - 1];
+      if (open && open.releasedAt === null) open.releasedAt = row.occurred_at;
+    }
+  }
+  return intervals;
+}
+
 function foldAuthorization(authorizationId: string, transitions: TransitionRow[]): Authorization | null {
   const initiation = transitions.find((row) => row.kind === "initiation");
   if (!initiation) return null;
@@ -338,6 +396,15 @@ function foldAuthorization(authorizationId: string, transitions: TransitionRow[]
   const completion = transitions.find((row) => row.kind === "completion");
   const completionPayload = completion ? (JSON.parse(completion.payload) as CompletionPayload) : null;
 
+  // Withdrawal is likewise recorded once and never more than once - the
+  // service refuses a second attempt against an already-terminal
+  // authorization (`AUTHORIZATION_TERMINAL`) before this is ever appended.
+  const withdrawal = transitions.find((row) => row.kind === "withdrawal");
+  const withdrawalPayload = withdrawal ? (JSON.parse(withdrawal.payload) as WithdrawalPayload) : null;
+
+  const holdIntervals = foldHoldIntervals(transitions);
+  const onHold = holdIntervals.length > 0 && holdIntervals[holdIntervals.length - 1]!.releasedAt === null;
+
   const currentVisit = stageHistory[stageHistory.length - 1]!;
 
   return {
@@ -355,7 +422,14 @@ function foldAuthorization(authorizationId: string, transitions: TransitionRow[]
     isReReview: currentVisit.reReviewCause !== undefined,
     reReviewCause: currentVisit.reReviewCause ?? null,
     chargeNumber: completionPayload ? completionPayload.chargeNumber : null,
-    classification: completionPayload ? completionPayload.classification : null,
+    classification: completionPayload
+      ? completionPayload.classification
+      : withdrawalPayload
+        ? withdrawalPayload.classification
+        : null,
+    holdIntervals,
+    onHold,
+    withdrawnAt: withdrawal ? withdrawal.occurred_at : null,
     ...fields,
     ...fieldOverrides,
   };
@@ -695,6 +769,47 @@ export function appendContributionTransition(
 }
 
 /**
+ * The submitter pausing their own authorization (#61, CONTEXT.md: "On
+ * hold"). Does not touch the relay at all - no stage arrives, resolves, or
+ * moves - it only opens a span in `holdIntervals` (`foldHoldIntervals`
+ * above), which is what removes the authorization from every queue
+ * (`listMyQueue` in `service/index.ts` filters on `onHold` before either
+ * queue-builder below ever sees it). The service checks that the caller is
+ * the submitter and that nothing is already open (`ALREADY_ON_HOLD`) before
+ * this is reached, the same trust `appendClaimTransition` extends its
+ * caller.
+ */
+export function appendHoldTransition(
+  db: DatabaseSync,
+  input: { authorizationId: string; actorId: string; occurredAt: string },
+): Authorization {
+  db.prepare(
+    `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+     VALUES (?, ?, 'hold', ?, ?, '{}')`,
+  ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt);
+  return findAuthorization(db, input.authorizationId)!;
+}
+
+/**
+ * The submitter releasing a hold (#61, CONTEXT.md: "and only the submitter
+ * releases it"): closes the span `appendHoldTransition` opened, which is
+ * what resumes the authorization at exactly the stage it left - nothing
+ * about its position ever moved, so there is nothing here to route. The
+ * service checks the caller is the submitter and that a span is genuinely
+ * open (`NOT_ON_HOLD`) before this is reached.
+ */
+export function appendReleaseTransition(
+  db: DatabaseSync,
+  input: { authorizationId: string; actorId: string; occurredAt: string },
+): Authorization {
+  db.prepare(
+    `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+     VALUES (?, ?, 'release', ?, ?, '{}')`,
+  ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt);
+  return findAuthorization(db, input.authorizationId)!;
+}
+
+/**
  * The Charge Number Admin minting a charge number (#58, CONTEXT.md: "the
  * role that mints the charge number and thereby completes the
  * authorization"). Terminal: unlike an acknowledgement or a contribution,
@@ -728,6 +843,35 @@ export function appendCompletionTransition(
   db.prepare(
     `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
      VALUES (?, ?, 'completion', ?, ?, ?)`,
+  ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt, JSON.stringify(payload));
+  return findAuthorization(db, input.authorizationId)!;
+}
+
+/**
+ * The submitter withdrawing their own authorization (#61, CONTEXT.md:
+ * "Withdrawn"). Terminal, the same as completion: nothing after it is ever
+ * appended, and it does not resolve or move a stage - it ends the
+ * authorization wherever it happens to sit, whether that is mid-relay or
+ * on hold. The classification this carries is resolved live by the caller
+ * just before calling this, exactly as `appendCompletionTransition` already
+ * does, so a withdrawn record freezes the same way a completed one does
+ * (ADR-0007). The service checks the caller is the submitter and that the
+ * authorization is not already terminal (`AUTHORIZATION_TERMINAL`) before
+ * this is reached.
+ */
+export function appendWithdrawalTransition(
+  db: DatabaseSync,
+  input: {
+    authorizationId: string;
+    actorId: string;
+    occurredAt: string;
+    classification: { requesting: FrozenClassification; performing: FrozenClassification };
+  },
+): Authorization {
+  const payload: WithdrawalPayload = { classification: input.classification };
+  db.prepare(
+    `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+     VALUES (?, ?, 'withdrawal', ?, ?, ?)`,
   ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt, JSON.stringify(payload));
   return findAuthorization(db, input.authorizationId)!;
 }
@@ -894,14 +1038,28 @@ export function correctionOwner(
 }
 
 /**
- * Every initiated authorization there is - what a queue is filtered from
- * (#55). "Holds live work only" is trivially true today: nothing here can
- * yet reach a terminal state (completion, withdrawal, revocation are later
- * tickets), so every initiated authorization is in-flight work.
+ * Every initiated authorization still in flight - what a queue is filtered
+ * from (#55), and today the only consumer of this function
+ * (`listMyQueue` in `service/index.ts`). Completed and withdrawn
+ * authorizations are excluded here rather than left for each queue
+ * function in `queues/index.ts` to filter out individually (#61) -
+ * revocation will join them once #64 builds it. On-hold authorizations are
+ * not excluded here: holding does not end an authorization, and each queue
+ * function already checks `onHold` itself, the same way each already
+ * checks `awaitingCorrection`.
+ *
+ * Not the reader a future master dashboard (#63) can reuse - CONTEXT.md's
+ * "Master dashboard" is explicit that it shows every authorization "in the
+ * system," terminal ones included, which is the opposite of what a queue
+ * should ever be filtered from. That surface needs its own, unfiltered
+ * function; reaching for this one instead would silently hide completed
+ * and withdrawn work from a view whose whole job is to show it.
  */
 export function listAuthorizations(db: DatabaseSync): Authorization[] {
   const rows = db
     .prepare("SELECT DISTINCT authorization_id FROM transitions WHERE kind = 'initiation'")
     .all() as { authorization_id: string }[];
-  return rows.map((row) => findAuthorization(db, row.authorization_id)!);
+  return rows
+    .map((row) => findAuthorization(db, row.authorization_id)!)
+    .filter((authorization) => authorization.chargeNumber === null && authorization.withdrawnAt === null);
 }

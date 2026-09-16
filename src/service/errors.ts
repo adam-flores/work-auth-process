@@ -19,6 +19,11 @@ export type DomainErrorCode =
   | "FIELD_NOT_CORRECTABLE"
   | "DRAFT_INCOMPLETE"
   | "IMPERMISSIBLE_PAIRING"
+  | "NOT_SUBMITTER"
+  | "ALREADY_ON_HOLD"
+  | "NOT_ON_HOLD"
+  | "AUTHORIZATION_ON_HOLD"
+  | "AUTHORIZATION_TERMINAL"
   | "INVALID_REQUEST";
 
 export class DomainError extends Error {
