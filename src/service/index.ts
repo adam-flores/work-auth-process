@@ -1,8 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { openStore, DEFAULT_STORE_PATH } from "../store/index.ts";
 import {
   ActingParticipant,
   CompleteDraftFields,
   ContributeFields,
+  CorrectionFieldValues,
+  CorrectionRequestInput,
   DepartmentQuery,
   DraftFields,
   HierarchyId,
@@ -44,11 +47,21 @@ import {
   appendAcknowledgementTransition,
   appendClaimTransition,
   appendContributionTransition,
+  appendCorrectionRequestTransition,
+  appendCorrectionTransition,
   appendInitiationTransition,
+  correctionOwner,
   findAuthorization,
+  listAuthorizations,
 } from "../authorizations/index.ts";
 import type { Authorization, AuthorizationFields } from "../authorizations/index.ts";
-import { isQueuedFor, isQueuedForClaim, listApproverQueue, listContributorQueue } from "../queues/index.ts";
+import {
+  isQueuedFor,
+  isQueuedForClaim,
+  listApproverQueue,
+  listContributorQueue,
+  listCorrectionQueue,
+} from "../queues/index.ts";
 import { isContributionStage, RELAY_CONFIG } from "../relay/config.ts";
 import { DomainError } from "./errors.ts";
 
@@ -476,14 +489,29 @@ export function createService(options: ServiceOptions = {}) {
      *  not an error to ask for, it is simply empty for a role that holds
      *  none. An Approver's queue is what has arrived at their stage; a
      *  Contributor's is their department's performing-department queue
-     *  (#56), claimed and unclaimed authorizations alike. */
+     *  (#56), claimed and unclaimed authorizations alike. Every participant's
+     *  queue also carries any outstanding correction request addressed to
+     *  them (#59) - independent of role, since the submitter is a
+     *  relationship to one authorization rather than a role (CONTEXT.md), and
+     *  disjoint from the role-based queue above: an authorization awaiting
+     *  correction has already left its approver's queue
+     *  (`isQueuedFor`/`listApproverQueue`), and the contribution stage is
+     *  never itself the one awaiting correction (no Approver ever sits
+     *  there to raise one). The log is folded once, via `listAuthorizations`,
+     *  and handed to both queue functions below rather than each reading it
+     *  again on its own. */
     listMyQueue(ctx: ActingParticipant): Authorization[] {
       const participantId = requireParticipant(ctx);
       const participant = readParticipant(participantId);
-      if (!participant) return [];
-      if (participant.role === "Approver") return listApproverQueue(db, participant.department);
-      if (participant.role === "Contributor") return listContributorQueue(db, participant.department);
-      return [];
+      const authorizations = listAuthorizations(db);
+      const roleQueue = !participant
+        ? []
+        : participant.role === "Approver"
+          ? listApproverQueue(authorizations, db, participant.department)
+          : participant.role === "Contributor"
+            ? listContributorQueue(authorizations, db, participant.department)
+            : [];
+      return [...roleQueue, ...listCorrectionQueue(authorizations, participantId)];
     },
 
     /**
@@ -609,6 +637,186 @@ export function createService(options: ServiceOptions = {}) {
         actorId: participantId,
         occurredAt,
         performingEmployee: parsedFields.data.performingEmployee,
+      });
+    },
+
+    /**
+     * An Approver raising a correction request at the stage an
+     * authorization currently sits at (#59, BDR-0005): names the fields at
+     * fault and carries a mandatory comment. Checked against the same rule
+     * `acknowledge` is - a role at a department, and not already awaiting a
+     * correction (`isQueuedFor`) - so this can never be raised twice over
+     * the same one. The authorization's position does not move; only the
+     * stage's condition does, which is why there is no `nextStageId` here
+     * the way there is for an acknowledgement.
+     */
+    requestCorrection(ctx: ActingParticipant, authorizationId: string, input: unknown): Authorization {
+      const participantId = requireParticipant(ctx);
+      const authorization = findAuthorization(db, authorizationId);
+      if (!authorization) {
+        throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
+      }
+
+      const participant = readParticipant(participantId);
+      if (!participant || !isQueuedFor(db, authorization, participant)) {
+        throw new DomainError(
+          "NOT_IN_QUEUE",
+          "Only an Approver at this stage's department may raise a correction request.",
+        );
+      }
+
+      const parsed = CorrectionRequestInput.safeParse(input);
+      if (!parsed.success) {
+        throw new DomainError("INVALID_REQUEST", parsed.error.issues[0]?.message ?? "Invalid correction request.");
+      }
+
+      // `performingDepartmentId` can never be satisfied by `correct` (see
+      // below) - bundling it with any other field would strand that field
+      // too, since `correct` refuses the whole submission the moment
+      // `performingDepartmentId` is anywhere in the outstanding request.
+      // Naming it is only ever useful alone.
+      if (parsed.data.fields.includes("performingDepartmentId") && parsed.data.fields.length > 1) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          "The performing department cannot be corrected, so it may only be named on its own - " +
+            "raise the other fields as a separate request.",
+        );
+      }
+
+      // A single request may address only one corrector - see
+      // `correctionOwner` in `authorizations/index.ts` for why fields split
+      // this way. The one case this refuses is a mix of `performingEmployee`
+      // and anything else, which would otherwise leave nobody able to
+      // satisfy the whole of it in one act - except when `performingEmployee`
+      // is named alone before anyone has claimed the authorization, which
+      // `correctionOwner` also reports as `null` since there is nobody to
+      // address it to yet.
+      const owner = correctionOwner(authorization, parsed.data.fields);
+      if (owner === null) {
+        const spansBothOwners =
+          parsed.data.fields.includes("performingEmployee") &&
+          parsed.data.fields.some((field) => field !== "performingEmployee");
+        throw new DomainError(
+          "INVALID_REQUEST",
+          spansBothOwners
+            ? "A correction request may name fields with only one corrector - raise the other side as a separate request."
+            : "Nobody has claimed this authorization yet, so there is no performing contributor to address a correction naming the employee performing the work to.",
+        );
+      }
+
+      const parsedOptions = TransitionOptions.safeParse(input ?? {});
+      if (!parsedOptions.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsedOptions.error.issues[0]?.message ?? "Invalid transition options.",
+        );
+      }
+      const occurredAt = parsedOptions.data.occurredAt ?? new Date().toISOString();
+
+      return appendCorrectionRequestTransition(db, {
+        authorizationId,
+        actorId: participantId,
+        occurredAt,
+        stageId: authorization.currentStageId,
+        fields: parsed.data.fields,
+        comment: parsed.data.comment,
+      });
+    },
+
+    /**
+     * The field's owner supplying the fix (#59, CONTEXT.md: "made on the
+     * authorization where it stands"). Must supply a value for every field
+     * the outstanding request named, and no others - a partial correction
+     * would leave the request half-satisfied with nothing recording which
+     * half. `performingDepartmentId` can be named in a request but never
+     * corrected here (BDR-0012): it is fixed at initiation, so the only
+     * resolution is to withdraw and raise a new authorization against the
+     * right department - a later ticket's build.
+     */
+    correct(ctx: ActingParticipant, authorizationId: string, fields: unknown): Authorization {
+      const participantId = requireParticipant(ctx);
+      const authorization = findAuthorization(db, authorizationId);
+      if (!authorization) {
+        throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
+      }
+
+      const outstanding = authorization.correctionRequest;
+      if (!outstanding) {
+        throw new DomainError(
+          "NOT_AWAITING_CORRECTION",
+          "This authorization has no outstanding correction request.",
+        );
+      }
+
+      if (correctionOwner(authorization, outstanding.fields) !== participantId) {
+        throw new DomainError(
+          "NOT_CORRECTOR",
+          "Only the owner of the fields the correction request named may supply the fix.",
+        );
+      }
+
+      if (outstanding.fields.includes("performingDepartmentId")) {
+        throw new DomainError(
+          "FIELD_NOT_CORRECTABLE",
+          "The performing department cannot be corrected - it is fixed once the authorization is initiated. " +
+            "Withdraw this authorization and raise a new one against the right department.",
+        );
+      }
+
+      const parsed = CorrectionFieldValues.safeParse(fields);
+      if (!parsed.success) {
+        throw new DomainError("INVALID_REQUEST", parsed.error.issues[0]?.message ?? "Invalid correction.");
+      }
+
+      const suppliedKeys = Object.keys(parsed.data).sort();
+      const requestedKeys = [...outstanding.fields].sort();
+      const suppliesExactlyWhatWasAsked =
+        suppliedKeys.length === requestedKeys.length && suppliedKeys.every((key, i) => key === requestedKeys[i]);
+      if (!suppliesExactlyWhatWasAsked) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          "The correction must supply a value for every field the request named, and no others.",
+        );
+      }
+
+      if (parsed.data.requestingDepartmentId !== undefined) {
+        if (parsed.data.requestingDepartmentId === authorization.performingDepartmentId) {
+          throw new DomainError(
+            "INVALID_REQUEST",
+            "The requesting and performing department may not be the same.",
+          );
+        }
+        const requestingDept = resolveDepartmentIfSet(parsed.data.requestingDepartmentId)!;
+        const performingDept = resolveDepartmentIfSet(authorization.performingDepartmentId)!;
+        requirePermissiblePairing(requestingDept, performingDept);
+      }
+
+      // `resources` carries no id from the corrector, the same as a fresh
+      // draft's do not (#52's `CompleteDraftFields`) - assigned fresh ones
+      // here rather than reusing whatever the authorization already had,
+      // since a correction replaces the whole list rather than patching a
+      // line within it.
+      const { resources, ...correctedRest } = parsed.data;
+      const correctedFields: Partial<AuthorizationFields> & { performingEmployee?: string } = { ...correctedRest };
+      if (resources !== undefined) {
+        correctedFields.resources = resources.map((resource) => ({ id: `resource-${randomUUID()}`, ...resource }));
+      }
+
+      const parsedOptions = TransitionOptions.safeParse(fields ?? {});
+      if (!parsedOptions.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsedOptions.error.issues[0]?.message ?? "Invalid transition options.",
+        );
+      }
+      const occurredAt = parsedOptions.data.occurredAt ?? new Date().toISOString();
+
+      return appendCorrectionTransition(db, {
+        authorizationId,
+        actorId: participantId,
+        occurredAt,
+        stageId: authorization.currentStageId,
+        fields: correctedFields,
       });
     },
 
