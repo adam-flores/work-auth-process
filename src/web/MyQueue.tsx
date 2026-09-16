@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api.ts";
-import type { Attribute, Authorization, ResolvedDepartment } from "./api.ts";
-import { FUNDING_TYPE_LABELS, LOCATION_TYPE_LABELS } from "../shared/constants.ts";
+import type { Attribute, Authorization, CorrectableFieldKey, ResolvedDepartment } from "./api.ts";
+import { DepartmentPicker } from "./DepartmentPicker.tsx";
+import {
+  FUNDING_TYPE_LABELS,
+  FUNDING_TYPE_VALUES,
+  LOCATION_TYPE_LABELS,
+  LOCATION_TYPE_VALUES,
+} from "../shared/constants.ts";
+import type { FundingType, LocationType } from "../shared/constants.ts";
 import { STAGE_CRITERIA } from "../guidance/content.ts";
 import { RELAY_CONFIG, isContributionStage } from "../relay/config.ts";
+import { CORRECTABLE_FIELD_KEYS } from "../shared/rules.ts";
 
 /**
  * A queue (#55, #56, #57, BDR-0002): what has arrived at this participant's
@@ -71,6 +79,380 @@ function DepartmentAttributes({ label, department }: { label: string; department
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** Plain-English labels for a correction's field checkboxes and its
+ *  fulfillment form (#59) - short, unlike `FIELD_GUIDANCE`'s explanatory
+ *  text, since a checkbox list needs a name, not an explanation. */
+const FIELD_LABELS: Record<CorrectableFieldKey, string> = {
+  project: "Project",
+  requestingDepartmentId: "Requesting department",
+  performingDepartmentId: "Performing department",
+  fundingType: "Funding type",
+  requestingLocationType: "Requesting location type",
+  performingLocationType: "Performing location type",
+  requestingProgramManager: "Requesting program manager",
+  requestingFinanceApprover: "Requesting finance approver",
+  performingProgramManager: "Performing program manager",
+  performingFinanceApprover: "Performing finance approver",
+  performingContact: "Performing-side contact",
+  resources: "Resources",
+  performingEmployee: "Employee performing the work",
+};
+
+/** Every field a correction request may name (#59), read off the same list
+ *  the server validates a request against (`CORRECTABLE_FIELD_KEYS` in
+ *  `shared/rules.ts`) rather than a second copy of it - `performingEmployee`
+ *  is filtered back out until someone has claimed the authorization, since
+ *  naming it before that leaves nobody to address the request to
+ *  (`correctionOwner` in `authorizations/index.ts`). */
+function nameableFields(authorization: Authorization): CorrectableFieldKey[] {
+  return CORRECTABLE_FIELD_KEYS.filter(
+    (field) => field !== "performingEmployee" || authorization.performingContributorId !== null,
+  );
+}
+
+/** An Approver's way to raise a correction request (#59, BDR-0005): name
+ *  the fields at fault, with a mandatory comment to their owner. Collapsed
+ *  behind a toggle so it does not compete with "Acknowledge" for attention
+ *  on every open item. */
+function RequestCorrectionForm({
+  actingId,
+  authorization,
+  onRequested,
+}: {
+  actingId: string;
+  authorization: Authorization;
+  onRequested: (authorization: Authorization) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<CorrectableFieldKey>>(new Set());
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const toggleField = (field: CorrectableFieldKey) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(field)) next.delete(field);
+      else next.add(field);
+      return next;
+    });
+  };
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await api.requestCorrection(actingId, authorization.id, {
+        fields: [...selected],
+        comment,
+      });
+      onRequested(updated);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} data-testid="open-request-correction">
+        Report a problem
+      </button>
+    );
+  }
+
+  // The performing department can never be corrected (BDR-0012) - the
+  // service refuses to name it alongside anything else, since that would
+  // strand the other field behind a request nobody can ever satisfy.
+  // Checked here too, so an approver learns this before typing a comment
+  // rather than after submitting.
+  const bundlesUncorrectableField = selected.has("performingDepartmentId") && selected.size > 1;
+
+  return (
+    <div className="request-correction-form" data-testid="request-correction-form">
+      <h4>Request a correction</h4>
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
+      <fieldset>
+        <legend>Fields at fault</legend>
+        {nameableFields(authorization).map((field) => (
+          <label key={field}>
+            <input
+              type="checkbox"
+              checked={selected.has(field)}
+              onChange={() => toggleField(field)}
+              data-testid={`correction-field-${field}`}
+            />
+            {FIELD_LABELS[field]}
+          </label>
+        ))}
+      </fieldset>
+      {bundlesUncorrectableField && (
+        <p className="hint" data-testid="performing-department-bundled-hint">
+          The performing department can never be corrected, so it must be named on its own - raise the
+          other fields as a separate request.
+        </p>
+      )}
+      <label htmlFor="correction-comment">Comment to the owner of these fields</label>
+      <textarea
+        id="correction-comment"
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        data-testid="correction-comment"
+      />
+      <div className="request-correction-form-actions">
+        <button
+          type="button"
+          onClick={() => void submit()}
+          disabled={busy || selected.size === 0 || comment.trim().length === 0 || bundlesUncorrectableField}
+          data-testid="submit-request-correction"
+        >
+          {busy ? "Requesting…" : "Request correction"}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} disabled={busy}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** One resource line, held as strings while it is being typed (#59, mirrors
+ *  `DraftForm`'s own resource inputs) - converted to numbers only at
+ *  submission. */
+type ResourceDraft = { budgetHours: string; laborRate: string };
+
+/** The field's owner supplying the fix (#59, CONTEXT.md: "made on the
+ *  authorization where it stands"). Renders one control per field the
+ *  outstanding request named, using the same control each field's draft
+ *  entry uses (`DraftForm.tsx`) - a select for an enum, the department
+ *  picker for a department, a resource editor for `resources` - so a
+ *  corrector never sees a form that looks unlike the one that first
+ *  collected the value. */
+function CorrectionFulfillmentForm({
+  actingId,
+  authorization,
+  onCorrected,
+}: {
+  actingId: string;
+  authorization: Authorization;
+  onCorrected: (authorization: Authorization) => void;
+}) {
+  const request = authorization.correctionRequest!;
+  // Pre-filled with the authorization's current value for every named field
+  // but the three with their own dedicated state below - a corrector edits
+  // what is there rather than retyping it from memory, the same as
+  // `resourceRows` already does for `resources`. `authorization` has no
+  // index signature, so the lookup goes through an untyped view of it
+  // rather than a switch over every field name.
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    const raw = authorization as unknown as Record<string, unknown>;
+    for (const field of request.fields) {
+      if (field === "requestingDepartmentId" || field === "performingDepartmentId" || field === "resources") continue;
+      if (typeof raw[field] === "string") initial[field] = raw[field] as string;
+    }
+    return initial;
+  });
+  const [requestingDept, setRequestingDept] = useState<ResolvedDepartment | null>(null);
+  const [resourceRows, setResourceRows] = useState<ResourceDraft[]>(
+    authorization.resources.map((r) => ({ budgetHours: String(r.budgetHours), laborRate: String(r.laborRate) })),
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // The one field pre-filled asynchronously rather than from `authorization`
+  // directly: a department is shown by name, which means resolving its id
+  // first, the same round trip `DraftForm.tsx` already makes for its own two
+  // department pickers.
+  useEffect(() => {
+    if (!request.fields.includes("requestingDepartmentId")) return;
+    let cancelled = false;
+    void api.getDepartment(actingId, authorization.requestingDepartmentId).then((d) => {
+      if (!cancelled) setRequestingDept(d);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- request.fields
+    // is stable for the life of one outstanding correction, tied to the
+    // same authorization this already depends on.
+  }, [actingId, authorization.requestingDepartmentId]);
+
+  const setValue = (field: CorrectableFieldKey, value: string) => setValues((prev) => ({ ...prev, [field]: value }));
+
+  const addResourceRow = () => setResourceRows((prev) => [...prev, { budgetHours: "", laborRate: "" }]);
+  const removeResourceRow = (index: number) =>
+    setResourceRows((prev) => prev.filter((_, i) => i !== index));
+  const updateResourceRow = (index: number, patch: Partial<ResourceDraft>) =>
+    setResourceRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+
+  if (request.fields.includes("performingDepartmentId")) {
+    return (
+      <div className="correction-fulfillment-form" data-testid="correction-fulfillment-form">
+        <h4>Awaiting correction</h4>
+        <p className="field-guidance">
+          <strong>Comment:</strong> {request.comment}
+        </p>
+        <p role="alert" className="error" data-testid="performing-department-uncorrectable">
+          The performing department was named, but it cannot be corrected - it is fixed once the
+          authorization is initiated. Withdraw this authorization and raise a new one against the right
+          department.
+        </p>
+      </div>
+    );
+  }
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const fields: Record<string, unknown> = {};
+      for (const field of request.fields) {
+        if (field === "requestingDepartmentId") fields[field] = requestingDept?.id ?? null;
+        else if (field === "resources") {
+          fields[field] = resourceRows.map((row) => ({
+            budgetHours: Number(row.budgetHours),
+            laborRate: Number(row.laborRate),
+          }));
+        } else {
+          fields[field] = values[field]?.trim() === "" ? null : values[field];
+        }
+      }
+      const updated = await api.correct(actingId, authorization.id, fields);
+      onCorrected(updated);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="correction-fulfillment-form" data-testid="correction-fulfillment-form">
+      <h4>Awaiting correction</h4>
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
+      <p className="field-guidance">
+        <strong>Comment:</strong> {request.comment}
+      </p>
+
+      {request.fields.map((field) => {
+        if (field === "requestingDepartmentId") {
+          return (
+            <DepartmentPicker
+              key={field}
+              testId="correction-requesting-department"
+              label={FIELD_LABELS[field]}
+              actingId={actingId}
+              selected={requestingDept}
+              onSelect={setRequestingDept}
+            />
+          );
+        }
+        if (field === "fundingType") {
+          return (
+            <div key={field}>
+              <label htmlFor={`correction-field-value-${field}`}>{FIELD_LABELS[field]}</label>
+              <select
+                id={`correction-field-value-${field}`}
+                value={values[field] ?? ""}
+                onChange={(e) => setValue(field, e.target.value)}
+                data-testid={`correction-field-value-${field}`}
+              >
+                <option value="">Not yet chosen</option>
+                {FUNDING_TYPE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {FUNDING_TYPE_LABELS[value as FundingType]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        }
+        if (field === "requestingLocationType" || field === "performingLocationType") {
+          return (
+            <div key={field}>
+              <label htmlFor={`correction-field-value-${field}`}>{FIELD_LABELS[field]}</label>
+              <select
+                id={`correction-field-value-${field}`}
+                value={values[field] ?? ""}
+                onChange={(e) => setValue(field, e.target.value)}
+                data-testid={`correction-field-value-${field}`}
+              >
+                <option value="">Not yet chosen</option>
+                {LOCATION_TYPE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {LOCATION_TYPE_LABELS[value as LocationType]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        }
+        if (field === "resources") {
+          return (
+            <section key={field} aria-labelledby="correction-resources-heading" data-testid="correction-resources">
+              <h5 id="correction-resources-heading">{FIELD_LABELS[field]}</h5>
+              {resourceRows.map((row, index) => (
+                <div key={index} className="correction-resource-row" data-testid="correction-resource-row">
+                  <label htmlFor={`correction-resource-hours-${index}`}>Budget hours</label>
+                  <input
+                    id={`correction-resource-hours-${index}`}
+                    type="number"
+                    min="0"
+                    value={row.budgetHours}
+                    onChange={(e) => updateResourceRow(index, { budgetHours: e.target.value })}
+                  />
+                  <label htmlFor={`correction-resource-rate-${index}`}>Labor rate</label>
+                  <input
+                    id={`correction-resource-rate-${index}`}
+                    type="number"
+                    min="0"
+                    value={row.laborRate}
+                    onChange={(e) => updateResourceRow(index, { laborRate: e.target.value })}
+                  />
+                  <button type="button" onClick={() => removeResourceRow(index)}>
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={addResourceRow}>
+                Add resource
+              </button>
+            </section>
+          );
+        }
+        // Every remaining correctable field is free text: project, the four
+        // named approvers, the performing-side contact, and the employee
+        // performing the work - the same control each uses on the draft or
+        // the contribution form.
+        return (
+          <div key={field}>
+            <label htmlFor={`correction-field-value-${field}`}>{FIELD_LABELS[field]}</label>
+            <input
+              id={`correction-field-value-${field}`}
+              type="text"
+              value={values[field] ?? ""}
+              onChange={(e) => setValue(field, e.target.value)}
+              data-testid={`correction-field-value-${field}`}
+            />
+          </div>
+        );
+      })}
+
+      <button type="button" onClick={() => void submit()} disabled={busy} data-testid="submit-correction">
+        {busy ? "Submitting…" : "Submit correction"}
+      </button>
     </div>
   );
 }
@@ -198,7 +580,14 @@ function OpenAuthorization({
       </section>
 
       <div className="queue-item-actions">
-        {isContribution ? (
+        {authorization.awaitingCorrection ? (
+          // Awaiting correction (#59): whoever opened this from their queue
+          // is, by construction, the correction's owner - `listMyQueue`
+          // never shows it to anyone else - so the fulfillment form is the
+          // whole of this branch, with no acknowledge, claim or contribute
+          // control beside it to compete for attention.
+          <CorrectionFulfillmentForm actingId={actingId} authorization={authorization} onCorrected={onResolved} />
+        ) : isContribution ? (
           authorization.performingContributorId === null ? (
             <button type="button" onClick={() => void claim()} disabled={busy} data-testid="claim">
               {busy ? "Claiming…" : "Claim"}
@@ -228,9 +617,12 @@ function OpenAuthorization({
             </p>
           )
         ) : (
-          <button type="button" onClick={() => void acknowledge()} disabled={busy} data-testid="acknowledge">
-            {busy ? "Acknowledging…" : "Acknowledge"}
-          </button>
+          <>
+            <button type="button" onClick={() => void acknowledge()} disabled={busy} data-testid="acknowledge">
+              {busy ? "Acknowledging…" : "Acknowledge"}
+            </button>
+            <RequestCorrectionForm actingId={actingId} authorization={authorization} onRequested={onResolved} />
+          </>
         )}
         <button type="button" onClick={onClose} disabled={busy}>
           Close
@@ -318,6 +710,9 @@ export function MyQueue({ actingId }: MyQueueProps) {
                     {authorization.performingContributorId === null ? "Unclaimed" : "Claimed"}
                   </span>
                 )}
+                {authorization.awaitingCorrection && (
+                  <span data-testid="awaiting-correction">Awaiting your correction</span>
+                )}
                 <button type="button" onClick={() => setOpenId(authorization.id)}>
                   Open
                 </button>
@@ -328,7 +723,14 @@ export function MyQueue({ actingId }: MyQueueProps) {
       </ul>
 
       {open && (
+        // Keyed by id so switching the open row directly - clicking another
+        // "Open" without Close first - remounts rather than reuses this
+        // instance. Without it, `OpenAuthorization`'s own state (the
+        // employee-name input, and #59's correction form fields) would carry
+        // the previous authorization's half-typed values into whatever gets
+        // opened next.
         <OpenAuthorization
+          key={open.id}
           actingId={actingId}
           authorization={open}
           onResolved={onResolved}
