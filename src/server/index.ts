@@ -173,6 +173,8 @@ const AUTHORIZATION_PATH = /^\/api\/authorizations\/([^/]+)$/;
 const AUTHORIZATION_ACKNOWLEDGE_PATH = /^\/api\/authorizations\/([^/]+)\/acknowledge$/;
 const AUTHORIZATION_CLAIM_PATH = /^\/api\/authorizations\/([^/]+)\/claim$/;
 const AUTHORIZATION_CONTRIBUTE_PATH = /^\/api\/authorizations\/([^/]+)\/contribute$/;
+const AUTHORIZATION_MINT_PATH = /^\/api\/authorizations\/([^/]+)\/mint$/;
+const AUTHORIZATION_CLASSIFICATION_PATH = /^\/api\/authorizations\/([^/]+)\/classification$/;
 const AUTHORIZATION_REQUEST_CORRECTION_PATH = /^\/api\/authorizations\/([^/]+)\/request-correction$/;
 const AUTHORIZATION_CORRECT_PATH = /^\/api\/authorizations\/([^/]+)\/correct$/;
 const PERMISSIBILITY_RULE_PATH = /^\/api\/permissibility-rules\/([^/]+)$/;
@@ -232,6 +234,23 @@ export function createHttpServer(service: Service) {
         const ctx = actingParticipant(req);
         const body = await readJsonBody(req);
         return sendJson(res, 200, service.contribute(ctx, decodeURIComponent(contributeMatch[1]), body));
+      }
+
+      const mintMatch = method === "POST" ? AUTHORIZATION_MINT_PATH.exec(pathname) : null;
+      if (mintMatch?.[1]) {
+        const ctx = actingParticipant(req);
+        const body = await readJsonBody(req);
+        return sendJson(res, 200, service.mintChargeNumber(ctx, decodeURIComponent(mintMatch[1]), body));
+      }
+
+      const classificationMatch = method === "GET" ? AUTHORIZATION_CLASSIFICATION_PATH.exec(pathname) : null;
+      if (classificationMatch?.[1]) {
+        const ctx = actingParticipant(req);
+        return sendJson(
+          res,
+          200,
+          service.getClassification(ctx, decodeURIComponent(classificationMatch[1])),
+        );
       }
 
       const requestCorrectionMatch = method === "POST" ? AUTHORIZATION_REQUEST_CORRECTION_PATH.exec(pathname) : null;
