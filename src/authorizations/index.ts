@@ -2,7 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import type { DraftFieldKey, StageId } from "../guidance/content.ts";
 import { RELAY_CONFIG, isGateStage } from "../relay/config.ts";
-import type { GateStage } from "../relay/config.ts";
+import type { GateStage, RelayStage } from "../relay/config.ts";
 import type { Resource } from "../drafts/index.ts";
 import type { FundingType, LocationType } from "../shared/constants.ts";
 import { SYSTEM_PARTICIPANT_ID } from "../shared/constants.ts";
@@ -61,6 +61,14 @@ export type CorrectionRequest = {
 };
 
 /**
+ * Which of the two things moved beneath an approver who already acted (#60,
+ * ADR-0004, ADR-0005, CONTEXT.md: "Re-review"): the relay's *configuration*,
+ * or the *data* a correction changed. Both share one mechanism and differ
+ * only in this - the approver is told which.
+ */
+export type ReReviewCause = "correction" | "configuration-change";
+
+/**
  * One stage's three timestamps (#55, BDR-0006, ADR-0004) - arrived, notified,
  * resolved, and no fourth. `resolvedAt` is null while the stage is still the
  * one an authorization sits at; every earlier stage in `stageHistory` always
@@ -71,6 +79,11 @@ export type StageVisit = {
   arrivedAt: string;
   notifiedAt: string;
   resolvedAt: string | null;
+  /** Set when this visit re-entered a stage the authorization already
+   *  passed (#60) rather than arriving fresh - which of the two causes
+   *  applied. `undefined` for a plain arrival, the relay's first stage
+   *  included. */
+  reReviewCause?: ReReviewCause;
 };
 
 /** A department's three levels, trimmed to id and name (ADR-0007) - what a
@@ -126,6 +139,14 @@ export type Authorization = AuthorizationFields & {
   /** The outstanding correction request, while `awaitingCorrection` is
    *  true; `null` the instant a correction resolves it. */
   correctionRequest: CorrectionRequest | null;
+  /** Whether the stage `currentStageId` names was re-entered rather than
+   *  freshly arrived at (#60, CONTEXT.md: "Re-review") - folded from
+   *  whether its visit carries a `reReviewCause`, the same way
+   *  `awaitingCorrection` folds from the correction state. */
+  isReReview: boolean;
+  /** Which of the two causes re-entered the current stage, while
+   *  `isReReview` is true; `null` otherwise. */
+  reReviewCause: ReReviewCause | null;
   /** The charge number the Charge Number Admin minted (CONTEXT.md: "Charge
    *  number"), `null` until minting. Its existence is what completion means
    *  (BDR-0003: "the authorization completes because a charge number
@@ -151,6 +172,14 @@ type TransitionRow = {
 
 type InitiationPayload = { fields: AuthorizationFields };
 type StagePayload = { stageId: StageId };
+type ReReviewPayload = { stageId: StageId; cause: ReReviewCause };
+/** A relay-configuration edit's own marker (#60, ADR-0004, ADR-0005), holding
+ *  every stage id it touched - the counterpart to a correction's own
+ *  `fields`, which already serves this same purpose for that cause without
+ *  a separate row (`CorrectionPayload` below). Read by `reReviewCauseSince`
+ *  whenever forward progression reaches an already-passed stage, however
+ *  many calls later that turns out to be. */
+type ConfigurationChangePayload = { changedStageIds: StageId[] };
 type ContributionPayload = { stageId: StageId; performingEmployee: string };
 type CorrectionRequestPayload = { stageId: StageId; fields: CorrectableFieldKey[]; comment: string };
 /** `performingEmployee` sits outside `AuthorizationFields` (it is not a
@@ -210,32 +239,48 @@ const RESOLVING_KINDS = new Set(["acknowledgement", "contribution", "gate-skip",
  * moment the one before it resolves (`appendAcknowledgementTransition`
  * below), immediately followed by a `notification` transition - the system
  * notifies on arrival, so the two are recorded back to back rather than
- * carrying a fabricated delay between them.
+ * carrying a fabricated delay between them. A `re-review` transition (#60)
+ * is a third way a visit begins - the same single-row shorthand the first
+ * stage's own visit already uses, since there is nothing a separate
+ * notification would add.
+ *
+ * Held as an array pushed to in log order, not a map keyed by stage id -
+ * re-review means a stage can appear more than once (ADR-0005: "only the
+ * latest occurrence is live"), so `notification` and a resolving transition
+ * are matched against whichever visit is last, which is always the one they
+ * were appended immediately after.
  */
 function foldStageHistory(transitions: TransitionRow[], initiation: TransitionRow): StageVisit[] {
   const first = RELAY_CONFIG[0]!.id;
-  const order: StageId[] = [first];
-  const byStage = new Map<StageId, StageVisit>([
-    [first, { stageId: first, arrivedAt: initiation.occurred_at, notifiedAt: initiation.occurred_at, resolvedAt: null }],
-  ]);
+  const visits: StageVisit[] = [
+    { stageId: first, arrivedAt: initiation.occurred_at, notifiedAt: initiation.occurred_at, resolvedAt: null },
+  ];
 
   for (const row of transitions) {
     if (row.kind === "arrival") {
       const { stageId } = JSON.parse(row.payload) as StagePayload;
-      order.push(stageId);
-      byStage.set(stageId, { stageId, arrivedAt: row.occurred_at, notifiedAt: row.occurred_at, resolvedAt: null });
+      visits.push({ stageId, arrivedAt: row.occurred_at, notifiedAt: row.occurred_at, resolvedAt: null });
+    } else if (row.kind === "re-review") {
+      const { stageId, cause } = JSON.parse(row.payload) as ReReviewPayload;
+      visits.push({
+        stageId,
+        arrivedAt: row.occurred_at,
+        notifiedAt: row.occurred_at,
+        resolvedAt: null,
+        reReviewCause: cause,
+      });
     } else if (row.kind === "notification") {
       const { stageId } = JSON.parse(row.payload) as StagePayload;
-      const visit = byStage.get(stageId);
-      if (visit) visit.notifiedAt = row.occurred_at;
+      const visit = visits[visits.length - 1];
+      if (visit && visit.stageId === stageId) visit.notifiedAt = row.occurred_at;
     } else if (RESOLVING_KINDS.has(row.kind)) {
       const { stageId } = JSON.parse(row.payload) as StagePayload;
-      const visit = byStage.get(stageId);
-      if (visit) visit.resolvedAt = row.occurred_at;
+      const visit = visits[visits.length - 1];
+      if (visit && visit.stageId === stageId) visit.resolvedAt = row.occurred_at;
     }
   }
 
-  return order.map((stageId) => byStage.get(stageId)!);
+  return visits;
 }
 
 /**
@@ -293,11 +338,13 @@ function foldAuthorization(authorizationId: string, transitions: TransitionRow[]
   const completion = transitions.find((row) => row.kind === "completion");
   const completionPayload = completion ? (JSON.parse(completion.payload) as CompletionPayload) : null;
 
+  const currentVisit = stageHistory[stageHistory.length - 1]!;
+
   return {
     id: authorizationId,
     submitterId: initiation.actor_id,
     initiatedAt: initiation.occurred_at,
-    currentStageId: stageHistory[stageHistory.length - 1]!.stageId,
+    currentStageId: currentVisit.stageId,
     stageHistory,
     performingContributorId: claim ? claim.actor_id : null,
     performingEmployee:
@@ -305,6 +352,8 @@ function foldAuthorization(authorizationId: string, transitions: TransitionRow[]
       (contribution ? (JSON.parse(contribution.payload) as ContributionPayload).performingEmployee : null),
     awaitingCorrection: outstanding !== null,
     correctionRequest: outstanding,
+    isReReview: currentVisit.reReviewCause !== undefined,
+    reReviewCause: currentVisit.reReviewCause ?? null,
     chargeNumber: completionPayload ? completionPayload.chargeNumber : null,
     classification: completionPayload ? completionPayload.classification : null,
     ...fields,
@@ -413,15 +462,85 @@ function appendGateSkipTransition(
   ).run(`transition-${randomUUID()}`, authorizationId, SYSTEM_PARTICIPANT_ID, occurredAt, JSON.stringify(payload));
 }
 
+/** The transition that most recently resolved `stageId` - an
+ *  acknowledgement, a contribution, a gate skip or a completion
+ *  (`RESOLVING_KINDS`) - or `null` if nothing ever has. Carries `kind`
+ *  alongside `seq` because `arriveAndSkipGates` below needs to tell a gate
+ *  the system skipped, with no human ever involved, apart from a stage a
+ *  human actually resolved (CONTEXT.md's "Re-review": "an authorization
+ *  returning to an approver who already acted on it" - a gate nobody ever
+ *  saw does not qualify). `seq` is what `reReviewCauseSince` needs an
+ *  unambiguous "since" to compare later rows against. */
+function lastResolutionFor(transitions: TransitionRow[], stageId: StageId): { seq: number; kind: string } | null {
+  let resolution: { seq: number; kind: string } | null = null;
+  for (const row of transitions) {
+    if (RESOLVING_KINDS.has(row.kind)) {
+      const { stageId: rowStage } = JSON.parse(row.payload) as StagePayload;
+      if (rowStage === stageId) resolution = { seq: row.seq, kind: row.kind };
+    }
+  }
+  return resolution;
+}
+
+/** Whether anything recorded after `sinceSeq` - `stage`'s last resolution -
+ *  reaches `stage` again: a correction changing one of its declared
+ *  dependencies, or a configuration change naming it directly (#60,
+ *  ADR-0005: "one mechanism," two causes). `null` when nothing since has,
+ *  which is the ordinary case for every stage a correction or
+ *  configuration change does not concern. */
+function reReviewCauseSince(transitions: TransitionRow[], stage: RelayStage, sinceSeq: number): ReReviewCause | null {
+  for (const row of transitions) {
+    if (row.seq <= sinceSeq) continue;
+    if (row.kind === "correction") {
+      const { fields } = JSON.parse(row.payload) as CorrectionPayload;
+      if (stage.fieldDependencies.some((field) => field in fields)) return "correction";
+    } else if (row.kind === "configuration-change") {
+      const { changedStageIds } = JSON.parse(row.payload) as ConfigurationChangePayload;
+      if (changedStageIds.includes(stage.id)) return "configuration-change";
+    }
+  }
+  return null;
+}
+
 /**
- * Arrives an authorization at `stageId`, then, if that stage is a gate whose
- * condition does not hold, resolves it immediately with a gate-skip and
- * arrives at whatever comes next - recursively, since a company-funded,
- * same-country authorization skips both gates in the same step and there is
- * nothing for a queue to ever show it at. This is the one place this module
- * reads a gate's `condition` rather than only `RELAY_CONFIG`'s ordering
- * (`nextStageId` above), because evaluating a gate is what arriving at one
- * means.
+ * Arrives an authorization at `stageId` and moves it forward from there -
+ * recursively, since a company-funded, same-country authorization skips
+ * both gates in the same step and there is nothing for a queue to ever show
+ * it at, and since a correction or configuration change (#60) can reach
+ * several already-passed stages in one call, or none. Checked fresh against
+ * the authorization's live position on every step rather than a value fixed
+ * once at the top of the walk, because that position can itself move
+ * mid-walk: a re-review a few stages back may resolve itself immediately
+ * (a gate whose condition no longer holds, `appendGateSkipTransition`
+ * below), which makes wherever it auto-skips *to* the new live position
+ * before this function ever reaches it. Four things can be true of
+ * `stageId` when it is reached:
+ *
+ * - **Already the live position**: forward progression has walked all the
+ *   way back to exactly where the authorization already sits, and every
+ *   stage along the way was left untouched - the "disturbs nobody" case
+ *   (ADR-0005) - so there is nothing to do.
+ * - **Never resolved, and not the live position**: an already-arrived stage
+ *   a re-progression has walked forward to pick back up after auto-passing
+ *   everything unaffected in between (#60: "re-progresses it forward") -
+ *   the first case above already ruled out this being a no-op, so it is
+ *   recorded as a fresh arrival the same way a genuinely first-time one is,
+ *   and a gate's condition is checked the same way it always was.
+ * - **Resolved, and untouched since**: its earlier resolution stands -
+ *   nothing is appended, and progression moves straight on to whatever
+ *   comes next, silently.
+ * - **Resolved, but reached again since** by a correction's changed fields
+ *   or a configuration change's named stages (`reReviewCauseSince`):
+ *   re-entered as a re-review carrying which cause applied, and a gate
+ *   among these still has its condition re-evaluated, since that condition
+ *   is defined entirely in terms of the same declared dependencies that
+ *   made it a target - unless that gate's one prior resolution was the
+ *   system skipping it (`lastResolutionFor`'s `kind`) and its condition now
+ *   holds: nobody ever acted on it, so this is recorded as a fresh arrival
+ *   rather than a re-review (CONTEXT.md: re-review is "an authorization
+ *   returning to an approver who already acted on it"). Either way,
+ *   progression moves on to whichever target comes next if the gate still
+ *   does not run.
  */
 function arriveAndSkipGates(
   db: DatabaseSync,
@@ -430,8 +549,33 @@ function arriveAndSkipGates(
   stageId: StageId,
   occurredAt: string,
 ): void {
-  appendStageArrival(db, authorizationId, stageId, occurredAt);
+  if (findAuthorization(db, authorizationId)!.currentStageId === stageId) return;
+
+  const transitions = readTransitions(db, authorizationId);
   const stage = RELAY_CONFIG.find((s) => s.id === stageId)!;
+  const lastResolution = lastResolutionFor(transitions, stageId);
+
+  if (lastResolution !== null) {
+    const cause = reReviewCauseSince(transitions, stage, lastResolution.seq);
+    if (cause === null) {
+      const next = nextStageId(stageId);
+      if (next !== stageId) arriveAndSkipGates(db, authorizationId, fields, next, occurredAt);
+      return;
+    }
+    const skippedBySystemAndNowRunsForAHuman =
+      lastResolution.kind === "gate-skip" && isGateStage(stage) && stage.condition(fields);
+    if (skippedBySystemAndNowRunsForAHuman) {
+      // The system skipped this gate last time - no human ever saw it, so
+      // it flipping to run is a genuinely first arrival, not a return to
+      // something an approver already acted on (CONTEXT.md's "Re-review").
+      appendStageArrival(db, authorizationId, stageId, occurredAt);
+    } else {
+      appendReReviewTransition(db, authorizationId, stageId, cause, occurredAt);
+    }
+  } else {
+    appendStageArrival(db, authorizationId, stageId, occurredAt);
+  }
+
   if (isGateStage(stage) && !stage.condition(fields)) {
     appendGateSkipTransition(db, authorizationId, stage, fields, occurredAt);
     const next = nextStageId(stageId);
@@ -476,7 +620,13 @@ export function appendAcknowledgementTransition(
     const upcoming = nextStageId(stageId);
     if (upcoming !== stageId) {
       arriveAndSkipGates(db, input.authorizationId, before, upcoming, input.occurredAt);
-      if (upcoming === PERFORMING_DEPARTMENT_STAGE_ID && before.performingContact) {
+      // Read back where this landed rather than trusting `upcoming` (#60):
+      // a re-review can silently auto-pass straight through
+      // performing-department when it was already resolved and this
+      // acknowledgement's own re-progression never actually stops there, and
+      // the contact should not be told about an arrival that never happened.
+      const landedAt = findAuthorization(db, input.authorizationId)!.currentStageId;
+      if (landedAt === PERFORMING_DEPARTMENT_STAGE_ID && before.performingContact) {
         appendContactNotification(db, input.authorizationId, before.performingContact, input.occurredAt);
       }
     }
@@ -612,15 +762,41 @@ export function appendCorrectionRequestTransition(
   return findAuthorization(db, input.authorizationId)!;
 }
 
+/** An authorization returning to a stage it already resolved (#60, ADR-0004,
+ *  ADR-0005) - one row, the same single-timestamp shorthand `foldStageHistory`
+ *  gives the relay's first stage: there is nothing a separate notification
+ *  would add that the arrival itself does not already say. `system` is the
+ *  actor, the same as a gate skip - nobody decided this, either the
+ *  correction or the configuration did. */
+function appendReReviewTransition(
+  db: DatabaseSync,
+  authorizationId: string,
+  stageId: StageId,
+  cause: ReReviewCause,
+  occurredAt: string,
+): void {
+  const payload: ReReviewPayload = { stageId, cause };
+  db.prepare(
+    `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+     VALUES (?, ?, 're-review', ?, ?, ?)`,
+  ).run(`transition-${randomUUID()}`, authorizationId, SYSTEM_PARTICIPANT_ID, occurredAt, JSON.stringify(payload));
+}
+
 /**
  * The field's owner supplying the fix (#59, CONTEXT.md: "made on the
  * authorization where it stands - nothing is resubmitted and nothing
  * leaves the relay"). Resolves the outstanding correction request the
  * instant it is appended - `foldCorrectionState` reads "the last of either
  * kind" - so the approver who raised it resumes at exactly the stage they
- * left it, with no further transition needed to get there. The service
- * checks who may supply which fields (`correctionOwner` below) before this
- * is reached.
+ * left it, with no further transition needed to get there, unless the
+ * correction reaches a passed stage's declared dependencies (#60,
+ * ADR-0005). Re-walking the relay from its first stage after appending the
+ * correction is what finds that out: `arriveAndSkipGates` silently passes
+ * through everything the correction leaves untouched, including every
+ * already-resolved stage all the way up to wherever the authorization
+ * already sits, so a correction that intersects nothing genuinely appends
+ * nothing beyond itself. The service checks who may supply which fields
+ * (`correctionOwner` below) before this is reached.
  */
 export function appendCorrectionTransition(
   db: DatabaseSync,
@@ -632,11 +808,67 @@ export function appendCorrectionTransition(
     fields: Partial<AuthorizationFields> & { performingEmployee?: string };
   },
 ): Authorization {
-  const payload: CorrectionPayload = { stageId: input.stageId, fields: input.fields };
-  db.prepare(
-    `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
-     VALUES (?, ?, 'correction', ?, ?, ?)`,
-  ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt, JSON.stringify(payload));
+  db.exec("BEGIN");
+  try {
+    const payload: CorrectionPayload = { stageId: input.stageId, fields: input.fields };
+    db.prepare(
+      `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+       VALUES (?, ?, 'correction', ?, ?, ?)`,
+    ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt, JSON.stringify(payload));
+
+    const after = findAuthorization(db, input.authorizationId)!;
+    arriveAndSkipGates(db, input.authorizationId, after, RELAY_CONFIG[0]!.id, input.occurredAt);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+
+  return findAuthorization(db, input.authorizationId)!;
+}
+
+/**
+ * A relay-configuration edit reaching stages an authorization has already
+ * passed (#60, ADR-0004, ADR-0005's second cause: the rules changing
+ * beneath an authorization rather than the data). Shares
+ * `arriveAndSkipGates` with a correction's own routing - ADR-0005: "one
+ * mechanism" - via the same marker-and-replay shape a correction already
+ * has for free (`CorrectionPayload.fields` is that marker there;
+ * `ConfigurationChangePayload` above is this cause's counterpart). There is
+ * deliberately no live editor for this - a configuration edit is a code
+ * change and a redeploy, not a runtime action - so this is the seam a
+ * migration would call, and what a seeded test scenario exercises
+ * directly, bypassing the service the way no other transition in this
+ * module needs to.
+ */
+export function appendConfigurationChangeReReviewTransition(
+  db: DatabaseSync,
+  input: { authorizationId: string; occurredAt: string; changedStageIds: readonly StageId[] },
+): Authorization {
+  const before = findAuthorization(db, input.authorizationId);
+  if (!before) throw new Error(`No authorization with id "${input.authorizationId}".`);
+
+  db.exec("BEGIN");
+  try {
+    const payload: ConfigurationChangePayload = { changedStageIds: [...input.changedStageIds] };
+    db.prepare(
+      `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+       VALUES (?, ?, 'configuration-change', ?, ?, ?)`,
+    ).run(
+      `transition-${randomUUID()}`,
+      input.authorizationId,
+      SYSTEM_PARTICIPANT_ID,
+      input.occurredAt,
+      JSON.stringify(payload),
+    );
+
+    arriveAndSkipGates(db, input.authorizationId, before, RELAY_CONFIG[0]!.id, input.occurredAt);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+
   return findAuthorization(db, input.authorizationId)!;
 }
 

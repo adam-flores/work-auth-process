@@ -586,6 +586,19 @@ function OpenAuthorization({
       <DepartmentAttributes label="Requesting department" department={requesting} />
       <DepartmentAttributes label="Performing department" department={performing} />
 
+      {authorization.isReReview && (
+        // Re-review (#60, CONTEXT.md): this approver already acted on this
+        // stage once. Told which of the two things moved beneath them - the
+        // rules or the request - so a fresh arrival is never confused with
+        // one.
+        <p role="status" data-testid="re-review-notice">
+          You already acted on this stage.{" "}
+          {authorization.reReviewCause === "configuration-change"
+            ? "The relay's configuration changed since then."
+            : "A correction changed a field this stage depends on."}
+        </p>
+      )}
+
       <section aria-labelledby="queue-item-stage-heading" data-testid="queue-item-stage">
         <h4 id="queue-item-stage-heading">This stage's criteria</h4>
         <p>
@@ -745,6 +758,14 @@ export function MyQueue({ actingId }: MyQueueProps) {
                 )}
                 {authorization.awaitingCorrection && (
                   <span data-testid="awaiting-correction">Awaiting your correction</span>
+                )}
+                {authorization.isReReview && (
+                  <span data-testid="re-review">
+                    Re-review
+                    {authorization.reReviewCause === "configuration-change"
+                      ? " (the rules changed)"
+                      : " (a correction changed this)"}
+                  </span>
                 )}
                 <button type="button" onClick={() => setOpenId(authorization.id)}>
                   Open
