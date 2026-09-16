@@ -28,11 +28,8 @@ import type { DraftFieldValues } from "../drafts/index.ts";
  * authorization itself for these. The two gates are centralized compliance
  * functions tied to neither side, and this did turn out to matter once
  * queues were built: resolved as a fixed department of its own per gate
- * ("Contracts", "Global Trade"), seeded like any other Approver's rather than
- * drawn from the org hierarchy. Not yet wired up - #57 builds the two gates
- * and is where that seeding belongs - so `queues/index.ts` throws on a
- * "neutral" stage today rather than guessing at a department that does not
- * exist yet.
+ * (`GateStage.department`, "Contracts", "Global Trade"), seeded like any
+ * other Approver's rather than drawn from the org hierarchy (#57).
  */
 export type StageSide = "requesting" | "performing" | "neutral";
 
@@ -67,6 +64,12 @@ export type GateStage = StageCommon & {
    *  field values. `false` means the gate is skipped - an explicit
    *  transition kind (ADR-0004), not silently absent from the log. */
   readonly condition: (fields: DraftFieldValues) => boolean;
+  /** The fixed department a gate's queue routes to when it runs (#57) - a
+   *  centralized compliance function tied to neither side, seeded like any
+   *  other Approver's department (`config/participants.json`) rather than
+   *  read off the authorization the way `side` is for the four mandatory
+   *  approvals. */
+  readonly department: string;
 };
 
 export type RelayStage = ApprovalStage | ContributionStage | GateStage;
@@ -92,8 +95,17 @@ function gate(
   side: StageSide,
   fieldDependencies: readonly DraftFieldKey[],
   condition: (fields: DraftFieldValues) => boolean,
+  department: string,
 ): GateStage {
-  return { id, side, kind: "gate", concern: STAGE_CRITERIA[id].concern, fieldDependencies, condition };
+  return {
+    id,
+    side,
+    kind: "gate",
+    concern: STAGE_CRITERIA[id].concern,
+    fieldDependencies,
+    condition,
+    department,
+  };
 }
 
 /**
@@ -125,6 +137,7 @@ export const RELAY_CONFIG: readonly RelayStage[] = [
     // CONTEXT.md: company-funded work has no customer contract, so the gate
     // is skipped; the other three funding types all reach it.
     (fields) => fields.fundingType !== null && fields.fundingType !== "company-funded",
+    "Contracts",
   ),
   gate(
     "global-trade",
@@ -135,6 +148,7 @@ export const RELAY_CONFIG: readonly RelayStage[] = [
       fields.requestingLocationType !== null &&
       fields.performingLocationType !== null &&
       fields.requestingLocationType !== fields.performingLocationType,
+    "Global Trade",
   ),
 ];
 

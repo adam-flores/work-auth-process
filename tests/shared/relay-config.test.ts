@@ -67,6 +67,15 @@ describe("the relay configuration", () => {
     }
   });
 
+  test("every gate carries its own fixed queue department, distinct from the other's (#57)", () => {
+    const contracts = RELAY_CONFIG.find((s) => s.id === "contracts")!;
+    const globalTrade = RELAY_CONFIG.find((s) => s.id === "global-trade")!;
+    assert.ok(isGateStage(contracts));
+    assert.ok(isGateStage(globalTrade));
+    assert.equal(contracts.department, "Contracts");
+    assert.equal(globalTrade.department, "Global Trade");
+  });
+
   test("the requesting finance approver's sign-off declares no dependencies (ADR-0005)", () => {
     const stage = RELAY_CONFIG.find((s) => s.id === "requesting-finance")!;
     assert.deepEqual(stage.fieldDependencies, []);

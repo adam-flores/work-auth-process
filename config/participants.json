@@ -1,5 +1,5 @@
 {
-  "readMeFirst": "Mocked identities for the prototype. Every participant in this system is mocked (the wayfinder map rules authentication out of scope), and this file is the roster the store is seeded from. Names are invented; departments are taken from the synthetic hierarchy in docs/reference/organization-hierarchy.json so the two fixtures agree. The four roles are the cast in CONTEXT.md - Submitter is deliberately absent, because it is a relationship to one authorization rather than a role somebody holds.",
+  "readMeFirst": "Mocked identities for the prototype. Every participant in this system is mocked (the wayfinder map rules authentication out of scope), and this file is the roster the store is seeded from. Names are invented; departments are taken from the synthetic hierarchy in docs/reference/organization-hierarchy.json so the two fixtures agree, except for the two gates' Approvers - Contracts and Global Trade are centralized compliance functions tied to neither side (relay/config.ts), not departments in the org hierarchy, so their names are fixed rather than drawn from the fixture. The four roles are the cast in CONTEXT.md - Submitter is deliberately absent, because it is a relationship to one authorization rather than a role somebody holds.",
   "participants": [
     { "id": "p-avery-lund",     "name": "Avery Lund",     "role": "Contributor",        "department": "Heat Exchange Products" },
     { "id": "p-rosa-imbert",    "name": "Rosa Imbert",    "role": "Contributor",        "department": "Thermal Coatings" },
@@ -10,6 +10,8 @@
     { "id": "p-mira-devane",    "name": "Mira Devane",    "role": "Approver",           "department": "Rotor Hubs" },
     { "id": "p-tomas-eiriksen", "name": "Tomas Eiriksen", "role": "Approver",           "department": "Rotor Hubs" },
     { "id": "p-jun-abernathy",  "name": "Jun Abernathy",  "role": "Approver",           "department": "Thermal Cycling Lab" },
+    { "id": "p-farah-quintela", "name": "Farah Quintela", "role": "Approver",           "department": "Contracts" },
+    { "id": "p-oskar-lindqvist","name": "Oskar Lindqvist","role": "Approver",           "department": "Global Trade" },
     { "id": "p-sadie-okonkwo",  "name": "Sadie Okonkwo",  "role": "Charge Number Admin", "department": "Northline Service Center" },
     { "id": "p-erez-caldwell",  "name": "Erez Caldwell",  "role": "Administrator",      "department": "Vibration Lab" }
   ]
