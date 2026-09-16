@@ -73,6 +73,33 @@ export type StageVisit = {
   resolvedAt: string | null;
 };
 
+/** A department's three levels, trimmed to id and name (ADR-0007) - what a
+ *  terminal transition freezes onto the record and what a live read derives
+ *  from `resolveDepartment` on the fly. Structurally compatible with
+ *  `ResolvedDepartment` (`hierarchy/index.ts`) without importing it: this
+ *  module stays free of the hierarchy the way it always has, and takes an
+ *  already-resolved department in rather than resolving one itself. */
+export type FrozenClassification = {
+  department: { id: string; name: string };
+  division: { id: string; name: string };
+  legalEntity: { id: string; name: string };
+};
+
+/** The three resolved levels for both sides, in the shape a terminal
+ *  transition freezes and a live read derives (ADR-0007). */
+export function classificationOf(department: {
+  id: string;
+  name: string;
+  division: { id: string; name: string };
+  legalEntity: { id: string; name: string };
+}): FrozenClassification {
+  return {
+    department: { id: department.id, name: department.name },
+    division: { id: department.division.id, name: department.division.name },
+    legalEntity: { id: department.legalEntity.id, name: department.legalEntity.name },
+  };
+}
+
 export type Authorization = AuthorizationFields & {
   id: string;
   submitterId: string;
@@ -99,6 +126,17 @@ export type Authorization = AuthorizationFields & {
   /** The outstanding correction request, while `awaitingCorrection` is
    *  true; `null` the instant a correction resolves it. */
   correctionRequest: CorrectionRequest | null;
+  /** The charge number the Charge Number Admin minted (CONTEXT.md: "Charge
+   *  number"), `null` until minting. Its existence is what completion means
+   *  (BDR-0003: "the authorization completes because a charge number
+   *  exists, not because a final judgement was rendered") - there is no
+   *  separate stored state for completion to drift from this. */
+  chargeNumber: string | null;
+  /** The three resolved levels for each side, frozen at the instant of
+   *  minting (ADR-0007) - `null` while the authorization is still live, at
+   *  which point a caller resolves classification from the hierarchy
+   *  instead (`resolveDepartment`) and never reads this. */
+  classification: { requesting: FrozenClassification; performing: FrozenClassification } | null;
 };
 
 type TransitionRow = {
@@ -127,6 +165,15 @@ type CorrectionPayload = {
  *  Contracts or Global Trade's fields here, so a relay-configuration edit to
  *  what a gate reads (BDR-0014) is the whole of the change this needs. */
 type GateSkipPayload = { stageId: StageId; fields: Partial<AuthorizationFields> };
+/** The Charge Number Admin minting a charge number (#58): the terminal
+ *  transition ADR-0007 requires to carry the three resolved levels for each
+ *  side, frozen at this instant rather than left to be re-derived from a
+ *  hierarchy that may since have changed. */
+type CompletionPayload = {
+  stageId: StageId;
+  chargeNumber: string;
+  classification: { requesting: FrozenClassification; performing: FrozenClassification };
+};
 
 function readTransitions(db: DatabaseSync, authorizationId: string): TransitionRow[] {
   return db
@@ -135,8 +182,10 @@ function readTransitions(db: DatabaseSync, authorizationId: string): TransitionR
 }
 
 /** The stage that follows `stageId` in the relay - clamped to the last entry,
- *  since acknowledging the final stage has nowhere further to advance to
- *  (completion is a later ticket's build). */
+ *  the mint stage (#58), which has nowhere further to advance to. Resolving
+ *  it appends a completion transition instead of an arrival
+ *  (`appendCompletionTransition` below): completion is read back from
+ *  `chargeNumber` existing, not from `currentStageId` moving anywhere else. */
 function nextStageId(stageId: StageId): StageId {
   const index = RELAY_CONFIG.findIndex((stage) => stage.id === stageId);
   const nextIndex = Math.min(index + 1, RELAY_CONFIG.length - 1);
@@ -150,7 +199,7 @@ function nextStageId(stageId: StageId): StageId {
  * is what `foldStageHistory` below reads to fill in a stage's `resolvedAt`,
  * and each later kind fills that in exactly like an acknowledgement does.
  */
-const RESOLVING_KINDS = new Set(["acknowledgement", "contribution", "gate-skip"]);
+const RESOLVING_KINDS = new Set(["acknowledgement", "contribution", "gate-skip", "completion"]);
 
 /**
  * Every stage reached so far, each with its own three timestamps (#55,
@@ -237,6 +286,13 @@ function foldAuthorization(authorizationId: string, transitions: TransitionRow[]
   const contribution = transitions.find((row) => row.kind === "contribution");
   const { fieldOverrides, performingEmployeeOverride, outstanding } = foldCorrectionState(transitions);
 
+  // Minting is recorded once and never more than once - completion is
+  // terminal, so there is nothing after it to append (`appendCompletionTransition`
+  // below trusts the service to have refused a second attempt via
+  // `isQueuedForMint`, the same trust `appendClaimTransition` extends).
+  const completion = transitions.find((row) => row.kind === "completion");
+  const completionPayload = completion ? (JSON.parse(completion.payload) as CompletionPayload) : null;
+
   return {
     id: authorizationId,
     submitterId: initiation.actor_id,
@@ -249,6 +305,8 @@ function foldAuthorization(authorizationId: string, transitions: TransitionRow[]
       (contribution ? (JSON.parse(contribution.payload) as ContributionPayload).performingEmployee : null),
     awaitingCorrection: outstanding !== null,
     correctionRequest: outstanding,
+    chargeNumber: completionPayload ? completionPayload.chargeNumber : null,
+    classification: completionPayload ? completionPayload.classification : null,
     ...fields,
     ...fieldOverrides,
   };
@@ -483,6 +541,44 @@ export function appendContributionTransition(
     throw err;
   }
 
+  return findAuthorization(db, input.authorizationId)!;
+}
+
+/**
+ * The Charge Number Admin minting a charge number (#58, CONTEXT.md: "the
+ * role that mints the charge number and thereby completes the
+ * authorization"). Terminal: unlike an acknowledgement or a contribution,
+ * this does not arrive anywhere next - there is nothing after the mint
+ * stage for the relay to route to, and completion is read back from
+ * `chargeNumber` existing rather than from a further move
+ * (`foldAuthorization` above, BDR-0003). The classification this carries is
+ * whatever the caller resolved live just before calling this - the last
+ * live read the record ever makes (ADR-0007) - not something this module
+ * resolves itself, the same way `appendInitiationTransition` trusts the
+ * fields it is handed rather than validating them again.
+ */
+export function appendCompletionTransition(
+  db: DatabaseSync,
+  input: {
+    authorizationId: string;
+    actorId: string;
+    occurredAt: string;
+    chargeNumber: string;
+    classification: { requesting: FrozenClassification; performing: FrozenClassification };
+  },
+): Authorization {
+  const before = findAuthorization(db, input.authorizationId);
+  if (!before) throw new Error(`No authorization with id "${input.authorizationId}".`);
+
+  const payload: CompletionPayload = {
+    stageId: before.currentStageId,
+    chargeNumber: input.chargeNumber,
+    classification: input.classification,
+  };
+  db.prepare(
+    `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+     VALUES (?, ?, 'completion', ?, ?, ?)`,
+  ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt, JSON.stringify(payload));
   return findAuthorization(db, input.authorizationId)!;
 }
 
