@@ -2,13 +2,14 @@ import type {
   Participant,
   AttributeFilter,
   DraftFieldsInput,
+  MintFieldsInput,
   PermissibilityRuleInput,
   ResourceInput,
 } from "../shared/rules.ts";
 import type { ResolvedDepartment } from "../hierarchy/index.ts";
 import type { Draft } from "../drafts/index.ts";
 import type { PermissibilityRule } from "../permissibility/index.ts";
-import type { Authorization, CorrectableFieldKey } from "../authorizations/index.ts";
+import type { Authorization, CorrectableFieldKey, FrozenClassification } from "../authorizations/index.ts";
 import type { CorrectionFieldValuesInput } from "../shared/rules.ts";
 
 export type { ResolvedDepartment, Attribute } from "../hierarchy/index.ts";
@@ -18,6 +19,7 @@ export type {
   Authorization,
   CorrectableFieldKey,
   CorrectionRequest,
+  FrozenClassification,
   StageVisit,
 } from "../authorizations/index.ts";
 
@@ -125,6 +127,13 @@ export const api = {
       actor,
       "POST",
       fields,
+    ),
+  mintChargeNumber: (actor: string, authorizationId: string, fields: MintFieldsInput) =>
+    call<Authorization>(`/api/authorizations/${encodeURIComponent(authorizationId)}/mint`, actor, "POST", fields),
+  getClassification: (actor: string, authorizationId: string) =>
+    call<{ requesting: FrozenClassification; performing: FrozenClassification }>(
+      `/api/authorizations/${encodeURIComponent(authorizationId)}/classification`,
+      actor,
     ),
   requestCorrection: (
     actor: string,
