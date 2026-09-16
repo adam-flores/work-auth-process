@@ -10,7 +10,7 @@ import {
 } from "../shared/constants.ts";
 import type { FundingType, LocationType } from "../shared/constants.ts";
 import { STAGE_CRITERIA } from "../guidance/content.ts";
-import { RELAY_CONFIG, isContributionStage } from "../relay/config.ts";
+import { RELAY_CONFIG, isContributionStage, isMintStage } from "../relay/config.ts";
 import { CORRECTABLE_FIELD_KEYS } from "../shared/rules.ts";
 
 /**
@@ -474,9 +474,11 @@ function OpenAuthorization({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [employeeName, setEmployeeName] = useState("");
+  const [chargeNumber, setChargeNumber] = useState("");
   const criteria = STAGE_CRITERIA[authorization.currentStageId];
   const relayStage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
   const isContribution = isContributionStage(relayStage);
+  const isMint = isMintStage(relayStage);
   const isClaimant = authorization.performingContributorId === actingId;
 
   const acknowledge = async () => {
@@ -509,6 +511,18 @@ function OpenAuthorization({
     setError(null);
     try {
       const updated = await api.contribute(actingId, authorization.id, { performingEmployee: employeeName });
+      onResolved(updated);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+      setBusy(false);
+    }
+  };
+
+  const mint = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await api.mintChargeNumber(actingId, authorization.id, { chargeNumber });
       onResolved(updated);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err));
@@ -616,6 +630,25 @@ function OpenAuthorization({
               Claimed. Only the contributor who claimed it may fill in the rest.
             </p>
           )
+        ) : isMint ? (
+          <>
+            <label htmlFor="charge-number">Charge number</label>
+            <input
+              id="charge-number"
+              type="text"
+              value={chargeNumber}
+              onChange={(e) => setChargeNumber(e.target.value)}
+              disabled={busy}
+            />
+            <button
+              type="button"
+              onClick={() => void mint()}
+              disabled={busy || chargeNumber.trim().length === 0}
+              data-testid="mint"
+            >
+              {busy ? "Minting…" : "Mint"}
+            </button>
+          </>
         ) : (
           <>
             <button type="button" onClick={() => void acknowledge()} disabled={busy} data-testid="acknowledge">

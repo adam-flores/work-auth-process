@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import { RELAY_CONFIG, isContributionStage, isGateStage } from "../relay/config.ts";
+import { RELAY_CONFIG, isContributionStage, isGateStage, isMintStage } from "../relay/config.ts";
 import type { RelayStage } from "../relay/config.ts";
 import { resolveDepartment } from "../hierarchy/index.ts";
 import { correctionOwner } from "../authorizations/index.ts";
@@ -139,4 +139,38 @@ export function isQueuedForClaim(
   if (authorization.performingContributorId !== null) return false;
   const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
   return isContributionStage(stage) && queueDepartment(db, authorization, stage) === participant.department;
+}
+
+/**
+ * Every authorization sitting at the mint stage, not yet completed (#58,
+ * CONTEXT.md: despite the name, "the Charge Number Admin ... is a stage in
+ * the relay"). Not department-scoped like an Approver's or a Contributor's
+ * queue: minting is a centralized administrative act tied to neither side,
+ * so any Charge Number Admin sees it, the same way any holder of an
+ * Approver's role at the right department may acknowledge (BDR-0013) - here
+ * there is simply no department to narrow by. `chargeNumber` is what tells
+ * a completed authorization apart from one still waiting, since resolving
+ * the mint stage does not move `currentStageId` anywhere else for the
+ * filter below to catch (`appendCompletionTransition` in
+ * `authorizations/index.ts`).
+ */
+export function listChargeNumberAdminQueue(authorizations: readonly Authorization[]): Authorization[] {
+  return authorizations.filter((authorization) => {
+    if (authorization.chargeNumber !== null) return false;
+    const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
+    return isMintStage(stage);
+  });
+}
+
+/** Whether `participant` may mint `authorization`'s charge number - a
+ *  Charge Number Admin, while it sits at the mint stage and has not
+ *  already been completed. */
+export function isQueuedForMint(
+  authorization: Authorization,
+  participant: { role: string },
+): boolean {
+  if (participant.role !== "Charge Number Admin") return false;
+  if (authorization.chargeNumber !== null) return false;
+  const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
+  return isMintStage(stage);
 }

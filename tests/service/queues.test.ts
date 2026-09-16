@@ -169,13 +169,14 @@ describe("queues and acknowledgement", () => {
     );
   });
 
-  test("an authorization whose gates both skip reaches the end of the relay in nobody's queue, without breaking anyone else's (#57)", () => {
+  test("an authorization whose gates both skip reaches the mint stage in nobody else's queue, without breaking anyone else's (#57, #58)", () => {
     // `initiateAuthorization` fixes company-funded, domestic/domestic - the
     // negative case for both Contracts (BDR-0014's sibling decision) and
     // Global Trade (BDR-0014). Neither gate has anything to run for, so
     // acknowledging the last mandatory approval walks straight through both
-    // in the same step - see tests/service/gates.test.ts for the gates
-    // actually running.
+    // and on to the mint stage in the same step - see
+    // tests/service/gates.test.ts for the gates actually running, and
+    // tests/service/completion.test.ts for minting itself.
     const authorization = initiateAuthorization("Reaches a gate");
     service.acknowledge({ participantId: requestingApproverA }, authorization.id); // -> requesting-finance
     service.acknowledge({ participantId: requestingApproverB }, authorization.id); // -> performing-department
@@ -184,8 +185,8 @@ describe("queues and acknowledgement", () => {
       performingEmployee: "Jade Okafor",
     }); // -> performing-program-manager
     service.acknowledge({ participantId: performingApproverA }, authorization.id); // -> performing-finance
-    const skippedThrough = service.acknowledge({ participantId: performingApproverA }, authorization.id); // -> contracts, global-trade, both skipped
-    assert.equal(skippedThrough.currentStageId, "global-trade");
+    const skippedThrough = service.acknowledge({ participantId: performingApproverA }, authorization.id); // -> contracts, global-trade, both skipped, -> charge-number-admin
+    assert.equal(skippedThrough.currentStageId, "charge-number-admin");
     assert.ok(skippedThrough.stageHistory.find((v) => v.stageId === "contracts")!.resolvedAt);
     assert.ok(skippedThrough.stageHistory.find((v) => v.stageId === "global-trade")!.resolvedAt);
 

@@ -219,16 +219,10 @@ describe("the two gates", () => {
       performingLocationType: "international",
     });
     clearMandatoryStages(authorization.id);
-    const resolved = service.acknowledge({ participantId: contractsApprover }, authorization.id); // -> global-trade, skipped
+    const resolved = service.acknowledge({ participantId: contractsApprover }, authorization.id); // -> global-trade, skipped, -> charge-number-admin
 
-    assert.equal(resolved.currentStageId, "global-trade");
+    assert.equal(resolved.currentStageId, "charge-number-admin");
     assert.ok(resolved.stageHistory.find((v) => v.stageId === "global-trade")!.resolvedAt);
-    // Not asserted here: whether the skipped Global Trade stage still shows
-    // in that department's queue. Global Trade is the relay's last stage
-    // today, and `nextStageId`'s clamp (authorizations/index.ts: "completion
-    // is a later ticket's build") means a resolved final stage has nowhere
-    // to advance `currentStageId` to - the same gap that already applies to
-    // acknowledging any stage in the last position, gate or not.
 
     const gateSkips = rawTransitions(authorization.id).filter((row) => row.kind === "gate-skip");
     assert.equal(gateSkips.length, 1);
@@ -248,7 +242,10 @@ describe("the two gates", () => {
     });
     const advanced = clearMandatoryStages(authorization.id);
 
-    assert.equal(advanced.currentStageId, "global-trade");
+    // Both gates skip in the same step, straight through to the mint stage
+    // (#58) - neither one has anywhere to hold the authorization once its
+    // own condition is false.
+    assert.equal(advanced.currentStageId, "charge-number-admin");
     assert.ok(advanced.stageHistory.find((v) => v.stageId === "contracts")!.resolvedAt);
     assert.ok(advanced.stageHistory.find((v) => v.stageId === "global-trade")!.resolvedAt);
 
@@ -259,11 +256,8 @@ describe("the two gates", () => {
       ["contracts", "global-trade"],
     );
 
-    // Contracts is not the relay's last stage, so skipping it moves
-    // `currentStageId` off it and it correctly leaves that queue. Global
-    // Trade's own queue is not asserted empty here for the same reason as
-    // the test above - it is the last stage today.
     assert.ok(!service.listMyQueue({ participantId: contractsApprover }).some((a) => a.id === authorization.id));
+    assert.ok(!service.listMyQueue({ participantId: globalTradeApprover }).some((a) => a.id === authorization.id));
   });
 
   test("both gates run in sequence for contract-funded, cross-border work", () => {
@@ -279,7 +273,7 @@ describe("the two gates", () => {
     assert.equal(atGlobalTrade.currentStageId, "global-trade");
 
     const resolved = service.acknowledge({ participantId: globalTradeApprover }, authorization.id);
-    assert.equal(resolved.currentStageId, "global-trade");
+    assert.equal(resolved.currentStageId, "charge-number-admin");
     assert.ok(resolved.stageHistory.find((v) => v.stageId === "contracts")!.resolvedAt);
     assert.ok(resolved.stageHistory.find((v) => v.stageId === "global-trade")!.resolvedAt);
 

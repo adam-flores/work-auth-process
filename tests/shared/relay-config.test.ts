@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { RELAY_CONFIG, isGateStage, isContributionStage, firstStage } from "../../src/relay/config.ts";
+import { RELAY_CONFIG, isGateStage, isContributionStage, isMintStage, firstStage } from "../../src/relay/config.ts";
 import type { DraftFieldValues } from "../../src/drafts/index.ts";
 
 /**
@@ -18,6 +18,7 @@ const STAGE_IDS_IN_ORDER = [
   "performing-finance",
   "contracts",
   "global-trade",
+  "charge-number-admin",
 ];
 
 function emptyFields(overrides: Partial<DraftFieldValues> = {}): DraftFieldValues {
@@ -38,7 +39,7 @@ function emptyFields(overrides: Partial<DraftFieldValues> = {}): DraftFieldValue
 }
 
 describe("the relay configuration", () => {
-  test("is the six flow-document stages plus the performing-department claim, in order", () => {
+  test("is the six flow-document stages plus the performing-department claim and the mint stage, in order", () => {
     assert.deepEqual(
       RELAY_CONFIG.map((s) => s.id),
       STAGE_IDS_IN_ORDER,
@@ -93,6 +94,16 @@ describe("the relay configuration", () => {
     const index = RELAY_CONFIG.findIndex((s) => s.id === "performing-department");
     assert.equal(RELAY_CONFIG[index - 1]!.id, "requesting-finance");
     assert.equal(RELAY_CONFIG[index + 1]!.id, "performing-program-manager");
+  });
+
+  test("the mint stage is the relay's last, is neutral, and carries no condition or department (#58)", () => {
+    const mintStage = RELAY_CONFIG[RELAY_CONFIG.length - 1]!;
+    assert.equal(mintStage.id, "charge-number-admin");
+    assert.ok(isMintStage(mintStage));
+    assert.equal(mintStage.side, "neutral");
+    assert.ok(!isGateStage(mintStage));
+    assert.ok(!("condition" in mintStage));
+    assert.ok(!("department" in mintStage));
   });
 
   test("the Contracts gate runs for every contract-funded type and skips company-funded work", () => {

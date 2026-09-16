@@ -124,6 +124,18 @@ export const ContributeFields = z.object({
 export type ContributeFields = z.infer<typeof ContributeFields>;
 export type ContributeFieldsInput = z.input<typeof ContributeFields>;
 
+/**
+ * What the Charge Number Admin supplies to mint (#58, CONTEXT.md: "Charge
+ * number" - "the code the performing team books time against"). Free text,
+ * the same discipline a named person's name follows: present but blank is
+ * refused rather than silently kept.
+ */
+export const MintFields = z.object({
+  chargeNumber: z.string().trim().min(1, "A charge number is required.").max(200),
+});
+export type MintFields = z.infer<typeof MintFields>;
+export type MintFieldsInput = z.input<typeof MintFields>;
+
 export const ResourceInput = z.object({
   budgetHours: z.number().positive("Budget hours must be greater than zero."),
   laborRate: z.number().positive("Labor rate must be greater than zero."),

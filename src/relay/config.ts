@@ -13,11 +13,13 @@ import type { DraftFieldValues } from "../drafts/index.ts";
  * file to build "the ordered artifact with side, kind and fieldDependencies"
  * around them. Nothing here duplicates that vocabulary.
  *
- * The Charge Number Admin's mint is deliberately not a stage here. CONTEXT.md
- * gives it no `concern` - it "supplies a value rather than rendering a
- * judgement" - and the business case's own count of controls (the four
- * mandatory acknowledgements plus the two gates) stops at these six. Minting
- * is the step after the relay closes, and it is a later ticket's build.
+ * The Charge Number Admin's mint is the relay's seventh and last stage
+ * (#58, CONTEXT.md: despite the name, "the Charge Number Admin ... is a
+ * stage in the relay"). It carries no `condition` - it always runs - and no
+ * fixed queue `department` the way a gate does: minting is a centralized
+ * administrative act tied to neither side, only one Charge Number Admin
+ * role is ever seeded, and its queue (`queues/index.ts`) is scoped by role
+ * alone rather than by department.
  */
 
 /**
@@ -72,7 +74,17 @@ export type GateStage = StageCommon & {
   readonly department: string;
 };
 
-export type RelayStage = ApprovalStage | ContributionStage | GateStage;
+/**
+ * The mint stage (#58): resolved by the Charge Number Admin supplying a
+ * charge number rather than by an acknowledgement, the way `ContributionStage`
+ * resolves by a Contributor's act rather than an Approver's. It is also the
+ * relay's terminal stage - resolving it completes the authorization
+ * (BDR-0003) rather than arriving at whatever comes next, since nothing
+ * does.
+ */
+export type MintStage = StageCommon & { readonly kind: "mint" };
+
+export type RelayStage = ApprovalStage | ContributionStage | GateStage | MintStage;
 
 function approval(
   id: StageId,
@@ -106,6 +118,10 @@ function gate(
     condition,
     department,
   };
+}
+
+function mint(id: StageId, fieldDependencies: readonly DraftFieldKey[]): MintStage {
+  return { id, side: "neutral", kind: "mint", concern: STAGE_CRITERIA[id].concern, fieldDependencies };
 }
 
 /**
@@ -150,6 +166,11 @@ export const RELAY_CONFIG: readonly RelayStage[] = [
       fields.requestingLocationType !== fields.performingLocationType,
     "Global Trade",
   ),
+  // No dependencies: minting supplies a value rather than rendering a
+  // judgement (CONTEXT.md), so no correction to the form returns this stage
+  // for re-review the way ADR-0005 lets a dependent field's correction do
+  // to an approval.
+  mint("charge-number-admin", []),
 ];
 
 export function isGateStage(stage: RelayStage): stage is GateStage {
@@ -158,6 +179,10 @@ export function isGateStage(stage: RelayStage): stage is GateStage {
 
 export function isContributionStage(stage: RelayStage): stage is ContributionStage {
   return stage.kind === "contribution";
+}
+
+export function isMintStage(stage: RelayStage): stage is MintStage {
+  return stage.kind === "mint";
 }
 
 /** The stage an authorization sits at the moment it is initiated - the relay's

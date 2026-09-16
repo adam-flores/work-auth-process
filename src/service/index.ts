@@ -9,6 +9,7 @@ import {
   DepartmentQuery,
   DraftFields,
   HierarchyId,
+  MintFields,
   PermissibilityRuleInput,
   ResourceInput,
   TransitionOptions,
@@ -46,19 +47,23 @@ import type { Draft, DraftFieldValues } from "../drafts/index.ts";
 import {
   appendAcknowledgementTransition,
   appendClaimTransition,
+  appendCompletionTransition,
   appendContributionTransition,
   appendCorrectionRequestTransition,
   appendCorrectionTransition,
   appendInitiationTransition,
+  classificationOf,
   correctionOwner,
   findAuthorization,
   listAuthorizations,
 } from "../authorizations/index.ts";
-import type { Authorization, AuthorizationFields } from "../authorizations/index.ts";
+import type { Authorization, AuthorizationFields, FrozenClassification } from "../authorizations/index.ts";
 import {
   isQueuedFor,
   isQueuedForClaim,
+  isQueuedForMint,
   listApproverQueue,
+  listChargeNumberAdminQueue,
   listContributorQueue,
   listCorrectionQueue,
 } from "../queues/index.ts";
@@ -485,21 +490,24 @@ export function createService(options: ServiceOptions = {}) {
 
     /** What is waiting on this participant's action (#55, BDR-0002/BDR-0003:
      *  "what is waiting on your action"). Empty for `system` and for the
-     *  Charge Number Admin and Administrator, who hold no queue - a queue is
-     *  not an error to ask for, it is simply empty for a role that holds
-     *  none. An Approver's queue is what has arrived at their stage; a
-     *  Contributor's is their department's performing-department queue
-     *  (#56), claimed and unclaimed authorizations alike. Every participant's
-     *  queue also carries any outstanding correction request addressed to
-     *  them (#59) - independent of role, since the submitter is a
-     *  relationship to one authorization rather than a role (CONTEXT.md), and
-     *  disjoint from the role-based queue above: an authorization awaiting
-     *  correction has already left its approver's queue
-     *  (`isQueuedFor`/`listApproverQueue`), and the contribution stage is
-     *  never itself the one awaiting correction (no Approver ever sits
-     *  there to raise one). The log is folded once, via `listAuthorizations`,
-     *  and handed to both queue functions below rather than each reading it
-     *  again on its own. */
+     *  Administrator, who holds no queue - a queue is not an error to ask
+     *  for, it is simply empty for a role that holds none. An Approver's
+     *  queue is what has arrived at their stage; a Contributor's is their
+     *  department's performing-department queue (#56), claimed and
+     *  unclaimed authorizations alike; the Charge Number Admin's is
+     *  whatever has reached the mint stage, not yet completed (#58,
+     *  `listChargeNumberAdminQueue`) - unlike the other two, not scoped by
+     *  department, since minting is tied to neither side. Every
+     *  participant's queue also carries any outstanding correction request
+     *  addressed to them (#59) - independent of role, since the submitter is
+     *  a relationship to one authorization rather than a role (CONTEXT.md),
+     *  and disjoint from the role-based queue above: an authorization
+     *  awaiting correction has already left its approver's queue
+     *  (`isQueuedFor`/`listApproverQueue`), and the contribution and mint
+     *  stages are never themselves the one awaiting correction (no Approver
+     *  ever sits there to raise one). The log is folded once, via
+     *  `listAuthorizations`, and handed to both queue functions below rather
+     *  than each reading it again on its own. */
     listMyQueue(ctx: ActingParticipant): Authorization[] {
       const participantId = requireParticipant(ctx);
       const participant = readParticipant(participantId);
@@ -510,7 +518,9 @@ export function createService(options: ServiceOptions = {}) {
           ? listApproverQueue(authorizations, db, participant.department)
           : participant.role === "Contributor"
             ? listContributorQueue(authorizations, db, participant.department)
-            : [];
+            : participant.role === "Charge Number Admin"
+              ? listChargeNumberAdminQueue(authorizations)
+              : [];
       return [...roleQueue, ...listCorrectionQueue(authorizations, participantId)];
     },
 
@@ -638,6 +648,84 @@ export function createService(options: ServiceOptions = {}) {
         occurredAt,
         performingEmployee: parsedFields.data.performingEmployee,
       });
+    },
+
+    /**
+     * The Charge Number Admin minting a charge number (#58, CONTEXT.md:
+     * "the role that mints the charge number and thereby completes the
+     * authorization"). Reached only once every earlier stage has resolved -
+     * the mint stage is the relay's last, arrived at the same way any other
+     * stage is. Not an approval: there is no acknowledgement here, only a
+     * value supplied, and completion follows from that value existing
+     * (BDR-0003). The classification frozen onto this transition is
+     * resolved live one final time, right here, the last live read the
+     * record ever makes for either side (ADR-0007).
+     */
+    mintChargeNumber(ctx: ActingParticipant, authorizationId: string, fields: unknown): Authorization {
+      const participantId = requireParticipant(ctx);
+      const authorization = findAuthorization(db, authorizationId);
+      if (!authorization) {
+        throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
+      }
+
+      const participant = readParticipant(participantId);
+      if (!participant || !isQueuedForMint(authorization, participant)) {
+        throw new DomainError(
+          "NOT_IN_QUEUE",
+          "Only a Charge Number Admin may mint this authorization's charge number.",
+        );
+      }
+
+      const parsedFields = MintFields.safeParse(fields);
+      if (!parsedFields.success) {
+        throw new DomainError("INVALID_REQUEST", parsedFields.error.issues[0]?.message ?? "Invalid charge number.");
+      }
+
+      const parsedOptions = TransitionOptions.safeParse(fields ?? {});
+      if (!parsedOptions.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsedOptions.error.issues[0]?.message ?? "Invalid transition options.",
+        );
+      }
+      const occurredAt = parsedOptions.data.occurredAt ?? new Date().toISOString();
+
+      const requesting = resolveDepartmentIfSet(authorization.requestingDepartmentId)!;
+      const performing = resolveDepartmentIfSet(authorization.performingDepartmentId)!;
+
+      return appendCompletionTransition(db, {
+        authorizationId,
+        actorId: participantId,
+        occurredAt,
+        chargeNumber: parsedFields.data.chargeNumber,
+        classification: {
+          requesting: classificationOf(requesting),
+          performing: classificationOf(performing),
+        },
+      });
+    },
+
+    /**
+     * An authorization's classification for both sides (ADR-0007): resolved
+     * live from the hierarchy while it is still moving, and read back from
+     * the terminal transition once minting has frozen it - a settled record
+     * reads as the structure it was settled under, and a later restructure
+     * cannot rewrite it.
+     */
+    getClassification(
+      ctx: ActingParticipant,
+      authorizationId: string,
+    ): { requesting: FrozenClassification; performing: FrozenClassification } {
+      requireParticipant(ctx);
+      const authorization = findAuthorization(db, authorizationId);
+      if (!authorization) {
+        throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
+      }
+      if (authorization.classification) return authorization.classification;
+      return {
+        requesting: classificationOf(resolveDepartmentIfSet(authorization.requestingDepartmentId)!),
+        performing: classificationOf(resolveDepartmentIfSet(authorization.performingDepartmentId)!),
+      };
     },
 
     /**
