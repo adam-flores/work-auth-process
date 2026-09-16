@@ -39,6 +39,9 @@ const STATUS_FOR: Record<DomainErrorCode, number> = {
   NOT_ADMINISTRATOR: 403,
   NOT_IN_QUEUE: 403,
   NOT_CLAIMANT: 403,
+  NOT_CORRECTOR: 403,
+  NOT_AWAITING_CORRECTION: 409,
+  FIELD_NOT_CORRECTABLE: 409,
   DRAFT_INCOMPLETE: 409,
   IMPERMISSIBLE_PAIRING: 409,
 };
@@ -170,6 +173,8 @@ const AUTHORIZATION_PATH = /^\/api\/authorizations\/([^/]+)$/;
 const AUTHORIZATION_ACKNOWLEDGE_PATH = /^\/api\/authorizations\/([^/]+)\/acknowledge$/;
 const AUTHORIZATION_CLAIM_PATH = /^\/api\/authorizations\/([^/]+)\/claim$/;
 const AUTHORIZATION_CONTRIBUTE_PATH = /^\/api\/authorizations\/([^/]+)\/contribute$/;
+const AUTHORIZATION_REQUEST_CORRECTION_PATH = /^\/api\/authorizations\/([^/]+)\/request-correction$/;
+const AUTHORIZATION_CORRECT_PATH = /^\/api\/authorizations\/([^/]+)\/correct$/;
 const PERMISSIBILITY_RULE_PATH = /^\/api\/permissibility-rules\/([^/]+)$/;
 
 export function createHttpServer(service: Service) {
@@ -227,6 +232,24 @@ export function createHttpServer(service: Service) {
         const ctx = actingParticipant(req);
         const body = await readJsonBody(req);
         return sendJson(res, 200, service.contribute(ctx, decodeURIComponent(contributeMatch[1]), body));
+      }
+
+      const requestCorrectionMatch = method === "POST" ? AUTHORIZATION_REQUEST_CORRECTION_PATH.exec(pathname) : null;
+      if (requestCorrectionMatch?.[1]) {
+        const ctx = actingParticipant(req);
+        const body = await readJsonBody(req);
+        return sendJson(
+          res,
+          200,
+          service.requestCorrection(ctx, decodeURIComponent(requestCorrectionMatch[1]), body),
+        );
+      }
+
+      const correctMatch = method === "POST" ? AUTHORIZATION_CORRECT_PATH.exec(pathname) : null;
+      if (correctMatch?.[1]) {
+        const ctx = actingParticipant(req);
+        const body = await readJsonBody(req);
+        return sendJson(res, 200, service.correct(ctx, decodeURIComponent(correctMatch[1]), body));
       }
 
       // A draft's id, and a resource's id nested under it - the same

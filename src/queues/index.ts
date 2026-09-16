@@ -2,7 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { RELAY_CONFIG, isContributionStage, isGateStage } from "../relay/config.ts";
 import type { RelayStage } from "../relay/config.ts";
 import { resolveDepartment } from "../hierarchy/index.ts";
-import { listAuthorizations } from "../authorizations/index.ts";
+import { correctionOwner } from "../authorizations/index.ts";
 import type { Authorization } from "../authorizations/index.ts";
 
 /**
@@ -39,14 +39,22 @@ function queueDepartment(db: DatabaseSync, authorization: Authorization, stage: 
 }
 
 /**
- * Every authorization currently awaiting an Approver at `department` -
- * derived from the log (ADR-0004), not maintained as a list of its own. An
- * authorization leaves the moment its stage resolves, because
- * `currentStageId` itself moves on (#55) - there is nothing separate to
- * remove it from.
+ * Every authorization currently awaiting an Approver at `department`,
+ * filtered from `authorizations` rather than reading the log itself - #59
+ * added a second, independent queue (`listCorrectionQueue` below) that
+ * `listMyQueue` in `service/index.ts` always consults alongside this one,
+ * and passing the list in lets the caller fold the log once for both
+ * instead of twice. An authorization leaves the moment its stage resolves,
+ * because `currentStageId` itself moves on (#55) - there is nothing
+ * separate to remove it from.
  */
-export function listApproverQueue(db: DatabaseSync, department: string): Authorization[] {
-  return listAuthorizations(db).filter((authorization) => {
+export function listApproverQueue(
+  authorizations: readonly Authorization[],
+  db: DatabaseSync,
+  department: string,
+): Authorization[] {
+  return authorizations.filter((authorization) => {
+    if (authorization.awaitingCorrection) return false;
     const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
     return isAcknowledgeableStage(stage) && queueDepartment(db, authorization, stage) === department;
   });
@@ -54,15 +62,40 @@ export function listApproverQueue(db: DatabaseSync, department: string): Authori
 
 /** Whether `participant` may act on `authorization`'s current stage - the
  *  one check behind both what appears in their queue and whether an
- *  acknowledgement they attempt is genuinely theirs to make. */
+ *  acknowledgement or correction request they attempt is genuinely theirs
+ *  to make. An authorization awaiting correction is excluded (#59,
+ *  CONTEXT.md: "the approver who raised the request cannot act on it") -
+ *  it left this Approver's queue the moment they raised it, and stays out
+ *  until the correction lands. */
 export function isQueuedFor(
   db: DatabaseSync,
   authorization: Authorization,
   participant: { role: string; department: string },
 ): boolean {
   if (participant.role !== "Approver") return false;
+  if (authorization.awaitingCorrection) return false;
   const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
   return isAcknowledgeableStage(stage) && queueDepartment(db, authorization, stage) === participant.department;
+}
+
+/**
+ * Every authorization with an outstanding correction request addressed to
+ * `participantId` (#59, CONTEXT.md: "an authorization out for correction
+ * sits in the corrector's queue only"). Independent of role and department -
+ * the submitter is a relationship to one authorization, not a role
+ * (CONTEXT.md) - so `listMyQueue` in `service/index.ts` adds this to
+ * whatever role-based queue it already computed, rather than routing
+ * through the branches above.
+ */
+export function listCorrectionQueue(
+  authorizations: readonly Authorization[],
+  participantId: string,
+): Authorization[] {
+  return authorizations.filter(
+    (authorization) =>
+      authorization.awaitingCorrection &&
+      correctionOwner(authorization, authorization.correctionRequest!.fields) === participantId,
+  );
 }
 
 /** A gate that runs resolves exactly like one of the four mandatory
@@ -82,8 +115,12 @@ function isAcknowledgeableStage(stage: RelayStage): boolean {
  * (CONTEXT.md: "Queue"); `authorization.performingContributorId` is what a
  * caller reads to tell them apart.
  */
-export function listContributorQueue(db: DatabaseSync, department: string): Authorization[] {
-  return listAuthorizations(db).filter((authorization) => {
+export function listContributorQueue(
+  authorizations: readonly Authorization[],
+  db: DatabaseSync,
+  department: string,
+): Authorization[] {
+  return authorizations.filter((authorization) => {
     const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
     return isContributionStage(stage) && queueDepartment(db, authorization, stage) === department;
   });

@@ -8,12 +8,18 @@ import type {
 import type { ResolvedDepartment } from "../hierarchy/index.ts";
 import type { Draft } from "../drafts/index.ts";
 import type { PermissibilityRule } from "../permissibility/index.ts";
-import type { Authorization } from "../authorizations/index.ts";
+import type { Authorization, CorrectableFieldKey } from "../authorizations/index.ts";
+import type { CorrectionFieldValuesInput } from "../shared/rules.ts";
 
 export type { ResolvedDepartment, Attribute } from "../hierarchy/index.ts";
 export type { Draft, Resource } from "../drafts/index.ts";
 export type { PermissibilityRule } from "../permissibility/index.ts";
-export type { Authorization, StageVisit } from "../authorizations/index.ts";
+export type {
+  Authorization,
+  CorrectableFieldKey,
+  CorrectionRequest,
+  StageVisit,
+} from "../authorizations/index.ts";
 
 /** What the service returns about the store it is reading. */
 export type StoreInfo = {
@@ -120,6 +126,19 @@ export const api = {
       "POST",
       fields,
     ),
+  requestCorrection: (
+    actor: string,
+    authorizationId: string,
+    input: { fields: CorrectableFieldKey[]; comment: string },
+  ) =>
+    call<Authorization>(
+      `/api/authorizations/${encodeURIComponent(authorizationId)}/request-correction`,
+      actor,
+      "POST",
+      input,
+    ),
+  correct: (actor: string, authorizationId: string, fields: CorrectionFieldValuesInput) =>
+    call<Authorization>(`/api/authorizations/${encodeURIComponent(authorizationId)}/correct`, actor, "POST", fields),
 
   listPermissibilityRules: (actor: string) =>
     call<PermissibilityRule[]>("/api/permissibility-rules", actor),

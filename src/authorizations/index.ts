@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
-import type { StageId } from "../guidance/content.ts";
+import type { DraftFieldKey, StageId } from "../guidance/content.ts";
 import { RELAY_CONFIG, isGateStage } from "../relay/config.ts";
 import type { GateStage } from "../relay/config.ts";
 import type { Resource } from "../drafts/index.ts";
@@ -37,6 +37,30 @@ export type AuthorizationFields = {
 };
 
 /**
+ * Every field a correction request may name (#59): every field a draft
+ * carries, plus `performingEmployee` - the one field the performing
+ * contributor supplies rather than the submitter (#56), and therefore the
+ * one case BDR-0005 means by "the performing side" when it says who
+ * corrects what (`correctionOwner` below). Every other field, the
+ * `performing`-prefixed named approvers included, is entered by the
+ * submitter at initiation - BDR-0013: naming them "is the requesting side
+ * saying who it expects to handle this" - so it is the submitter's to
+ * correct, same as any other field they entered.
+ */
+export type CorrectableFieldKey = DraftFieldKey | "performingEmployee";
+
+/** A correction request outstanding against the stage an authorization
+ *  currently sits at (#59, BDR-0005) - `null` once a correction resolves
+ *  it. Read from the log, never stored as a state of its own
+ *  (`Authorization.awaitingCorrection` below). */
+export type CorrectionRequest = {
+  fields: CorrectableFieldKey[];
+  comment: string;
+  requestedBy: string;
+  requestedAt: string;
+};
+
+/**
  * One stage's three timestamps (#55, BDR-0006, ADR-0004) - arrived, notified,
  * resolved, and no fourth. `resolvedAt` is null while the stage is still the
  * one an authorization sits at; every earlier stage in `stageHistory` always
@@ -67,6 +91,14 @@ export type Authorization = AuthorizationFields & {
    *  contributor - "a name on the record, not a participant in the process"
    *  (CONTEXT.md). `null` until the contributor completes the stage. */
   performingEmployee: string | null;
+  /** Whether the stage `currentStageId` names is awaiting correction (#59,
+   *  BDR-0005, CONTEXT.md: "awaiting correction ... is a condition of a
+   *  stage rather than a state of the authorization") - folded from the log
+   *  exactly like everything else here, never a stored flag. */
+  awaitingCorrection: boolean;
+  /** The outstanding correction request, while `awaitingCorrection` is
+   *  true; `null` the instant a correction resolves it. */
+  correctionRequest: CorrectionRequest | null;
 };
 
 type TransitionRow = {
@@ -82,6 +114,14 @@ type TransitionRow = {
 type InitiationPayload = { fields: AuthorizationFields };
 type StagePayload = { stageId: StageId };
 type ContributionPayload = { stageId: StageId; performingEmployee: string };
+type CorrectionRequestPayload = { stageId: StageId; fields: CorrectableFieldKey[]; comment: string };
+/** `performingEmployee` sits outside `AuthorizationFields` (it is not a
+ *  draft field), so a correction's payload carries it alongside a partial
+ *  of the rest rather than folding it into that type. */
+type CorrectionPayload = {
+  stageId: StageId;
+  fields: Partial<AuthorizationFields> & { performingEmployee?: string };
+};
 /** BDR-0003 and ADR-0004 require "the value that decided a skip" - read
  *  generically off the gate's own `fieldDependencies` rather than naming
  *  Contracts or Global Trade's fields here, so a relay-configuration edit to
@@ -149,6 +189,41 @@ function foldStageHistory(transitions: TransitionRow[], initiation: TransitionRo
   return order.map((stageId) => byStage.get(stageId)!);
 }
 
+/**
+ * A correction request, and the correction that resolves it, are each
+ * appended once per round and never more than one is outstanding at a time
+ * (`service/index.ts`'s `isQueuedFor` refuses to raise a second while the
+ * first still stands) - so "the last of either kind, in log order" is
+ * enough to say whether the current stage is awaiting correction, without
+ * needing to pair a particular request up with the correction that closed
+ * it. Every correction along the way also updates the field values a later
+ * read of the authorization sees - the latest correction of a given field
+ * wins, the same as any other fold here.
+ */
+function foldCorrectionState(transitions: TransitionRow[]): {
+  fieldOverrides: Partial<AuthorizationFields>;
+  performingEmployeeOverride: string | undefined;
+  outstanding: CorrectionRequest | null;
+} {
+  let fieldOverrides: Partial<AuthorizationFields> = {};
+  let performingEmployeeOverride: string | undefined;
+  let outstanding: CorrectionRequest | null = null;
+
+  for (const row of transitions) {
+    if (row.kind === "correction-request") {
+      const { fields, comment } = JSON.parse(row.payload) as CorrectionRequestPayload;
+      outstanding = { fields, comment, requestedBy: row.actor_id, requestedAt: row.occurred_at };
+    } else if (row.kind === "correction") {
+      const { performingEmployee, ...rest } = (JSON.parse(row.payload) as CorrectionPayload).fields;
+      fieldOverrides = { ...fieldOverrides, ...rest };
+      if (performingEmployee !== undefined) performingEmployeeOverride = performingEmployee;
+      outstanding = null;
+    }
+  }
+
+  return { fieldOverrides, performingEmployeeOverride, outstanding };
+}
+
 function foldAuthorization(authorizationId: string, transitions: TransitionRow[]): Authorization | null {
   const initiation = transitions.find((row) => row.kind === "initiation");
   if (!initiation) return null;
@@ -160,6 +235,7 @@ function foldAuthorization(authorizationId: string, transitions: TransitionRow[]
   // (#56) - so the first row of each kind is the only one there ever is.
   const claim = transitions.find((row) => row.kind === "claim");
   const contribution = transitions.find((row) => row.kind === "contribution");
+  const { fieldOverrides, performingEmployeeOverride, outstanding } = foldCorrectionState(transitions);
 
   return {
     id: authorizationId,
@@ -168,10 +244,13 @@ function foldAuthorization(authorizationId: string, transitions: TransitionRow[]
     currentStageId: stageHistory[stageHistory.length - 1]!.stageId,
     stageHistory,
     performingContributorId: claim ? claim.actor_id : null,
-    performingEmployee: contribution
-      ? (JSON.parse(contribution.payload) as ContributionPayload).performingEmployee
-      : null,
+    performingEmployee:
+      performingEmployeeOverride ??
+      (contribution ? (JSON.parse(contribution.payload) as ContributionPayload).performingEmployee : null),
+    awaitingCorrection: outstanding !== null,
+    correctionRequest: outstanding,
     ...fields,
+    ...fieldOverrides,
   };
 }
 
@@ -405,6 +484,85 @@ export function appendContributionTransition(
   }
 
   return findAuthorization(db, input.authorizationId)!;
+}
+
+/**
+ * An Approver raising a correction request at the stage an authorization
+ * currently sits at (#59, BDR-0005): names the fields at fault and carries
+ * a mandatory comment. The authorization's position does not change - no
+ * arrival, no resolution, nothing for a transaction to hold together - only
+ * the stage's condition does, and that is read back on the next fold
+ * (`foldCorrectionState` above). The service checks eligibility
+ * (`isQueuedFor`) and that the named fields share one corrector
+ * (`correctionOwner` below) before this is reached, the same trust
+ * `appendClaimTransition` extends its caller.
+ */
+export function appendCorrectionRequestTransition(
+  db: DatabaseSync,
+  input: {
+    authorizationId: string;
+    actorId: string;
+    occurredAt: string;
+    stageId: StageId;
+    fields: CorrectableFieldKey[];
+    comment: string;
+  },
+): Authorization {
+  const payload: CorrectionRequestPayload = { stageId: input.stageId, fields: input.fields, comment: input.comment };
+  db.prepare(
+    `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+     VALUES (?, ?, 'correction-request', ?, ?, ?)`,
+  ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt, JSON.stringify(payload));
+  return findAuthorization(db, input.authorizationId)!;
+}
+
+/**
+ * The field's owner supplying the fix (#59, CONTEXT.md: "made on the
+ * authorization where it stands - nothing is resubmitted and nothing
+ * leaves the relay"). Resolves the outstanding correction request the
+ * instant it is appended - `foldCorrectionState` reads "the last of either
+ * kind" - so the approver who raised it resumes at exactly the stage they
+ * left it, with no further transition needed to get there. The service
+ * checks who may supply which fields (`correctionOwner` below) before this
+ * is reached.
+ */
+export function appendCorrectionTransition(
+  db: DatabaseSync,
+  input: {
+    authorizationId: string;
+    actorId: string;
+    occurredAt: string;
+    stageId: StageId;
+    fields: Partial<AuthorizationFields> & { performingEmployee?: string };
+  },
+): Authorization {
+  const payload: CorrectionPayload = { stageId: input.stageId, fields: input.fields };
+  db.prepare(
+    `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+     VALUES (?, ?, 'correction', ?, ?, ?)`,
+  ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt, JSON.stringify(payload));
+  return findAuthorization(db, input.authorizationId)!;
+}
+
+/**
+ * The participant a correction naming `fields` is addressed to (#59,
+ * BDR-0005: "the submitter corrects it, generally - the owner of the field
+ * otherwise, which on the performing side is the performing contributor").
+ * `performingEmployee` is the one field the performing contributor supplies
+ * (#56); every other field is entered by the submitter at initiation and
+ * stays theirs to correct. `null` when the fields named span both owners -
+ * a single correction request may address only one corrector
+ * (`service/index.ts`'s `requestCorrection` refuses the rest at the point
+ * one is raised, rather than let `correct` discover it later).
+ */
+export function correctionOwner(
+  authorization: Authorization,
+  fields: readonly CorrectableFieldKey[],
+): string | null {
+  const namesPerformingEmployee = fields.includes("performingEmployee");
+  const namesSomethingElse = fields.some((field) => field !== "performingEmployee");
+  if (namesPerformingEmployee && namesSomethingElse) return null;
+  return namesPerformingEmployee ? authorization.performingContributorId : authorization.submitterId;
 }
 
 /**

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FUNDING_TYPE_VALUES, JURISDICTION_VALUES, LOCATION_TYPE_VALUES } from "./constants.ts";
+import type { CorrectableFieldKey } from "../authorizations/index.ts";
 
 /**
  * Rules expressed once and imported by both the browser and the service
@@ -100,10 +101,10 @@ export const LocationType = z.enum(LOCATION_TYPE_VALUES);
  * than silently kept, at both strictnesses, because the caller clears a
  * field by sending `null`, not by sending whitespace.
  */
-const NamedPersonRequired = z.string().trim().min(1, "A name may not be blank.").max(200);
+export const NamedPersonRequired = z.string().trim().min(1, "A name may not be blank.").max(200);
 const NamedPerson = NamedPersonRequired.nullish();
 
-const ProjectNameRequired = z
+export const ProjectNameRequired = z
   .string()
   .trim()
   .min(1, "A project name may not be blank.")
@@ -127,6 +128,81 @@ export const ResourceInput = z.object({
   budgetHours: z.number().positive("Budget hours must be greater than zero."),
   laborRate: z.number().positive("Labor rate must be greater than zero."),
 });
+
+/**
+ * Every field a correction request may name (#59): every field a draft
+ * carries, plus `performingEmployee` - see `CorrectableFieldKey` in
+ * `authorizations/index.ts` for why that one field is different from the
+ * rest. `satisfies` keeps this array and that type from drifting apart
+ * silently, the same discipline `FUNDING_TYPE_VALUES` already keeps with
+ * `FundingType`.
+ */
+export const CORRECTABLE_FIELD_KEYS = [
+  "project",
+  "requestingDepartmentId",
+  "performingDepartmentId",
+  "fundingType",
+  "requestingLocationType",
+  "performingLocationType",
+  "requestingProgramManager",
+  "requestingFinanceApprover",
+  "performingProgramManager",
+  "performingFinanceApprover",
+  "performingContact",
+  "resources",
+  "performingEmployee",
+] as const satisfies readonly CorrectableFieldKey[];
+
+const CommentRequired = z.string().trim().min(1, "A comment is required.").max(2000);
+
+/**
+ * What an Approver supplies to raise a correction request (#59, BDR-0005):
+ * the fields at fault and a mandatory comment to their owner. A field may
+ * not be named twice - nothing about naming it again says anything a single
+ * mention did not already say.
+ */
+export const CorrectionRequestInput = z.object({
+  fields: z
+    .array(z.enum(CORRECTABLE_FIELD_KEYS))
+    .min(1, "Name at least one field.")
+    .refine((fields) => new Set(fields).size === fields.length, "A field may not be named twice."),
+  comment: CommentRequired,
+});
+export type CorrectionRequestInput = z.infer<typeof CorrectionRequestInput>;
+
+/**
+ * What the field's owner supplies to correct it (#59, CONTEXT.md:
+ * "the field's owner supplying the fix"). Every field but
+ * `performingDepartmentId` - fixed at initiation and never correctable
+ * (BDR-0012) - since a correction request naming it can be raised but never
+ * satisfied this way - the service refuses that case itself, reading it off
+ * the outstanding request before this schema is ever reached, so a caller
+ * sending it here is told the real reason rather than a generic shape
+ * error. Reuses the exact validator each field's draft counterpart uses, so
+ * a corrected value can never be valid where an initial one would have
+ * been refused, or the reverse. Left non-strict, same as `ContributeFields`
+ * above: a correction and its `TransitionOptions.occurredAt` travel in one
+ * request body, so an unrecognized `occurredAt` key here has to be ignored
+ * rather than refused.
+ */
+export const CorrectionFieldValues = z
+  .object({
+    project: ProjectNameRequired,
+    requestingDepartmentId: HierarchyId,
+    fundingType: FundingType,
+    requestingLocationType: LocationType,
+    performingLocationType: LocationType,
+    requestingProgramManager: NamedPersonRequired,
+    requestingFinanceApprover: NamedPersonRequired,
+    performingProgramManager: NamedPersonRequired,
+    performingFinanceApprover: NamedPersonRequired,
+    performingContact: NamedPerson,
+    resources: z.array(ResourceInput).min(1, "At least one resource is required."),
+    performingEmployee: NamedPersonRequired,
+  })
+  .partial();
+export type CorrectionFieldValues = z.infer<typeof CorrectionFieldValues>;
+export type CorrectionFieldValuesInput = z.input<typeof CorrectionFieldValues>;
 
 /**
  * The requesting and performing department may never name the same
