@@ -28,7 +28,8 @@ export type StageId =
   | "performing-program-manager"
   | "performing-finance"
   | "contracts"
-  | "global-trade";
+  | "global-trade"
+  | "charge-number-admin";
 
 export type StageCriteria = {
   /** What this stage judges - the attribute that tells two otherwise
@@ -75,6 +76,13 @@ export const STAGE_CRITERIA: Record<StageId, StageCriteria> = {
     criteria:
       "The declared location types match the export jurisdiction and classification the " +
       "work requires.",
+  },
+  "charge-number-admin": {
+    concern: "charge number",
+    criteria:
+      "A charge number exists for the performing team to book time against. This stage " +
+      "supplies a value rather than rendering a judgement - completion follows from the " +
+      "number existing, not from a decision made here.",
   },
 } as const;
 

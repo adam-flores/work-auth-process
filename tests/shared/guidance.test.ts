@@ -33,6 +33,7 @@ const STAGE_IDS: StageId[] = [
   "performing-finance",
   "contracts",
   "global-trade",
+  "charge-number-admin",
 ];
 
 describe("field guidance", () => {
