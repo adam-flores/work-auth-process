@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import { RELAY_CONFIG, isContributionStage } from "../relay/config.ts";
+import { RELAY_CONFIG, isContributionStage, isGateStage } from "../relay/config.ts";
 import type { RelayStage } from "../relay/config.ts";
 import { resolveDepartment } from "../hierarchy/index.ts";
 import { listAuthorizations } from "../authorizations/index.ts";
@@ -20,17 +20,12 @@ import type { Authorization } from "../authorizations/index.ts";
  * participant rather than trust a name match.
  *
  * A gate's is not: Contracts and Global Trade are centralized compliance
- * functions tied to neither side (`relay/config.ts`), and how their queues
- * are staffed was an open question this ticket's own scaffold flagged.
- * Decided in conversation rather than left implicit: each gate gets a fixed
- * department of its own ("Contracts", "Global Trade"), seeded like any other
- * Approver's, once #57 builds the two gates. Nothing routes an authorization
- * to one on purpose yet - #55 and #56 are the four mandatory approvals only -
- * but `appendAcknowledgementTransition` has no gate-awareness and will walk
- * an authorization straight into one if acknowledged four times in a row.
- * `null` here, rather than throwing, is what keeps that from 500ing every
- * Approver's queue in the meantime: an authorization at a stage with no
- * queue department is simply in nobody's queue, until #57 gives it one.
+ * functions tied to neither side, so a gate stage carries its own queue
+ * department on itself (`GateStage.department` in `relay/config.ts`) rather
+ * than reading one off the authorization - "Contracts" and "Global Trade",
+ * seeded like any other Approver's in config/participants.json rather than
+ * drawn from the org hierarchy (#57). The only stage kind whose side is
+ * "neutral" is a gate, so reading it back here is exhaustive.
  */
 function queueDepartment(db: DatabaseSync, authorization: Authorization, stage: RelayStage): string | null {
   switch (stage.side) {
@@ -39,7 +34,7 @@ function queueDepartment(db: DatabaseSync, authorization: Authorization, stage: 
     case "performing":
       return resolveDepartment(db, authorization.performingDepartmentId)!.name;
     case "neutral":
-      return null;
+      return isGateStage(stage) ? stage.department : null;
   }
 }
 
@@ -53,7 +48,7 @@ function queueDepartment(db: DatabaseSync, authorization: Authorization, stage: 
 export function listApproverQueue(db: DatabaseSync, department: string): Authorization[] {
   return listAuthorizations(db).filter((authorization) => {
     const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
-    return stage.kind === "approval" && queueDepartment(db, authorization, stage) === department;
+    return isAcknowledgeableStage(stage) && queueDepartment(db, authorization, stage) === department;
   });
 }
 
@@ -67,7 +62,17 @@ export function isQueuedFor(
 ): boolean {
   if (participant.role !== "Approver") return false;
   const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
-  return stage.kind === "approval" && queueDepartment(db, authorization, stage) === participant.department;
+  return isAcknowledgeableStage(stage) && queueDepartment(db, authorization, stage) === participant.department;
+}
+
+/** A gate that runs resolves exactly like one of the four mandatory
+ *  approvals - a role at a department acknowledges it (CONTEXT.md: "any of
+ *  them may acknowledge") - so it belongs in an Approver's queue the same
+ *  way. A gate that does not run never reaches a queue at all: it resolves
+ *  itself via a gate-skip transition the moment it arrives
+ *  (`authorizations/index.ts`), before any queue is ever read. */
+function isAcknowledgeableStage(stage: RelayStage): boolean {
+  return stage.kind === "approval" || isGateStage(stage);
 }
 
 /**

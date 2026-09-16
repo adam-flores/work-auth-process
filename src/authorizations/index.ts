@@ -1,7 +1,8 @@
 import type { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import type { StageId } from "../guidance/content.ts";
-import { RELAY_CONFIG } from "../relay/config.ts";
+import { RELAY_CONFIG, isGateStage } from "../relay/config.ts";
+import type { GateStage } from "../relay/config.ts";
 import type { Resource } from "../drafts/index.ts";
 import type { FundingType, LocationType } from "../shared/constants.ts";
 import { SYSTEM_PARTICIPANT_ID } from "../shared/constants.ts";
@@ -81,6 +82,11 @@ type TransitionRow = {
 type InitiationPayload = { fields: AuthorizationFields };
 type StagePayload = { stageId: StageId };
 type ContributionPayload = { stageId: StageId; performingEmployee: string };
+/** BDR-0003 and ADR-0004 require "the value that decided a skip" - read
+ *  generically off the gate's own `fieldDependencies` rather than naming
+ *  Contracts or Global Trade's fields here, so a relay-configuration edit to
+ *  what a gate reads (BDR-0014) is the whole of the change this needs. */
+type GateSkipPayload = { stageId: StageId; fields: Partial<AuthorizationFields> };
 
 function readTransitions(db: DatabaseSync, authorizationId: string): TransitionRow[] {
   return db
@@ -99,11 +105,10 @@ function nextStageId(stageId: StageId): StageId {
 
 /**
  * What resolves a stage - acknowledging it (#55), a contributor completing
- * the performing-department stage (#56), or skipping a gate (a later ticket,
- * #57). Kept as a set for the same reason it was before any but the first
- * kind existed: it is what `foldStageHistory` below reads to fill in a
- * stage's `resolvedAt`, and each later kind fills that in exactly like an
- * acknowledgement does.
+ * the performing-department stage (#56), or skipping a gate (#57). Kept as a
+ * set for the same reason it was before any but the first kind existed: it
+ * is what `foldStageHistory` below reads to fill in a stage's `resolvedAt`,
+ * and each later kind fills that in exactly like an acknowledgement does.
  */
 const RESOLVING_KINDS = new Set(["acknowledgement", "contribution", "gate-skip"]);
 
@@ -241,10 +246,67 @@ function appendContactNotification(
   );
 }
 
+/** The fields a gate's own `fieldDependencies` names, read off the
+ *  authorization at the moment it decides the skip - not the fields a later
+ *  edit to the relay configuration might add or remove (BDR-0014: "changing
+ *  what it reads is a relay-configuration edit"). */
+function gateSkipFields(fields: AuthorizationFields, stage: GateStage): Partial<AuthorizationFields> {
+  return Object.fromEntries(
+    stage.fieldDependencies.map((key) => [key, fields[key as keyof AuthorizationFields]]),
+  ) as Partial<AuthorizationFields>;
+}
+
+/** A gate resolving itself the moment it arrives, because its condition does
+ *  not hold (BDR-0014, ADR-0004: "a gate skip is an explicit transition").
+ *  `system` is the actor - nobody decided this, the relay configuration
+ *  did - and the payload carries the value that decided it rather than
+ *  leaving the skip to be inferred later from fields that may since have
+ *  changed. */
+function appendGateSkipTransition(
+  db: DatabaseSync,
+  authorizationId: string,
+  stage: GateStage,
+  fields: AuthorizationFields,
+  occurredAt: string,
+): void {
+  const payload: GateSkipPayload = { stageId: stage.id, fields: gateSkipFields(fields, stage) };
+  db.prepare(
+    `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+     VALUES (?, ?, 'gate-skip', ?, ?, ?)`,
+  ).run(`transition-${randomUUID()}`, authorizationId, SYSTEM_PARTICIPANT_ID, occurredAt, JSON.stringify(payload));
+}
+
+/**
+ * Arrives an authorization at `stageId`, then, if that stage is a gate whose
+ * condition does not hold, resolves it immediately with a gate-skip and
+ * arrives at whatever comes next - recursively, since a company-funded,
+ * same-country authorization skips both gates in the same step and there is
+ * nothing for a queue to ever show it at. This is the one place this module
+ * reads a gate's `condition` rather than only `RELAY_CONFIG`'s ordering
+ * (`nextStageId` above), because evaluating a gate is what arriving at one
+ * means.
+ */
+function arriveAndSkipGates(
+  db: DatabaseSync,
+  authorizationId: string,
+  fields: AuthorizationFields,
+  stageId: StageId,
+  occurredAt: string,
+): void {
+  appendStageArrival(db, authorizationId, stageId, occurredAt);
+  const stage = RELAY_CONFIG.find((s) => s.id === stageId)!;
+  if (isGateStage(stage) && !stage.condition(fields)) {
+    appendGateSkipTransition(db, authorizationId, stage, fields, occurredAt);
+    const next = nextStageId(stageId);
+    if (next !== stageId) arriveAndSkipGates(db, authorizationId, fields, next, occurredAt);
+  }
+}
+
 /** Whether `stageId` is the performing-department stage - checked by id
  *  rather than by importing `relay/config.ts`'s stage kind here, so this
  *  module stays free of the relay configuration the way it was before #56
- *  (`nextStageId` above already reads `RELAY_CONFIG` for ordering only). */
+ *  (`nextStageId` above, and now `arriveAndSkipGates`, already read
+ *  `RELAY_CONFIG` for ordering and for a gate's own condition). */
 const PERFORMING_DEPARTMENT_STAGE_ID: StageId = "performing-department";
 
 /**
@@ -276,7 +338,7 @@ export function appendAcknowledgementTransition(
 
     const upcoming = nextStageId(stageId);
     if (upcoming !== stageId) {
-      appendStageArrival(db, input.authorizationId, upcoming, input.occurredAt);
+      arriveAndSkipGates(db, input.authorizationId, before, upcoming, input.occurredAt);
       if (upcoming === PERFORMING_DEPARTMENT_STAGE_ID && before.performingContact) {
         appendContactNotification(db, input.authorizationId, before.performingContact, input.occurredAt);
       }
@@ -335,7 +397,7 @@ export function appendContributionTransition(
     ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt, JSON.stringify(payload));
 
     const upcoming = nextStageId(stageId);
-    if (upcoming !== stageId) appendStageArrival(db, input.authorizationId, upcoming, input.occurredAt);
+    if (upcoming !== stageId) arriveAndSkipGates(db, input.authorizationId, before, upcoming, input.occurredAt);
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");

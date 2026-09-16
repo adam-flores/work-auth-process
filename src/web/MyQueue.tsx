@@ -1,18 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api.ts";
-import type { Authorization, ResolvedDepartment } from "./api.ts";
+import type { Attribute, Authorization, ResolvedDepartment } from "./api.ts";
 import { FUNDING_TYPE_LABELS, LOCATION_TYPE_LABELS } from "../shared/constants.ts";
 import { STAGE_CRITERIA } from "../guidance/content.ts";
 import { RELAY_CONFIG, isContributionStage } from "../relay/config.ts";
 
 /**
- * A queue (#55, #56, BDR-0002): what has arrived at this participant's role
- * and department, derived from the log rather than a list anyone maintains.
- * Opening an item shows the whole authorization - no stage sees less of one
- * than any other (BDR-0007). An Approver acknowledges; there is no denial or
- * rejection here (CONTEXT.md: "no approver refuses on the merits"). A
- * Contributor claims an unclaimed item and then completes it by naming the
- * employee who will perform the work (CONTEXT.md: "Claim").
+ * A queue (#55, #56, #57, BDR-0002): what has arrived at this participant's
+ * role and department, derived from the log rather than a list anyone
+ * maintains. Opening an item shows the whole authorization and every
+ * attribute of both departments - no stage sees less of one than any other
+ * (BDR-0007), which is also what Global Trade's gate needs: every field and
+ * every department attribute, with the product deriving no export
+ * determination of its own (BDR-0014). An Approver acknowledges - a gate
+ * that runs is acknowledged exactly like one of the four mandatory
+ * approvals; there is no denial or rejection here (CONTEXT.md: "no approver
+ * refuses on the merits"). A Contributor claims an unclaimed item and then
+ * completes it by naming the employee who will perform the work
+ * (CONTEXT.md: "Claim").
  */
 
 export type MyQueueProps = { actingId: string };
@@ -42,6 +47,32 @@ function useResolvedDepartments(
   }, [actingId, authorization.id, authorization.requestingDepartmentId, authorization.performingDepartmentId]);
 
   return { requesting, performing };
+}
+
+/** Every attribute a resolved department carries, its own plus everything
+ *  held above it (`ResolvedDepartment.attributes`) - shown for both sides on
+ *  every stage, not only Global Trade's. BDR-0007 draws no line between
+ *  stages on what an authorization's own fields show, and a department's
+ *  attributes are read the same way: the product hands over what it holds,
+ *  and derives no export determination of its own (BDR-0014). */
+function DepartmentAttributes({ label, department }: { label: string; department: ResolvedDepartment | null }) {
+  if (!department) return null;
+  return (
+    <div className="department-attributes" data-testid={`${label.toLowerCase().replace(/\s+/g, "-")}-attributes`}>
+      <h4>{label} attributes</h4>
+      {department.attributes.length === 0 ? (
+        <p className="hint">No attributes recorded.</p>
+      ) : (
+        <ul>
+          {department.attributes.map((attribute: Attribute) => (
+            <li key={`${attribute.name}=${attribute.value}`}>
+              {attribute.name}: {attribute.value}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 function OpenAuthorization({
@@ -155,6 +186,9 @@ function OpenAuthorization({
           </li>
         ))}
       </ul>
+
+      <DepartmentAttributes label="Requesting department" department={requesting} />
+      <DepartmentAttributes label="Performing department" department={performing} />
 
       <section aria-labelledby="queue-item-stage-heading" data-testid="queue-item-stage">
         <h4 id="queue-item-stage-heading">This stage's criteria</h4>
