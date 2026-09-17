@@ -61,3 +61,18 @@ export const JURISDICTION_LABELS: Record<Jurisdiction, string> = {
   foreign: "Foreign",
   domestic: "Domestic",
 };
+
+/**
+ * The three levels the hierarchy is always three of (BDR-0004, ADR-0012),
+ * whatever the source called them - what an Administrator's add, rename and
+ * set-inactive commands act on (#64).
+ */
+export const NODE_KIND_VALUES = ["legal-entity", "division", "department"] as const;
+
+export type NodeKind = (typeof NODE_KIND_VALUES)[number];
+
+export const NODE_KIND_LABELS: Record<NodeKind, string> = {
+  "legal-entity": "Legal entity",
+  division: "Division",
+  department: "Department",
+};

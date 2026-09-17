@@ -8,9 +8,11 @@ import type { Service } from "../service/index.ts";
 import { DomainError } from "../service/errors.ts";
 import type { DomainErrorCode } from "../service/errors.ts";
 import type {
+  AddHierarchyNodeInput,
   DepartmentQueryInput,
   DraftFieldsInput,
   PermissibilityRuleInput,
+  RenameHierarchyNodeInput,
   ResourceInput,
   TransitionOptionsInput,
 } from "../shared/rules.ts";
@@ -35,6 +37,7 @@ const STATUS_FOR: Record<DomainErrorCode, number> = {
   UNKNOWN_RESOURCE: 404,
   UNKNOWN_AUTHORIZATION: 404,
   UNKNOWN_PERMISSIBILITY_RULE: 404,
+  UNKNOWN_HIERARCHY_NODE: 404,
   NOT_DRAFT_OWNER: 403,
   NOT_ADMINISTRATOR: 403,
   NOT_IN_QUEUE: 403,
@@ -132,6 +135,11 @@ const ROUTES: Record<string, Handler> = {
   "GET /api/permissibility-rules": (s, ctx) => s.listPermissibilityRules(ctx),
   "POST /api/permissibility-rules": (s, ctx, _query, body) =>
     s.addPermissibilityRule(ctx, body as PermissibilityRuleInput),
+  "GET /api/revocations": (s, ctx) => s.listMyRevocations(ctx),
+  "GET /api/hierarchy/legal-entities": (s, ctx) => s.listLegalEntities(ctx),
+  "GET /api/hierarchy/divisions": (s, ctx, query) => s.listDivisions(ctx, query.get("legalEntityId") ?? undefined),
+  "GET /api/hierarchy/changes": (s, ctx) => s.listHierarchyChanges(ctx),
+  "POST /api/hierarchy": (s, ctx, _query, body) => s.addHierarchyNode(ctx, body as AddHierarchyNodeInput),
 };
 
 const MIME: Record<string, string> = {
@@ -184,6 +192,8 @@ const AUTHORIZATION_CLASSIFICATION_PATH = /^\/api\/authorizations\/([^/]+)\/clas
 const AUTHORIZATION_REQUEST_CORRECTION_PATH = /^\/api\/authorizations\/([^/]+)\/request-correction$/;
 const AUTHORIZATION_CORRECT_PATH = /^\/api\/authorizations\/([^/]+)\/correct$/;
 const PERMISSIBILITY_RULE_PATH = /^\/api\/permissibility-rules\/([^/]+)$/;
+const HIERARCHY_RENAME_PATH = /^\/api\/hierarchy\/([^/]+)\/([^/]+)\/rename$/;
+const HIERARCHY_SET_INACTIVE_PATH = /^\/api\/hierarchy\/([^/]+)\/([^/]+)\/set-inactive$/;
 
 export function createHttpServer(service: Service) {
   return createServer(async (req, res) => {
@@ -327,6 +337,36 @@ export function createHttpServer(service: Service) {
           res,
           200,
           service.removePermissibilityRule(ctx, decodeURIComponent(permissibilityRuleMatch[1])),
+        );
+      }
+
+      const hierarchyRenameMatch = method === "POST" ? HIERARCHY_RENAME_PATH.exec(pathname) : null;
+      if (hierarchyRenameMatch?.[1] && hierarchyRenameMatch[2]) {
+        const ctx = actingParticipant(req);
+        const body = await readJsonBody(req);
+        return sendJson(
+          res,
+          200,
+          service.renameHierarchyNode(
+            ctx,
+            decodeURIComponent(hierarchyRenameMatch[1]),
+            decodeURIComponent(hierarchyRenameMatch[2]),
+            body as RenameHierarchyNodeInput,
+          ),
+        );
+      }
+
+      const hierarchySetInactiveMatch = method === "POST" ? HIERARCHY_SET_INACTIVE_PATH.exec(pathname) : null;
+      if (hierarchySetInactiveMatch?.[1] && hierarchySetInactiveMatch[2]) {
+        const ctx = actingParticipant(req);
+        return sendJson(
+          res,
+          200,
+          service.setHierarchyNodeInactive(
+            ctx,
+            decodeURIComponent(hierarchySetInactiveMatch[1]),
+            decodeURIComponent(hierarchySetInactiveMatch[2]),
+          ),
         );
       }
 

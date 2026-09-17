@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { openStore, DEFAULT_STORE_PATH } from "../store/index.ts";
 import {
   ActingParticipant,
+  AddHierarchyNodeInput,
   CompleteDraftFields,
   ContributeFields,
   CorrectionFieldValues,
@@ -10,8 +11,10 @@ import {
   DraftFields,
   HierarchyId,
   MintFields,
+  NodeKind as NodeKindSchema,
   PermissibilityRuleInput,
   ReferralInput,
+  RenameHierarchyNodeInput,
   ResourceInput,
   TransitionOptions,
   SYSTEM_PARTICIPANT_ID,
@@ -22,8 +25,20 @@ import type {
   Participant,
   TransitionOptionsInput,
 } from "../shared/rules.ts";
-import { findDepartments, resolveDepartment } from "../hierarchy/index.ts";
-import type { ResolvedDepartment } from "../hierarchy/index.ts";
+import {
+  addDepartment,
+  addDivision,
+  addLegalEntity,
+  findDepartments,
+  hierarchyNode,
+  listDivisions as listDivisionsOf,
+  listHierarchyChanges as listHierarchyChangesOf,
+  listLegalEntities as listLegalEntitiesOf,
+  renameHierarchyNode,
+  resolveDepartment,
+  setHierarchyNodeInactive,
+} from "../hierarchy/index.ts";
+import type { HierarchyChange, HierarchyNode, ResolvedDepartment } from "../hierarchy/index.ts";
 import {
   addPermissibilityRule as addRule,
   isPairingPermitted,
@@ -57,6 +72,7 @@ import {
   appendInitiationTransition,
   appendReferralTransition,
   appendReleaseTransition,
+  appendRevocationTransition,
   appendWithdrawalTransition,
   classificationOf,
   correctionOwner,
@@ -136,22 +152,36 @@ export function createService(options: ServiceOptions = {}) {
     return participantId;
   }
 
-  /** The permissibility list is an Administrator's responsibility (BDR-0010,
-   *  ADR-0011: "an Administrator maintains ... the permissibility rules") -
-   *  the one command surface in this ticket where *who* is acting is
-   *  load-bearing, not just *that* they exist. Reading the list stays open
-   *  to everyone, the same as every other reference-data read; only adding
-   *  and removing a pairing checks the role. */
-  function requireAdministrator(ctx: unknown): string {
+  /** The permissibility list and the hierarchy are each an Administrator's
+   *  responsibility (BDR-0010, ADR-0011: "an Administrator maintains ...
+   *  the permissibility rules [and] the organizational hierarchy") - the
+   *  command surfaces where *who* is acting is load-bearing, not just
+   *  *that* they exist. Reading either stays open to everyone, the same as
+   *  every other reference-data read; only changing one checks the role. */
+  function requireAdministrator(
+    ctx: unknown,
+    message = "Only an Administrator may change the permissibility rules.",
+  ): string {
     const participantId = requireParticipant(ctx);
     const participant = db.prepare("SELECT role FROM participants WHERE id = ?").get(participantId) as
       | { role: string }
       | undefined;
     if (participant?.role !== "Administrator") {
-      throw new DomainError("NOT_ADMINISTRATOR", "Only an Administrator may change the permissibility rules.");
+      throw new DomainError("NOT_ADMINISTRATOR", message);
     }
     return participantId;
   }
+
+  const NOT_ADMINISTRATOR_HIERARCHY_MESSAGE = "Only an Administrator may maintain the organizational hierarchy.";
+
+  /** The comment BDR-0010 requires on every revocation a hierarchy edit
+   *  causes - "the mandatory comment is supplied by the system rather than
+   *  typed." Fixed text rather than a parameter to `setHierarchyNodeInactive`
+   *  below: an Administrator names *what* they are closing, never *what the
+   *  record says about why it revoked*, which is exactly what a canned
+   *  comment protects against drifting between callers. */
+  const HIERARCHY_REVOCATION_COMMENT =
+    "Revoked automatically: the department this authorization names was closed by a hierarchy change.";
 
   /** A participant's role and department, or `undefined` for anyone not on
    *  the roster - `system` included, which is why queue membership checks
@@ -229,12 +259,16 @@ export function createService(options: ServiceOptions = {}) {
     }
   }
 
-  /** Completion (a charge number existing) and withdrawal are each terminal
-   *  and mutually exclusive (#61, ADR-0007) - shared by `hold`, `release`
-   *  and `withdraw` so a third terminal marker (revocation, #64) only needs
-   *  adding here rather than in three near-identical checks. */
+  /** Completion (a charge number existing), withdrawal and revocation are
+   *  each terminal and mutually exclusive (#61, #64, ADR-0007) - shared by
+   *  `hold`, `release` and `withdraw` so a third terminal marker only
+   *  needed adding here rather than in three near-identical checks. */
   function requireNotTerminal(authorization: Authorization, verb: string): void {
-    if (authorization.chargeNumber !== null || authorization.withdrawnAt !== null) {
+    if (
+      authorization.chargeNumber !== null ||
+      authorization.withdrawnAt !== null ||
+      authorization.revokedAt !== null
+    ) {
       throw new DomainError(
         "AUTHORIZATION_TERMINAL",
         `This authorization has already reached a terminal state and cannot be ${verb}.`,
@@ -508,6 +542,180 @@ export function createService(options: ServiceOptions = {}) {
       }
       removeRule(db, ruleId);
       return { deleted: true };
+    },
+
+    /** Every legal entity and division, for anyone building an Administrator's
+     *  add form - open to everyone, the same as every other reference-data
+     *  read (#64, ADR-0011). */
+    listLegalEntities(ctx: ActingParticipant): HierarchyNode[] {
+      requireParticipant(ctx);
+      return listLegalEntitiesOf(db);
+    },
+
+    listDivisions(ctx: ActingParticipant, legalEntityId?: string): (HierarchyNode & { legalEntityId: string })[] {
+      requireParticipant(ctx);
+      return listDivisionsOf(db, legalEntityId);
+    },
+
+    /** The hierarchy's own change log (#64, BDR-0010): "visible to the
+     *  Administrator and deliberately not part of the insights dashboard" -
+     *  unlike the reads above, this one is restricted, the same way the
+     *  insights dashboard is the one other surface not open to everyone
+     *  (BDR-0006). */
+    listHierarchyChanges(ctx: ActingParticipant): HierarchyChange[] {
+      requireAdministrator(ctx, NOT_ADMINISTRATOR_HIERARCHY_MESSAGE);
+      return listHierarchyChangesOf(db);
+    },
+
+    /**
+     * An Administrator adding a legal entity, a division or a department
+     * (#64, BDR-0010): the path that unblocks a submitter who had nowhere to
+     * turn (BDR-0008's unfindable-department case). Which parent a node
+     * needs depends on its level - checked by `AddHierarchyNodeInput`'s
+     * discriminated union before this ever resolves one, and resolved here
+     * against the real hierarchy rather than trusted from the caller, the
+     * same discipline `resolveDepartmentIfSet` already applies to a draft's
+     * department ids.
+     */
+    addHierarchyNode(ctx: ActingParticipant, input: unknown): HierarchyNode {
+      const participantId = requireAdministrator(ctx, NOT_ADMINISTRATOR_HIERARCHY_MESSAGE);
+      const parsed = AddHierarchyNodeInput.safeParse(input);
+      if (!parsed.success) {
+        throw new DomainError("INVALID_REQUEST", parsed.error.issues[0]?.message ?? "Invalid hierarchy node.");
+      }
+      const occurredAt = new Date().toISOString();
+      const data = parsed.data;
+
+      if (data.nodeKind === "legal-entity") {
+        return addLegalEntity(db, { actorId: participantId, occurredAt, name: data.name });
+      }
+      if (data.nodeKind === "division") {
+        if (!hierarchyNode(db, "legal-entity", data.legalEntityId)) {
+          throw new DomainError(
+            "UNKNOWN_HIERARCHY_NODE",
+            `No legal entity with id "${data.legalEntityId}".`,
+          );
+        }
+        return addDivision(db, {
+          actorId: participantId,
+          occurredAt,
+          name: data.name,
+          legalEntityId: data.legalEntityId,
+        });
+      }
+      if (!hierarchyNode(db, "division", data.divisionId)) {
+        throw new DomainError("UNKNOWN_HIERARCHY_NODE", `No division with id "${data.divisionId}".`);
+      }
+      return addDepartment(db, {
+        actorId: participantId,
+        occurredAt,
+        name: data.name,
+        divisionId: data.divisionId,
+      });
+    },
+
+    /** An Administrator renaming a legal entity, a division or a department
+     *  (#64, BDR-0010): "a rename does not cancel" - it reaches every
+     *  in-flight authorization naming the node without disturbing any of
+     *  them, since a live authorization resolves its classification from the
+     *  hierarchy on every read (ADR-0007) and a settled one already stopped
+     *  doing that. */
+    renameHierarchyNode(ctx: ActingParticipant, nodeKind: unknown, nodeId: string, input: unknown): HierarchyNode {
+      const participantId = requireAdministrator(ctx, NOT_ADMINISTRATOR_HIERARCHY_MESSAGE);
+      const parsedKind = NodeKindSchema.safeParse(nodeKind);
+      if (!parsedKind.success) {
+        throw new DomainError("INVALID_REQUEST", parsedKind.error.issues[0]?.message ?? "Invalid node kind.");
+      }
+      if (!hierarchyNode(db, parsedKind.data, nodeId)) {
+        throw new DomainError("UNKNOWN_HIERARCHY_NODE", `No ${parsedKind.data} with id "${nodeId}".`);
+      }
+      const parsed = RenameHierarchyNodeInput.safeParse(input);
+      if (!parsed.success) {
+        throw new DomainError("INVALID_REQUEST", parsed.error.issues[0]?.message ?? "Invalid name.");
+      }
+
+      return renameHierarchyNode(db, {
+        actorId: participantId,
+        occurredAt: new Date().toISOString(),
+        nodeKind: parsedKind.data,
+        nodeId,
+        name: parsed.data.name,
+      });
+    },
+
+    /**
+     * An Administrator marking a legal entity, a division or a department
+     * inactive (#64, BDR-0010: "marking one inactive ends the work that
+     * names it"). Every in-flight authorization naming a department this
+     * closes - directly, or by closing the division or legal entity above
+     * it (ADR-0012's `selectable`) - is revoked in the same transaction: an
+     * ordinary revocation transition per authorization, each carrying the
+     * classification resolved live one final time (ADR-0007, exactly as
+     * `withdraw` already does for its own terminal transition) and the
+     * system's own fixed comment rather than one the Administrator types
+     * (BDR-0010). Each affected submitter is notified - the one case
+     * `listMyRevocations` below exists for.
+     */
+    setHierarchyNodeInactive(ctx: ActingParticipant, nodeKind: unknown, nodeId: string): HierarchyNode {
+      const participantId = requireAdministrator(ctx, NOT_ADMINISTRATOR_HIERARCHY_MESSAGE);
+      const parsedKind = NodeKindSchema.safeParse(nodeKind);
+      if (!parsedKind.success) {
+        throw new DomainError("INVALID_REQUEST", parsedKind.error.issues[0]?.message ?? "Invalid node kind.");
+      }
+      if (!hierarchyNode(db, parsedKind.data, nodeId)) {
+        throw new DomainError("UNKNOWN_HIERARCHY_NODE", `No ${parsedKind.data} with id "${nodeId}".`);
+      }
+      const occurredAt = new Date().toISOString();
+
+      db.exec("BEGIN");
+      try {
+        const { node, newlyClosedDepartmentIds } = setHierarchyNodeInactive(db, {
+          actorId: participantId,
+          occurredAt,
+          nodeKind: parsedKind.data,
+          nodeId,
+        });
+
+        for (const departmentId of newlyClosedDepartmentIds) {
+          const affected = listAuthorizations(db).filter(
+            (a) => a.requestingDepartmentId === departmentId || a.performingDepartmentId === departmentId,
+          );
+          for (const authorization of affected) {
+            const requesting = resolveDepartmentIfSet(authorization.requestingDepartmentId)!;
+            const performing = resolveDepartmentIfSet(authorization.performingDepartmentId)!;
+            appendRevocationTransition(db, {
+              authorizationId: authorization.id,
+              actorId: participantId,
+              occurredAt,
+              comment: HIERARCHY_REVOCATION_COMMENT,
+              classification: {
+                requesting: classificationOf(requesting),
+                performing: classificationOf(performing),
+              },
+            });
+          }
+        }
+        db.exec("COMMIT");
+        return node;
+      } catch (err) {
+        db.exec("ROLLBACK");
+        throw err;
+      }
+    },
+
+    /** What a submitter is told about their own authorizations, past the
+     *  point they left the relay (BDR-0010, CONTEXT.md: "Notification" -
+     *  "in one case, when one leaves without them: a submitter is told when
+     *  a hierarchy change revokes their authorization, which lands it in
+     *  nobody's queue"). Read the same poll-and-diff way `listMyQueue`'s
+     *  arrivals already are on the client: this list is not itself a queue,
+     *  it is what a client compares against its last look to notice a new
+     *  revocation. */
+    listMyRevocations(ctx: ActingParticipant): Authorization[] {
+      const participantId = requireParticipant(ctx);
+      return listAllAuthorizations(db).filter(
+        (a) => a.submitterId === participantId && a.revokedAt !== null,
+      );
     },
 
     /** Read back an initiated authorization - open to any known participant,

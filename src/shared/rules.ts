@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FUNDING_TYPE_VALUES, JURISDICTION_VALUES, LOCATION_TYPE_VALUES } from "./constants.ts";
+import { FUNDING_TYPE_VALUES, JURISDICTION_VALUES, LOCATION_TYPE_VALUES, NODE_KIND_VALUES } from "./constants.ts";
 import type { CorrectableFieldKey } from "../authorizations/index.ts";
 
 /**
@@ -341,4 +341,44 @@ export const PermissibilityRuleInput = z.object({
 export type Jurisdiction = z.infer<typeof Jurisdiction>;
 export type PermissibilityRuleInput = z.infer<typeof PermissibilityRuleInput>;
 
-export { SYSTEM_PARTICIPANT_ID, FUNDING_TYPE_VALUES, LOCATION_TYPE_VALUES, JURISDICTION_VALUES } from "./constants.ts";
+/**
+ * An Administrator maintaining the hierarchy (#64, BDR-0010): add, rename and
+ * set-inactive for a legal entity, a division or a department - never a
+ * delete, and never a re-parent, which BDR-0010 specifies and deliberately
+ * defers. `AddHierarchyNodeInput` is a discriminated union rather than one
+ * object with optional parents because which parent a node needs depends
+ * entirely on which level it is - a legal entity names none, a division
+ * names a legal entity, a department names a division.
+ */
+export const NodeKind = z.enum(NODE_KIND_VALUES);
+export const HierarchyNodeName = z
+  .string()
+  .trim()
+  .min(1, "A name is required.")
+  .max(200);
+
+export const AddHierarchyNodeInput = z.discriminatedUnion("nodeKind", [
+  z.object({ nodeKind: z.literal("legal-entity"), name: HierarchyNodeName }),
+  z.object({ nodeKind: z.literal("division"), name: HierarchyNodeName, legalEntityId: HierarchyId }),
+  z.object({ nodeKind: z.literal("department"), name: HierarchyNodeName, divisionId: HierarchyId }),
+]);
+
+/** `nodeKind` travels separately (a path segment on the HTTP adapter, an
+ *  explicit argument at the service seam) rather than inside this body -
+ *  it says which table a rename or a set-inactive acts on, which the
+ *  caller already had to know to name `nodeId` in the first place. */
+export const RenameHierarchyNodeInput = z.object({
+  name: HierarchyNodeName,
+});
+
+export type NodeKind = z.infer<typeof NodeKind>;
+export type AddHierarchyNodeInput = z.infer<typeof AddHierarchyNodeInput>;
+export type RenameHierarchyNodeInput = z.infer<typeof RenameHierarchyNodeInput>;
+
+export {
+  SYSTEM_PARTICIPANT_ID,
+  FUNDING_TYPE_VALUES,
+  LOCATION_TYPE_VALUES,
+  JURISDICTION_VALUES,
+  NODE_KIND_VALUES,
+} from "./constants.ts";

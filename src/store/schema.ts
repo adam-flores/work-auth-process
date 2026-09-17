@@ -14,7 +14,7 @@
  * disk built by an older shape is rebuilt on open (ADR-0008), and without the
  * bump it survives and then fails on the first write its old constraints refuse.
  */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 export const SCHEMA = `
   CREATE TABLE IF NOT EXISTS store_meta (
@@ -155,6 +155,25 @@ export const SCHEMA = `
      id, in order". Without this, that scan is over every transition ever
      appended, for every authorization there is. */
   CREATE INDEX IF NOT EXISTS idx_transitions_authorization_id ON transitions(authorization_id);
+
+  /* The hierarchy's own append-only log (#64, BDR-0010, ADR-0007), separate
+     from transitions above: a transition is "one recorded change to an
+     authorization" and a hierarchy edit is not that. Never updated or
+     deleted, same discipline - who changed what, and when, read back by
+     folding this table rather than from a stored column. payload carries
+     whatever the kind needs (an add's name and parent, a rename's before and
+     after, set-inactive's name at the moment it closed) as JSON, the same
+     shape-varies-by-kind choice transitions already makes. */
+  CREATE TABLE IF NOT EXISTS hierarchy_changes (
+    seq         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id          TEXT NOT NULL UNIQUE,
+    actor_id    TEXT NOT NULL,
+    occurred_at TEXT NOT NULL,
+    kind        TEXT NOT NULL CHECK (kind IN ('add', 'rename', 'set-inactive')),
+    node_kind   TEXT NOT NULL CHECK (node_kind IN ('legal-entity', 'division', 'department')),
+    node_id     TEXT NOT NULL,
+    payload     TEXT NOT NULL
+  );
 `;
 
 /**
@@ -163,6 +182,7 @@ export const SCHEMA = `
  * list is the whole of the upgrade story.
  */
 export const DROP_ALL = `
+  DROP TABLE IF EXISTS hierarchy_changes;
   DROP TABLE IF EXISTS transitions;
   DROP TABLE IF EXISTS draft_resources;
   DROP TABLE IF EXISTS drafts;

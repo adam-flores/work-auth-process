@@ -7,10 +7,12 @@ import { withTempStore } from "../helpers/temp-store.ts";
 /**
  * The hierarchy, driven at the service seam (ADR-0010). Nothing here asserts
  * against the tables: how the transformation stores an attribute is
- * implementation, and what a submitter can find is the behaviour. Two tests do
- * *write* through the store, using the escape hatch to close something the
- * command surface cannot close until #64 builds the admin verbs; each undoes it
- * whatever the assertions do.
+ * implementation, and what a submitter can find is the behaviour. Two tests
+ * close a department or a division through the real Administrator command
+ * (#64) rather than editing the store directly, and restore the seeded
+ * hierarchy afterwards with a full reset - set-inactive has no reverse of its
+ * own, by design (BDR-0010 names add and rename as the only edits, not a
+ * reactivation), so a reseed is what undoes it for the tests below.
  *
  * The fixture these run against is `docs/reference/organization-hierarchy.json`,
  * which is deliberately awkward. Each irregularity has a test below, because
@@ -25,10 +27,14 @@ const FIXTURE = { legalEntities: 3, divisions: 12, departments: 58, foreign: 17 
 describe("the seeded hierarchy", () => {
   let store: ReturnType<typeof withTempStore>;
   let service: ReturnType<typeof createService>;
+  let administrator: { participantId: string };
 
   before(() => {
     store = withTempStore();
     service = createService({ storePath: store.path });
+    administrator = {
+      participantId: service.listParticipants(SYSTEM).find((p) => p.role === "Administrator")!.id,
+    };
   });
   after(() => {
     service.close();
@@ -191,15 +197,10 @@ describe("the seeded hierarchy", () => {
     test("an inactive department is excluded from the picker but resolvable for ever", (t) => {
       const closed = byName("Signal Analytics Corp");
       // Restored however this test ends: the store is shared with every test
-      // below, and a failed assertion must not leave one closed.
-      t.after(() =>
-        service.__unsafeRawExec(
-          "UPDATE departments SET active = 1 WHERE name = 'Signal Analytics Corp'",
-        ),
-      );
-      service.__unsafeRawExec(
-        "UPDATE departments SET active = 0 WHERE name = 'Signal Analytics Corp'",
-      );
+      // below, and a failed assertion must not leave one closed. Set-inactive
+      // (#64) has no reverse of its own, so a full reseed is what undoes it.
+      t.after(() => service.resetStore(SYSTEM));
+      service.setHierarchyNodeInactive(administrator, "department", closed.id);
 
       assert.ok(!service.searchDepartments(SYSTEM, {}).some((d) => d.id === closed.id));
       const resolved = service.getDepartment(SYSTEM, closed.id);
@@ -211,8 +212,9 @@ describe("the seeded hierarchy", () => {
 
     test("a department under an inactive division is closed too, and says which level closed it", (t) => {
       const dept = byName("Vibration Lab");
-      t.after(() => service.__unsafeRawExec("UPDATE divisions SET active = 1 WHERE name = 'Labs'"));
-      service.__unsafeRawExec("UPDATE divisions SET active = 0 WHERE name = 'Labs'");
+      const labs = all().find((d) => d.division.name === "Labs")!.division;
+      t.after(() => service.resetStore(SYSTEM));
+      service.setHierarchyNodeInactive(administrator, "division", labs.id);
 
       assert.ok(!service.searchDepartments(SYSTEM, {}).some((d) => d.id === dept.id));
       const resolved = service.getDepartment(SYSTEM, dept.id);
