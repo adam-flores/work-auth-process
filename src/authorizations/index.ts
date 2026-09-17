@@ -1103,18 +1103,31 @@ export function correctionOwner(
  * function already checks `onHold` itself, the same way each already
  * checks `awaitingCorrection`.
  *
- * Not the reader a future master dashboard (#63) can reuse - CONTEXT.md's
- * "Master dashboard" is explicit that it shows every authorization "in the
- * system," terminal ones included, which is the opposite of what a queue
- * should ever be filtered from. That surface needs its own, unfiltered
- * function; reaching for this one instead would silently hide completed
- * and withdrawn work from a view whose whole job is to show it.
+ * Not the reader the master dashboard uses (#63, `listAllAuthorizations`
+ * below) - CONTEXT.md's "Master dashboard" is explicit that it shows every
+ * authorization "in the system," terminal ones included, which is the
+ * opposite of what a queue should ever be filtered from. Built as a filter
+ * over that unfiltered reader rather than a second copy of its query, so
+ * the one place that knows what "every initiated authorization" means
+ * cannot drift from the one place that knows what "still in flight" means.
  */
 export function listAuthorizations(db: DatabaseSync): Authorization[] {
+  return listAllAuthorizations(db).filter(
+    (authorization) => authorization.chargeNumber === null && authorization.withdrawnAt === null,
+  );
+}
+
+/**
+ * Every initiated authorization, terminal ones included (#63, BDR-0002: "a
+ * master dashboard is open and complete: every authorization ... visible to
+ * anyone with access"). The unfiltered reader `listAuthorizations` above is
+ * built on - a queue must never show completed or withdrawn work, but the
+ * whole point of the master dashboard is to keep showing it after a queue
+ * would have dropped it.
+ */
+export function listAllAuthorizations(db: DatabaseSync): Authorization[] {
   const rows = db
     .prepare("SELECT DISTINCT authorization_id FROM transitions WHERE kind = 'initiation'")
     .all() as { authorization_id: string }[];
-  return rows
-    .map((row) => findAuthorization(db, row.authorization_id)!)
-    .filter((authorization) => authorization.chargeNumber === null && authorization.withdrawnAt === null);
+  return rows.map((row) => findAuthorization(db, row.authorization_id)!);
 }
