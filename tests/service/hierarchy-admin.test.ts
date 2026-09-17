@@ -130,6 +130,46 @@ describe("hierarchy maintenance", () => {
       );
     });
 
+    test("a division may not be added under a closed legal entity", () => {
+      const { legalEntity } = addFreshDepartment("Closed parent - LE");
+      service.setHierarchyNodeInactive(administrator, "legal-entity", legalEntity.id);
+      assert.throws(
+        () =>
+          service.addHierarchyNode(administrator, {
+            nodeKind: "division",
+            name: "Division under closed LE",
+            legalEntityId: legalEntity.id,
+          }),
+        (err: unknown) => err instanceof DomainError && err.code === "HIERARCHY_NODE_INACTIVE",
+      );
+    });
+
+    test("a department may not be added under a closed division", () => {
+      const { division } = addFreshDepartment("Closed parent - division");
+      service.setHierarchyNodeInactive(administrator, "division", division.id);
+      assert.throws(
+        () =>
+          service.addHierarchyNode(administrator, {
+            nodeKind: "department",
+            name: "Department under closed division",
+            divisionId: division.id,
+          }),
+        (err: unknown) => err instanceof DomainError && err.code === "HIERARCHY_NODE_INACTIVE",
+      );
+    });
+
+    test("a name that is punctuation only still gets a usable, distinct id", () => {
+      const first = service.addHierarchyNode(administrator, { nodeKind: "legal-entity", name: "—" });
+      const second = service.addHierarchyNode(administrator, { nodeKind: "legal-entity", name: "—" });
+      assert.ok(first.id.length > 0);
+      assert.notEqual(first.id, second.id);
+      // Reachable through the ordinary mutating surface, not stranded.
+      const renamed = service.renameHierarchyNode(administrator, "legal-entity", first.id, {
+        name: "No longer punctuation",
+      });
+      assert.equal(renamed.name, "No longer punctuation");
+    });
+
     test("a blank name is refused", () => {
       assert.throws(
         () => service.addHierarchyNode(administrator, { nodeKind: "legal-entity", name: "   " }),
@@ -369,6 +409,36 @@ describe("hierarchy maintenance", () => {
       const { department } = addFreshDepartment("Count check");
       service.setHierarchyNodeInactive(administrator, "department", department.id);
       assert.equal(service.getStoreInfo(SYSTEM).departmentCount, before + 1);
+    });
+
+    test("a revoked authorization cannot be acted on by an id that outlives its own queue membership", () => {
+      // Revoking does not move `currentStageId`, so the ordinary
+      // queue-membership checks (`isQueuedFor`, `isHolderOf`) would still
+      // say this authorization belongs to these participants unless the
+      // command surface itself refuses a terminal record first.
+      const { department } = addFreshDepartment("Terminal after revoke");
+      const authorization = initiateAuthorization("Cannot be acted on once revoked", department.id);
+      service.setHierarchyNodeInactive(administrator, "department", department.id);
+
+      assert.throws(
+        () => service.acknowledge({ participantId: requestingApprover }, authorization.id),
+        (err: unknown) => err instanceof DomainError && err.code === "AUTHORIZATION_TERMINAL",
+      );
+      assert.throws(
+        () =>
+          service.refer({ participantId: requestingApprover }, authorization.id, {
+            colleagueId: contributor.participantId,
+          }),
+        (err: unknown) => err instanceof DomainError && err.code === "AUTHORIZATION_TERMINAL",
+      );
+      assert.throws(
+        () =>
+          service.requestCorrection({ participantId: requestingApprover }, authorization.id, {
+            fields: ["project"],
+            comment: "Too late",
+          }),
+        (err: unknown) => err instanceof DomainError && err.code === "AUTHORIZATION_TERMINAL",
+      );
     });
   });
 

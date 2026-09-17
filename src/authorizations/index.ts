@@ -6,6 +6,7 @@ import type { GateStage, RelayStage } from "../relay/config.ts";
 import type { Resource } from "../drafts/index.ts";
 import type { FundingType, LocationType } from "../shared/constants.ts";
 import { SYSTEM_PARTICIPANT_ID } from "../shared/constants.ts";
+import { isTerminal } from "../shared/rules.ts";
 
 /**
  * The transition log: the append-only half of ADR-0009, and the record
@@ -1180,12 +1181,7 @@ export function correctionOwner(
  * completed or withdrawn one.
  */
 export function listAuthorizations(db: DatabaseSync): Authorization[] {
-  return listAllAuthorizations(db).filter(
-    (authorization) =>
-      authorization.chargeNumber === null &&
-      authorization.withdrawnAt === null &&
-      authorization.revokedAt === null,
-  );
+  return listAllAuthorizations(db).filter((authorization) => !isTerminal(authorization));
 }
 
 /**

@@ -325,6 +325,29 @@ export type TransitionOptions = z.infer<typeof TransitionOptions>;
 export type TransitionOptionsInput = z.input<typeof TransitionOptions>;
 
 /**
+ * Completed, withdrawn or revoked (#58, #61, #64, ADR-0007): the three
+ * terminal states, mutually exclusive by construction, checked identically
+ * everywhere something needs to know whether there is anything left to act
+ * on. A duck-typed parameter rather than importing `Authorization` from
+ * `authorizations/index.ts` - that module also imports from `node:crypto`
+ * for its own appends, which this file must stay free of so the browser can
+ * import it too (ADR-0002). The service seam's `requireNotTerminal` and the
+ * master dashboard's stage label (#63) both read this instead of each
+ * keeping its own copy of the same three-field check.
+ */
+export function isTerminal(authorization: {
+  chargeNumber: string | null;
+  withdrawnAt: string | null;
+  revokedAt: string | null;
+}): boolean {
+  return (
+    authorization.chargeNumber !== null ||
+    authorization.withdrawnAt !== null ||
+    authorization.revokedAt !== null
+  );
+}
+
+/**
  * A permissibility rule (#53, BDR-0007): a pairing of jurisdictions that may
  * not work together, held as data rather than code so a new pairing costs no
  * build. The seeded rule reads "a foreign department may not perform work

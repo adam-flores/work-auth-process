@@ -233,7 +233,7 @@ describe("referral", () => {
         service.refer({ participantId: chargeNumberAdmin }, authorization.id, {
           colleagueId: unrelatedApprover,
         }),
-      (err: unknown) => err instanceof DomainError && err.code === "NOT_IN_QUEUE",
+      (err: unknown) => err instanceof DomainError && err.code === "AUTHORIZATION_TERMINAL",
     );
   });
 

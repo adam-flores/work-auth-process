@@ -10,6 +10,7 @@ import {
   DepartmentQuery,
   DraftFields,
   HierarchyId,
+  isTerminal,
   MintFields,
   NodeKind as NodeKindSchema,
   PermissibilityRuleInput,
@@ -206,6 +207,22 @@ export function createService(options: ServiceOptions = {}) {
     return found;
   }
 
+  /** Both sides resolved live and frozen (ADR-0007) - the one read
+   *  `mintChargeNumber`, `withdraw`, `setHierarchyNodeInactive`'s revocation
+   *  fan-out and `getClassification`'s live fallback all need, at the exact
+   *  instant each of them is the last live read a record will ever make.
+   *  Centralized so a future change to what freezing carries is one edit
+   *  rather than a hunt across every terminal transition's call site. */
+  function liveClassification(authorization: {
+    requestingDepartmentId: string | null;
+    performingDepartmentId: string | null;
+  }): { requesting: FrozenClassification; performing: FrozenClassification } {
+    return {
+      requesting: classificationOf(resolveDepartmentIfSet(authorization.requestingDepartmentId)!),
+      performing: classificationOf(resolveDepartmentIfSet(authorization.performingDepartmentId)!),
+    };
+  }
+
   /** #53: refused at entry, the moment both departments are set on a draft,
    *  rather than days later at a gate. Names the pairing - it is the
    *  pairing that is not permitted, not either department that is
@@ -260,15 +277,18 @@ export function createService(options: ServiceOptions = {}) {
   }
 
   /** Completion (a charge number existing), withdrawal and revocation are
-   *  each terminal and mutually exclusive (#61, #64, ADR-0007) - shared by
-   *  `hold`, `release` and `withdraw` so a third terminal marker only
-   *  needed adding here rather than in three near-identical checks. */
+   *  each terminal and mutually exclusive (#61, #64, ADR-0007) - checked by
+   *  every command that acts on an already-initiated authorization, not
+   *  only `hold`, `release` and `withdraw`: nothing about `currentStageId`
+   *  or a queue's own membership check changes when a terminal transition
+   *  is appended (a withdrawn or revoked authorization can still look
+   *  "queued" to `isQueuedFor`/`isQueuedForMint`/`isHolderOf`, which read
+   *  position and role, not terminal state), so this is what actually
+   *  keeps a terminal record from being acted on by an id that outlives its
+   *  own queue membership - the master dashboard shows one to anybody long
+   *  after it left every queue. */
   function requireNotTerminal(authorization: Authorization, verb: string): void {
-    if (
-      authorization.chargeNumber !== null ||
-      authorization.withdrawnAt !== null ||
-      authorization.revokedAt !== null
-    ) {
+    if (isTerminal(authorization)) {
       throw new DomainError(
         "AUTHORIZATION_TERMINAL",
         `This authorization has already reached a terminal state and cannot be ${verb}.`,
@@ -590,10 +610,17 @@ export function createService(options: ServiceOptions = {}) {
         return addLegalEntity(db, { actorId: participantId, occurredAt, name: data.name });
       }
       if (data.nodeKind === "division") {
-        if (!hierarchyNode(db, "legal-entity", data.legalEntityId)) {
+        const parent = hierarchyNode(db, "legal-entity", data.legalEntityId);
+        if (!parent) {
           throw new DomainError(
             "UNKNOWN_HIERARCHY_NODE",
             `No legal entity with id "${data.legalEntityId}".`,
+          );
+        }
+        if (!parent.active) {
+          throw new DomainError(
+            "HIERARCHY_NODE_INACTIVE",
+            `"${parent.name}" is inactive - a new division cannot be added under a closed legal entity.`,
           );
         }
         return addDivision(db, {
@@ -603,8 +630,15 @@ export function createService(options: ServiceOptions = {}) {
           legalEntityId: data.legalEntityId,
         });
       }
-      if (!hierarchyNode(db, "division", data.divisionId)) {
+      const parent = hierarchyNode(db, "division", data.divisionId);
+      if (!parent) {
         throw new DomainError("UNKNOWN_HIERARCHY_NODE", `No division with id "${data.divisionId}".`);
+      }
+      if (!parent.active) {
+        throw new DomainError(
+          "HIERARCHY_NODE_INACTIVE",
+          `"${parent.name}" is inactive - a new department cannot be added under a closed division.`,
+        );
       }
       return addDepartment(db, {
         actorId: participantId,
@@ -676,24 +710,24 @@ export function createService(options: ServiceOptions = {}) {
           nodeId,
         });
 
-        for (const departmentId of newlyClosedDepartmentIds) {
-          const affected = listAuthorizations(db).filter(
-            (a) => a.requestingDepartmentId === departmentId || a.performingDepartmentId === departmentId,
-          );
-          for (const authorization of affected) {
-            const requesting = resolveDepartmentIfSet(authorization.requestingDepartmentId)!;
-            const performing = resolveDepartmentIfSet(authorization.performingDepartmentId)!;
-            appendRevocationTransition(db, {
-              authorizationId: authorization.id,
-              actorId: participantId,
-              occurredAt,
-              comment: HIERARCHY_REVOCATION_COMMENT,
-              classification: {
-                requesting: classificationOf(requesting),
-                performing: classificationOf(performing),
-              },
-            });
-          }
+        // Read once rather than once per closed department: a legal entity
+        // or division can cascade across dozens of departments, and each
+        // would otherwise re-fold every in-flight authorization's whole
+        // transition history to find the handful naming it.
+        const closedIds = new Set(newlyClosedDepartmentIds);
+        const affected = closedIds.size
+          ? listAuthorizations(db).filter(
+              (a) => closedIds.has(a.requestingDepartmentId) || closedIds.has(a.performingDepartmentId),
+            )
+          : [];
+        for (const authorization of affected) {
+          appendRevocationTransition(db, {
+            authorizationId: authorization.id,
+            actorId: participantId,
+            occurredAt,
+            comment: HIERARCHY_REVOCATION_COMMENT,
+            classification: liveClassification(authorization),
+          });
         }
         db.exec("COMMIT");
         return node;
@@ -806,6 +840,7 @@ export function createService(options: ServiceOptions = {}) {
       if (!authorization) {
         throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
       }
+      requireNotTerminal(authorization, "acknowledged");
 
       const participant = readParticipant(participantId);
       if (!participant || !isQueuedFor(db, authorization, participant)) {
@@ -843,6 +878,7 @@ export function createService(options: ServiceOptions = {}) {
       if (!authorization) {
         throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
       }
+      requireNotTerminal(authorization, "claimed");
 
       const participant = readParticipant(participantId);
       if (!participant || !isQueuedForClaim(db, authorization, participant)) {
@@ -880,6 +916,7 @@ export function createService(options: ServiceOptions = {}) {
       if (!authorization) {
         throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
       }
+      requireNotTerminal(authorization, "contributed to");
 
       if (authorization.onHold) {
         throw new DomainError("AUTHORIZATION_ON_HOLD", "This authorization is on hold and cannot be acted on.");
@@ -935,6 +972,7 @@ export function createService(options: ServiceOptions = {}) {
       if (!authorization) {
         throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
       }
+      requireNotTerminal(authorization, "minted again");
 
       const participant = readParticipant(participantId);
       if (!participant || !isQueuedForMint(authorization, participant)) {
@@ -958,18 +996,12 @@ export function createService(options: ServiceOptions = {}) {
       }
       const occurredAt = parsedOptions.data.occurredAt ?? new Date().toISOString();
 
-      const requesting = resolveDepartmentIfSet(authorization.requestingDepartmentId)!;
-      const performing = resolveDepartmentIfSet(authorization.performingDepartmentId)!;
-
       return appendCompletionTransition(db, {
         authorizationId,
         actorId: participantId,
         occurredAt,
         chargeNumber: parsedFields.data.chargeNumber,
-        classification: {
-          requesting: classificationOf(requesting),
-          performing: classificationOf(performing),
-        },
+        classification: liveClassification(authorization),
       });
     },
 
@@ -989,11 +1021,7 @@ export function createService(options: ServiceOptions = {}) {
       if (!authorization) {
         throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
       }
-      if (authorization.classification) return authorization.classification;
-      return {
-        requesting: classificationOf(resolveDepartmentIfSet(authorization.requestingDepartmentId)!),
-        performing: classificationOf(resolveDepartmentIfSet(authorization.performingDepartmentId)!),
-      };
+      return authorization.classification ?? liveClassification(authorization);
     },
 
     /**
@@ -1012,6 +1040,7 @@ export function createService(options: ServiceOptions = {}) {
       if (!authorization) {
         throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
       }
+      requireNotTerminal(authorization, "corrected");
 
       const participant = readParticipant(participantId);
       if (!participant || !isQueuedFor(db, authorization, participant)) {
@@ -1095,6 +1124,7 @@ export function createService(options: ServiceOptions = {}) {
       if (!authorization) {
         throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
       }
+      requireNotTerminal(authorization, "corrected");
       if (authorization.onHold) {
         throw new DomainError("AUTHORIZATION_ON_HOLD", "This authorization is on hold and cannot be acted on.");
       }
@@ -1274,17 +1304,11 @@ export function createService(options: ServiceOptions = {}) {
       }
       const occurredAt = parsedOptions.data.occurredAt ?? new Date().toISOString();
 
-      const requesting = resolveDepartmentIfSet(authorization.requestingDepartmentId)!;
-      const performing = resolveDepartmentIfSet(authorization.performingDepartmentId)!;
-
       return appendWithdrawalTransition(db, {
         authorizationId,
         actorId: participantId,
         occurredAt,
-        classification: {
-          requesting: classificationOf(requesting),
-          performing: classificationOf(performing),
-        },
+        classification: liveClassification(authorization),
       });
     },
 
@@ -1312,6 +1336,7 @@ export function createService(options: ServiceOptions = {}) {
       if (!authorization) {
         throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
       }
+      requireNotTerminal(authorization, "referred");
 
       const participant = readParticipant(participantId);
       if (!participant || !isHolderOf(db, authorization, participant, participantId)) {

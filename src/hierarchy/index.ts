@@ -275,6 +275,15 @@ export function listDivisions(
   }));
 }
 
+/** `slug` can legitimately reduce to the empty string for a name that
+ *  survives `HierarchyNodeName`'s non-blank check but is entirely
+ *  punctuation once normalized (an em dash, say) - nothing here should ever
+ *  hand `uniqueId` an empty base to disambiguate against, so this falls
+ *  back to a short random id in exactly that case. */
+function slugOrFallback(name: string): string {
+  return slug(name) || `node-${randomUUID().slice(0, 8)}`;
+}
+
 /** A stable id for a node added after seeding, from the same `slug` seeding
  *  itself uses (ADR-0012) - but a collision here is a coincidence of two
  *  ordinary names, not a fixture bug, so it is disambiguated with a numeric
@@ -391,7 +400,7 @@ export function addLegalEntity(
   db: DatabaseSync,
   input: { actorId: string; occurredAt: string; name: string },
 ): HierarchyNode {
-  const id = uniqueId(db, "legal_entities", slug(input.name));
+  const id = uniqueId(db, "legal_entities", slugOrFallback(input.name));
   db.prepare("INSERT INTO legal_entities (id, name, active) VALUES (?, ?, 1)").run(id, input.name);
   appendHierarchyChange(db, {
     actorId: input.actorId,
@@ -408,7 +417,7 @@ export function addDivision(
   db: DatabaseSync,
   input: { actorId: string; occurredAt: string; name: string; legalEntityId: string },
 ): HierarchyNode {
-  const id = uniqueId(db, "divisions", `${input.legalEntityId}-${slug(input.name)}`);
+  const id = uniqueId(db, "divisions", `${input.legalEntityId}-${slugOrFallback(input.name)}`);
   db.prepare("INSERT INTO divisions (id, legal_entity_id, name, active) VALUES (?, ?, ?, 1)").run(
     id,
     input.legalEntityId,
@@ -429,7 +438,7 @@ export function addDepartment(
   db: DatabaseSync,
   input: { actorId: string; occurredAt: string; name: string; divisionId: string },
 ): HierarchyNode {
-  const id = uniqueId(db, "departments", slug(input.name));
+  const id = uniqueId(db, "departments", slugOrFallback(input.name));
   db.prepare(
     "INSERT INTO departments (id, division_id, name, active, heritage, disclosure_treatment) VALUES (?, ?, ?, 1, NULL, NULL)",
   ).run(id, input.divisionId, input.name);
