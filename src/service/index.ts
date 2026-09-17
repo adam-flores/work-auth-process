@@ -37,6 +37,7 @@ import {
   deleteDraftRows,
   findDraft,
   insertDraft,
+  listAllDrafts,
   listDraftsBySubmitter,
   purgeExpiredDrafts,
   removeDraft,
@@ -60,6 +61,7 @@ import {
   classificationOf,
   correctionOwner,
   findAuthorization,
+  listAllAuthorizations,
   listAuthorizations,
 } from "../authorizations/index.ts";
 import type { Authorization, AuthorizationFields, FrozenClassification } from "../authorizations/index.ts";
@@ -559,6 +561,23 @@ export function createService(options: ServiceOptions = {}) {
               ? listChargeNumberAdminQueue(authorizations)
               : [];
       return [...roleQueue, ...listCorrectionQueue(authorizations, participantId)];
+    },
+
+    /**
+     * The master dashboard (#63, BDR-0002): every authorization in the
+     * system, terminal ones included, plus every draft - open to anyone
+     * with access, unlike a queue, which is scoped to one participant's
+     * role and drops an authorization the moment it resolves or
+     * terminates. Filtering by submitter, stage, participant or
+     * identifier happens client-side over this same unfiltered read, the
+     * same discipline the insights dashboard already uses (ADR-0006,
+     * ADR-0008: "the master dashboard cannot filter by stage in SQL
+     * either" - nothing here is a column to filter by).
+     */
+    listDashboard(ctx: ActingParticipant): { authorizations: Authorization[]; drafts: Draft[] } {
+      requireParticipant(ctx);
+      purgeExpiredDrafts(db);
+      return { authorizations: listAllAuthorizations(db), drafts: listAllDrafts(db) };
     },
 
     /**

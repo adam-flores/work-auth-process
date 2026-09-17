@@ -117,6 +117,7 @@ export const api = {
   getAuthorization: (actor: string, authorizationId: string) =>
     call<Authorization>(`/api/authorizations/${encodeURIComponent(authorizationId)}`, actor),
   listMyQueue: (actor: string) => call<Authorization[]>("/api/queue", actor),
+  listDashboard: (actor: string) => call<{ authorizations: Authorization[]; drafts: Draft[] }>("/api/dashboard", actor),
   acknowledge: (actor: string, authorizationId: string) =>
     call<Authorization>(`/api/authorizations/${encodeURIComponent(authorizationId)}/acknowledge`, actor, "POST"),
   claim: (actor: string, authorizationId: string) =>

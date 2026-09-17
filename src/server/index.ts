@@ -128,6 +128,7 @@ const ROUTES: Record<string, Handler> = {
   "POST /api/drafts": (s, ctx, _query, body) => s.createDraft(ctx, body as DraftFieldsInput),
   "GET /api/drafts": (s, ctx) => s.listMyDrafts(ctx),
   "GET /api/queue": (s, ctx) => s.listMyQueue(ctx),
+  "GET /api/dashboard": (s, ctx) => s.listDashboard(ctx),
   "GET /api/permissibility-rules": (s, ctx) => s.listPermissibilityRules(ctx),
   "POST /api/permissibility-rules": (s, ctx, _query, body) =>
     s.addPermissibilityRule(ctx, body as PermissibilityRuleInput),

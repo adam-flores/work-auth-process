@@ -129,6 +129,14 @@ export function listDraftsBySubmitter(db: DatabaseSync, submitterId: string): Dr
   return rows.map((row) => rowToDraft(db, row));
 }
 
+/** Every draft in the store, any submitter's (#63, BDR-0003: "on the master
+ *  dashboard like anything else") - the one read of this table not scoped
+ *  to a submitter's own queue. */
+export function listAllDrafts(db: DatabaseSync): Draft[] {
+  const rows = db.prepare("SELECT * FROM drafts ORDER BY updated_at DESC").all() as DraftRow[];
+  return rows.map((row) => rowToDraft(db, row));
+}
+
 export function insertDraft(db: DatabaseSync, submitterId: string, fields: DraftFieldValues): Draft {
   const id = `draft-${randomUUID()}`;
   const now = new Date().toISOString();

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api.ts";
 import type { Attribute, Authorization, CorrectableFieldKey, ResolvedDepartment } from "./api.ts";
 import { DepartmentPicker } from "./DepartmentPicker.tsx";
+import { useResolvedDepartments } from "./useResolvedDepartments.ts";
 import {
   FUNDING_TYPE_LABELS,
   FUNDING_TYPE_VALUES,
@@ -29,33 +30,6 @@ import { CORRECTABLE_FIELD_KEYS } from "../shared/rules.ts";
  */
 
 export type MyQueueProps = { actingId: string };
-
-/** The requesting and performing department, resolved to names for display -
- *  an authorization carries only their ids. */
-function useResolvedDepartments(
-  actingId: string,
-  authorization: Authorization,
-): { requesting: ResolvedDepartment | null; performing: ResolvedDepartment | null } {
-  const [requesting, setRequesting] = useState<ResolvedDepartment | null>(null);
-  const [performing, setPerforming] = useState<ResolvedDepartment | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setRequesting(null);
-    setPerforming(null);
-    void api.getDepartment(actingId, authorization.requestingDepartmentId).then((d) => {
-      if (!cancelled) setRequesting(d);
-    });
-    void api.getDepartment(actingId, authorization.performingDepartmentId).then((d) => {
-      if (!cancelled) setPerforming(d);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [actingId, authorization.id, authorization.requestingDepartmentId, authorization.performingDepartmentId]);
-
-  return { requesting, performing };
-}
 
 /** Every attribute a resolved department carries, its own plus everything
  *  held above it (`ResolvedDepartment.attributes`) - shown for both sides on
@@ -678,18 +652,55 @@ function OpenAuthorization({
   );
 }
 
+/** How often a queue polls for what has arrived since the last look
+ *  (CONTEXT.md: "Notification" - "a push to a role when an authorization
+ *  arrives in their queue"). The prototype has no session or socket to push
+ *  over (docs/business-case.md rules authentication out of scope), so a
+ *  poll standing in for one is the simplest thing that still lets someone
+ *  already looking at their queue see an arrival without reloading. */
+const QUEUE_POLL_MS = 3000;
+
+/** One authorization noticed as newly arrived since the previous poll -
+ *  what a notification banner names, and what a person dismisses once
+ *  they have seen it. `key` is a surrogate, distinct from
+ *  `authorizationId`: an authorization can arrive more than once (a hold
+ *  released, a referral, a re-review, #60/#61/#62 each put it back in this
+ *  same queue) while an earlier notification for the same id is still
+ *  showing, and keying or dismissing by `authorizationId` alone would
+ *  collide the two rather than treating each arrival as its own event. */
+type ArrivalNotification = { key: string; authorizationId: string; project: string };
+
 export function MyQueue({ actingId }: MyQueueProps) {
   const [items, setItems] = useState<Authorization[] | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<ArrivalNotification[]>([]);
 
   const latest = useRef(0);
+  // `null` until the first successful poll for the participant currently
+  // acting - compared against on every poll after that to tell "newly
+  // arrived" apart from "was already here." Left `null` rather than an
+  // empty set so the very first load of a freshly chosen identity never
+  // reads their whole existing queue as a batch of arrivals.
+  const seenIds = useRef<Set<string> | null>(null);
 
   const load = useCallback(async (actor: string) => {
     const seq = ++latest.current;
     try {
       const mine = await api.listMyQueue(actor);
-      if (seq === latest.current) setItems(mine);
+      if (seq !== latest.current) return;
+      setItems(mine);
+      const currentIds = new Set(mine.map((a) => a.id));
+      if (seenIds.current !== null) {
+        const arrived = mine.filter((a) => !seenIds.current!.has(a.id));
+        if (arrived.length > 0) {
+          setNotifications((prev) => [
+            ...prev,
+            ...arrived.map((a) => ({ key: crypto.randomUUID(), authorizationId: a.id, project: a.project })),
+          ]);
+        }
+      }
+      seenIds.current = currentIds;
     } catch (err) {
       if (seq === latest.current) {
         setError(err instanceof ApiError ? err.message : String(err));
@@ -699,8 +710,28 @@ export function MyQueue({ actingId }: MyQueueProps) {
 
   useEffect(() => {
     setOpenId(null);
+    setNotifications([]);
+    seenIds.current = null;
     void load(actingId);
   }, [load, actingId]);
+
+  // Polls in the background so an arrival is noticed while this participant
+  // is already looking at their queue, not only the next time they switch
+  // identity or reload the page. Paused while an item is open: refreshing
+  // `items` underneath an open `OpenAuthorization` can otherwise make it
+  // disappear mid-interaction (its `open` lookup below turns up nothing)
+  // if the item it names left this queue in the meantime - discarding
+  // whatever the person was in the middle of doing there.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (openId === null) void load(actingId);
+    }, QUEUE_POLL_MS);
+    return () => clearInterval(interval);
+  }, [load, actingId, openId]);
+
+  const dismissNotification = (key: string) => {
+    setNotifications((prev) => prev.filter((n) => n.key !== key));
+  };
 
   // Reloaded rather than filtered out locally: the next stage can route to
   // this same department (both requesting-side stages do), in which case
@@ -738,6 +769,19 @@ export function MyQueue({ actingId }: MyQueueProps) {
         <p role="alert" className="error">
           {error}
         </p>
+      )}
+
+      {notifications.length > 0 && (
+        <ul className="notification-list" data-testid="notification-list">
+          {notifications.map((notification) => (
+            <li key={notification.key} role="status" data-testid="arrival-notification">
+              <span>{notification.project} has arrived in your queue.</span>
+              <button type="button" onClick={() => dismissNotification(notification.key)}>
+                Dismiss
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
 
       <ul className="queue-list" data-testid="queue-list">
