@@ -186,3 +186,42 @@ export function isQueuedForMint(
   const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
   return isMintStage(stage);
 }
+
+/**
+ * Whether `participant` currently holds `authorization` at its stage (#62,
+ * BDR-0011: "whoever holds an authorization at their stage, on any stage,
+ * rather than to approvers only") - the population eligible to refer it to a
+ * named colleague. The same population, in each case, that could act on the
+ * authorization right now: an Approver at an acknowledgeable stage
+ * (`isQueuedFor`), the Charge Number Admin at the mint stage
+ * (`isQueuedForMint`), a Contributor at the performing-department stage -
+ * whoever may still claim it, or the contributor who already has - and,
+ * while a correction is outstanding, whichever of the submitter or the
+ * performing contributor it is addressed to (`correctionOwner`), not the
+ * approver who raised it and no longer holds it (#59: it "left this
+ * Approver's queue the moment they raised it").
+ */
+export function isHolderOf(
+  db: DatabaseSync,
+  authorization: Authorization,
+  participant: { role: string; department: string },
+  participantId: string,
+): boolean {
+  if (authorization.awaitingCorrection) {
+    return (
+      !authorization.onHold &&
+      correctionOwner(authorization, authorization.correctionRequest!.fields) === participantId
+    );
+  }
+  if (isQueuedFor(db, authorization, participant)) return true;
+  if (isQueuedForMint(authorization, participant)) return true;
+  if (authorization.onHold) return false;
+
+  const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
+  return (
+    participant.role === "Contributor" &&
+    isContributionStage(stage) &&
+    queueDepartment(db, authorization, stage) === participant.department &&
+    (authorization.performingContributorId === null || authorization.performingContributorId === participantId)
+  );
+}

@@ -136,6 +136,19 @@ export const MintFields = z.object({
 export type MintFields = z.infer<typeof MintFields>;
 export type MintFieldsInput = z.input<typeof MintFields>;
 
+/**
+ * What the referrer supplies to refer an authorization to a colleague (#62,
+ * BDR-0011): the colleague to show it to. A participant id, not a free-text
+ * name like a named approver or the performing-side contact - BDR-0011
+ * assumes the colleague can already read the authorization, which only a
+ * known participant can (`requireParticipant` in `service/index.ts`).
+ */
+export const ReferralInput = z.object({
+  colleagueId: ParticipantId,
+});
+export type ReferralInput = z.infer<typeof ReferralInput>;
+export type ReferralInputInput = z.input<typeof ReferralInput>;
+
 export const ResourceInput = z.object({
   budgetHours: z.number().positive("Budget hours must be greater than zero."),
   laborRate: z.number().positive("Labor rate must be greater than zero."),

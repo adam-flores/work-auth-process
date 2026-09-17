@@ -11,6 +11,7 @@ import {
   HierarchyId,
   MintFields,
   PermissibilityRuleInput,
+  ReferralInput,
   ResourceInput,
   TransitionOptions,
   SYSTEM_PARTICIPANT_ID,
@@ -53,6 +54,7 @@ import {
   appendCorrectionTransition,
   appendHoldTransition,
   appendInitiationTransition,
+  appendReferralTransition,
   appendReleaseTransition,
   appendWithdrawalTransition,
   classificationOf,
@@ -62,6 +64,7 @@ import {
 } from "../authorizations/index.ts";
 import type { Authorization, AuthorizationFields, FrozenClassification } from "../authorizations/index.ts";
 import {
+  isHolderOf,
   isQueuedFor,
   isQueuedForClaim,
   isQueuedForMint,
@@ -1055,6 +1058,71 @@ export function createService(options: ServiceOptions = {}) {
           requesting: classificationOf(requesting),
           performing: classificationOf(performing),
         },
+      });
+    },
+
+    /**
+     * Whoever holds an authorization at their stage showing it to a named
+     * colleague, to ask what they cannot answer themselves (#62, BDR-0011).
+     * Notifies and records, and does nothing else: the authorization stays
+     * exactly where it is, in the referrer's queue, the colleague gains no
+     * power to act on it, and the acknowledgement (or whatever else resolves
+     * the stage) still comes from whoever the stage actually routed to.
+     * Available to the same population who could act on the authorization
+     * right now, not approvers only (`isHolderOf` in `queues/index.ts`) - an
+     * Approver, the Charge Number Admin, a Contributor at the
+     * performing-department stage, or the corrector of an outstanding
+     * correction request. The colleague must be a real, known participant -
+     * BDR-0011 assumes they can already read the authorization, which only a
+     * known participant can. Never counted anywhere: BDR-0011 excludes
+     * referrals from every measure, aggregate counts included, so a future
+     * insights reader must read one authorization's own history rather than
+     * total this across the log.
+     */
+    refer(ctx: ActingParticipant, authorizationId: string, input: unknown): Authorization {
+      const participantId = requireParticipant(ctx);
+      const authorization = findAuthorization(db, authorizationId);
+      if (!authorization) {
+        throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
+      }
+
+      const participant = readParticipant(participantId);
+      if (!participant || !isHolderOf(db, authorization, participant, participantId)) {
+        throw new DomainError(
+          "NOT_IN_QUEUE",
+          "Only whoever currently holds this authorization at its stage may refer it.",
+        );
+      }
+
+      const parsed = ReferralInput.safeParse(input);
+      if (!parsed.success) {
+        throw new DomainError("INVALID_REQUEST", parsed.error.issues[0]?.message ?? "Invalid referral.");
+      }
+      if (parsed.data.colleagueId === participantId) {
+        throw new DomainError("INVALID_REQUEST", "You cannot refer an authorization to yourself.");
+      }
+      if (parsed.data.colleagueId === SYSTEM_PARTICIPANT_ID) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          "The system identity cannot be referred to - name a real colleague.",
+        );
+      }
+      requireParticipant({ participantId: parsed.data.colleagueId });
+
+      const parsedOptions = TransitionOptions.safeParse(input ?? {});
+      if (!parsedOptions.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsedOptions.error.issues[0]?.message ?? "Invalid transition options.",
+        );
+      }
+      const occurredAt = parsedOptions.data.occurredAt ?? new Date().toISOString();
+
+      return appendReferralTransition(db, {
+        authorizationId,
+        actorId: participantId,
+        occurredAt,
+        colleagueId: parsed.data.colleagueId,
       });
     },
 
