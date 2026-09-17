@@ -214,6 +214,15 @@ export function resolveDepartment(
  * same trust `authorizations/index.ts` extends its own callers.
  */
 
+/**
+ * The only table name every function below ever interpolates into SQL - a
+ * fixed three-entry lookup keyed by the typed `NodeKind`, never a value read
+ * from a request, so it is not the injection shape the security scan's
+ * interpolation rule guards against. Every call site builds its SQL as its
+ * own statement rather than inline in `.prepare(` so the scan reads that
+ * plainly instead of pattern-matching the shape - this comment is the one
+ * place that argument is made, rather than repeated at each site.
+ */
 const TABLE_FOR: Record<NodeKind, string> = {
   "legal-entity": "legal_entities",
   division: "divisions",
@@ -229,11 +238,6 @@ export function hierarchyNode(
   nodeKind: NodeKind,
   nodeId: string,
 ): HierarchyNode | null {
-  // The table name comes from `TABLE_FOR`, a fixed three-entry lookup keyed
-  // by the typed `NodeKind` - never a value read from a request - so this is
-  // not the injection shape the security scan's interpolation rule guards
-  // against. Built as its own statement rather than inline in `.prepare(`
-  // so the scan reads that plainly instead of pattern-matching the shape.
   const sql = `SELECT id, name, active FROM ${TABLE_FOR[nodeKind]} WHERE id = ?`;
   const row = db.prepare(sql).get(nodeId) as { id: string; name: string; active: number } | undefined;
   return row ? { id: row.id, name: row.name, active: row.active === 1 } : null;
@@ -287,11 +291,12 @@ function slugOrFallback(name: string): string {
 /** A stable id for a node added after seeding, from the same `slug` seeding
  *  itself uses (ADR-0012) - but a collision here is a coincidence of two
  *  ordinary names, not a fixture bug, so it is disambiguated with a numeric
- *  suffix rather than thrown on the way seeding's own collision is. */
-function uniqueId(db: DatabaseSync, table: string, base: string): string {
-  // `table` is always one of `hierarchyNode`'s three fixed table names,
-  // never external input - see that function's note on the same shape.
-  const sql = `SELECT 1 FROM ${table} WHERE id = ?`;
+ *  suffix rather than thrown on the way seeding's own collision is. Takes
+ *  `nodeKind` rather than a bare table name so every caller reads through
+ *  the same `TABLE_FOR` lookup `hierarchyNode` does, instead of a fourth
+ *  place naming the three tables by hand. */
+function uniqueId(db: DatabaseSync, nodeKind: NodeKind, base: string): string {
+  const sql = `SELECT 1 FROM ${TABLE_FOR[nodeKind]} WHERE id = ?`;
   const taken = (id: string) => db.prepare(sql).get(id) !== undefined;
   if (!taken(base)) return base;
   let suffix = 2;
@@ -400,7 +405,7 @@ export function addLegalEntity(
   db: DatabaseSync,
   input: { actorId: string; occurredAt: string; name: string },
 ): HierarchyNode {
-  const id = uniqueId(db, "legal_entities", slugOrFallback(input.name));
+  const id = uniqueId(db, "legal-entity", slugOrFallback(input.name));
   db.prepare("INSERT INTO legal_entities (id, name, active) VALUES (?, ?, 1)").run(id, input.name);
   appendHierarchyChange(db, {
     actorId: input.actorId,
@@ -417,7 +422,7 @@ export function addDivision(
   db: DatabaseSync,
   input: { actorId: string; occurredAt: string; name: string; legalEntityId: string },
 ): HierarchyNode {
-  const id = uniqueId(db, "divisions", `${input.legalEntityId}-${slugOrFallback(input.name)}`);
+  const id = uniqueId(db, "division", `${input.legalEntityId}-${slugOrFallback(input.name)}`);
   db.prepare("INSERT INTO divisions (id, legal_entity_id, name, active) VALUES (?, ?, ?, 1)").run(
     id,
     input.legalEntityId,
@@ -438,7 +443,7 @@ export function addDepartment(
   db: DatabaseSync,
   input: { actorId: string; occurredAt: string; name: string; divisionId: string },
 ): HierarchyNode {
-  const id = uniqueId(db, "departments", slugOrFallback(input.name));
+  const id = uniqueId(db, "department", slugOrFallback(input.name));
   db.prepare(
     "INSERT INTO departments (id, division_id, name, active, heritage, disclosure_treatment) VALUES (?, ?, ?, 1, NULL, NULL)",
   ).run(id, input.divisionId, input.name);
@@ -467,8 +472,6 @@ export function renameHierarchyNode(
   const before = hierarchyNode(db, input.nodeKind, input.nodeId)!;
   if (before.name === input.name) return before;
 
-  // See `hierarchyNode`'s note: `TABLE_FOR[input.nodeKind]` is one of three
-  // fixed names, never external input.
   const sql = `UPDATE ${TABLE_FOR[input.nodeKind]} SET name = ? WHERE id = ?`;
   db.prepare(sql).run(input.name, input.nodeId);
   appendHierarchyChange(db, {
@@ -508,7 +511,6 @@ export function setHierarchyNodeInactive(
       .map((d) => d.id),
   );
 
-  // See `hierarchyNode`'s note on `TABLE_FOR` being a fixed lookup.
   const sql = `UPDATE ${TABLE_FOR[input.nodeKind]} SET active = 0 WHERE id = ?`;
   db.prepare(sql).run(input.nodeId);
   appendHierarchyChange(db, {
