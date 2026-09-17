@@ -51,7 +51,10 @@ import {
   appendContributionTransition,
   appendCorrectionRequestTransition,
   appendCorrectionTransition,
+  appendHoldTransition,
   appendInitiationTransition,
+  appendReleaseTransition,
+  appendWithdrawalTransition,
   classificationOf,
   correctionOwner,
   findAuthorization,
@@ -207,6 +210,31 @@ export function createService(options: ServiceOptions = {}) {
     const performingDept = resolveDepartmentIfSet(fields.performingDepartmentId);
     if (requestingDept && performingDept) requirePermissiblePairing(requestingDept, performingDept);
     return fields;
+  }
+
+  /** Only the submitter may hold, release or withdraw their own authorization
+   *  (#61, BDR-0003: "nobody but the submitter needs to pause an
+   *  authorization" - CONTEXT.md extends the same rule to withdrawal). */
+  function requireSubmitter(authorization: Authorization, participantId: string): void {
+    if (authorization.submitterId !== participantId) {
+      throw new DomainError(
+        "NOT_SUBMITTER",
+        "Only the submitter may hold, release or withdraw their own authorization.",
+      );
+    }
+  }
+
+  /** Completion (a charge number existing) and withdrawal are each terminal
+   *  and mutually exclusive (#61, ADR-0007) - shared by `hold`, `release`
+   *  and `withdraw` so a third terminal marker (revocation, #64) only needs
+   *  adding here rather than in three near-identical checks. */
+  function requireNotTerminal(authorization: Authorization, verb: string): void {
+    if (authorization.chargeNumber !== null || authorization.withdrawnAt !== null) {
+      throw new DomainError(
+        "AUTHORIZATION_TERMINAL",
+        `This authorization has already reached a terminal state and cannot be ${verb}.`,
+      );
+    }
   }
 
   /** Loads a draft and checks it is the caller's own - every mutation but
@@ -507,7 +535,13 @@ export function createService(options: ServiceOptions = {}) {
      *  stages are never themselves the one awaiting correction (no Approver
      *  ever sits there to raise one). The log is folded once, via
      *  `listAuthorizations`, and handed to both queue functions below rather
-     *  than each reading it again on its own. */
+     *  than each reading it again on its own. An authorization on hold is
+     *  excluded from every one of them (#61, CONTEXT.md: "In nobody's queue
+     *  while held") - each queue function in `queues/index.ts` checks
+     *  `onHold` itself, the same way each already checks `awaitingCorrection`,
+     *  rather than this function filtering it out once on their behalf.
+     *  `listAuthorizations` itself only excludes terminal authorizations,
+     *  since holding is not one. */
     listMyQueue(ctx: ActingParticipant): Authorization[] {
       const participantId = requireParticipant(ctx);
       const participant = readParticipant(participantId);
@@ -615,6 +649,10 @@ export function createService(options: ServiceOptions = {}) {
       const authorization = findAuthorization(db, authorizationId);
       if (!authorization) {
         throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
+      }
+
+      if (authorization.onHold) {
+        throw new DomainError("AUTHORIZATION_ON_HOLD", "This authorization is on hold and cannot be acted on.");
       }
 
       const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
@@ -827,6 +865,9 @@ export function createService(options: ServiceOptions = {}) {
       if (!authorization) {
         throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
       }
+      if (authorization.onHold) {
+        throw new DomainError("AUTHORIZATION_ON_HOLD", "This authorization is on hold and cannot be acted on.");
+      }
 
       const outstanding = authorization.correctionRequest;
       if (!outstanding) {
@@ -905,6 +946,115 @@ export function createService(options: ServiceOptions = {}) {
         occurredAt,
         stageId: authorization.currentStageId,
         fields: correctedFields,
+      });
+    },
+
+    /**
+     * The submitter pausing their own authorization (#61, CONTEXT.md: "On
+     * hold"). Only the submitter may hold, and only while it is neither
+     * already held nor terminal - a completed or withdrawn authorization has
+     * nothing left to pause. Removes it from every queue the instant this
+     * returns (every queue function in `queues/index.ts` checks `onHold`),
+     * and disturbs nothing about its position: it resumes at exactly the
+     * stage it left.
+     */
+    hold(ctx: ActingParticipant, authorizationId: string, options?: TransitionOptionsInput): Authorization {
+      const participantId = requireParticipant(ctx);
+      const authorization = findAuthorization(db, authorizationId);
+      if (!authorization) {
+        throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
+      }
+      requireSubmitter(authorization, participantId);
+      requireNotTerminal(authorization, "held");
+
+      if (authorization.onHold) {
+        throw new DomainError("ALREADY_ON_HOLD", "This authorization is already on hold.");
+      }
+
+      const parsedOptions = TransitionOptions.safeParse(options ?? {});
+      if (!parsedOptions.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsedOptions.error.issues[0]?.message ?? "Invalid transition options.",
+        );
+      }
+      const occurredAt = parsedOptions.data.occurredAt ?? new Date().toISOString();
+
+      return appendHoldTransition(db, { authorizationId, actorId: participantId, occurredAt });
+    },
+
+    /**
+     * The submitter releasing a hold (#61, CONTEXT.md: "and only the
+     * submitter releases it"). Only while a hold is genuinely open -
+     * releasing one that never started, or one a terminal transition has
+     * since overtaken, is refused rather than silently ignored. Resolves
+     * nothing and moves nothing: the authorization simply rejoins whatever
+     * queue its current stage already puts it in.
+     */
+    release(ctx: ActingParticipant, authorizationId: string, options?: TransitionOptionsInput): Authorization {
+      const participantId = requireParticipant(ctx);
+      const authorization = findAuthorization(db, authorizationId);
+      if (!authorization) {
+        throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
+      }
+      requireSubmitter(authorization, participantId);
+      requireNotTerminal(authorization, "released");
+
+      if (!authorization.onHold) {
+        throw new DomainError("NOT_ON_HOLD", "This authorization is not on hold.");
+      }
+
+      const parsedOptions = TransitionOptions.safeParse(options ?? {});
+      if (!parsedOptions.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsedOptions.error.issues[0]?.message ?? "Invalid transition options.",
+        );
+      }
+      const occurredAt = parsedOptions.data.occurredAt ?? new Date().toISOString();
+
+      return appendReleaseTransition(db, { authorizationId, actorId: participantId, occurredAt });
+    },
+
+    /**
+     * The submitter withdrawing their own authorization (#61, CONTEXT.md:
+     * "Withdrawn"): terminal, and distinct from a future revocation
+     * (#64) - the transition kind itself says which caused it, so the two
+     * can never be confused in the record. Reachable whether the
+     * authorization is on hold or moving normally; refused only once it has
+     * already reached a terminal state. The classification frozen onto this
+     * transition is resolved live one final time, right here, exactly as
+     * `mintChargeNumber` already does for completion (ADR-0007).
+     */
+    withdraw(ctx: ActingParticipant, authorizationId: string, options?: TransitionOptionsInput): Authorization {
+      const participantId = requireParticipant(ctx);
+      const authorization = findAuthorization(db, authorizationId);
+      if (!authorization) {
+        throw new DomainError("UNKNOWN_AUTHORIZATION", `No authorization with id "${authorizationId}".`);
+      }
+      requireSubmitter(authorization, participantId);
+      requireNotTerminal(authorization, "withdrawn again");
+
+      const parsedOptions = TransitionOptions.safeParse(options ?? {});
+      if (!parsedOptions.success) {
+        throw new DomainError(
+          "INVALID_REQUEST",
+          parsedOptions.error.issues[0]?.message ?? "Invalid transition options.",
+        );
+      }
+      const occurredAt = parsedOptions.data.occurredAt ?? new Date().toISOString();
+
+      const requesting = resolveDepartmentIfSet(authorization.requestingDepartmentId)!;
+      const performing = resolveDepartmentIfSet(authorization.performingDepartmentId)!;
+
+      return appendWithdrawalTransition(db, {
+        authorizationId,
+        actorId: participantId,
+        occurredAt,
+        classification: {
+          requesting: classificationOf(requesting),
+          performing: classificationOf(performing),
+        },
       });
     },
 

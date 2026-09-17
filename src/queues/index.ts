@@ -55,6 +55,7 @@ export function listApproverQueue(
 ): Authorization[] {
   return authorizations.filter((authorization) => {
     if (authorization.awaitingCorrection) return false;
+    if (authorization.onHold) return false;
     const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
     return isAcknowledgeableStage(stage) && queueDepartment(db, authorization, stage) === department;
   });
@@ -66,7 +67,11 @@ export function listApproverQueue(
  *  to make. An authorization awaiting correction is excluded (#59,
  *  CONTEXT.md: "the approver who raised the request cannot act on it") -
  *  it left this Approver's queue the moment they raised it, and stays out
- *  until the correction lands. */
+ *  until the correction lands. An authorization on hold is excluded the
+ *  same way (#61, CONTEXT.md: "In nobody's queue while held") - checked
+ *  here, not only in what `listApproverQueue` shows, so acting directly
+ *  against a held authorization's id is refused exactly like acting
+ *  against one nobody's queue ever displayed. */
 export function isQueuedFor(
   db: DatabaseSync,
   authorization: Authorization,
@@ -74,6 +79,7 @@ export function isQueuedFor(
 ): boolean {
   if (participant.role !== "Approver") return false;
   if (authorization.awaitingCorrection) return false;
+  if (authorization.onHold) return false;
   const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
   return isAcknowledgeableStage(stage) && queueDepartment(db, authorization, stage) === participant.department;
 }
@@ -93,6 +99,7 @@ export function listCorrectionQueue(
 ): Authorization[] {
   return authorizations.filter(
     (authorization) =>
+      !authorization.onHold &&
       authorization.awaitingCorrection &&
       correctionOwner(authorization, authorization.correctionRequest!.fields) === participantId,
   );
@@ -121,6 +128,7 @@ export function listContributorQueue(
   department: string,
 ): Authorization[] {
   return authorizations.filter((authorization) => {
+    if (authorization.onHold) return false;
     const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
     return isContributionStage(stage) && queueDepartment(db, authorization, stage) === department;
   });
@@ -129,7 +137,8 @@ export function listContributorQueue(
 /** Whether `participant` may claim `authorization` - a Contributor at the
  *  performing-department stage's own department, and only while it sits
  *  unclaimed (CONTEXT.md: "Claim" - claiming is what names the performing
- *  contributor, so once one exists there is nobody left to name). */
+ *  contributor, so once one exists there is nobody left to name), and not
+ *  on hold (#61) - held is nobody's to claim either. */
 export function isQueuedForClaim(
   db: DatabaseSync,
   authorization: Authorization,
@@ -137,6 +146,7 @@ export function isQueuedForClaim(
 ): boolean {
   if (participant.role !== "Contributor") return false;
   if (authorization.performingContributorId !== null) return false;
+  if (authorization.onHold) return false;
   const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
   return isContributionStage(stage) && queueDepartment(db, authorization, stage) === participant.department;
 }
@@ -157,20 +167,22 @@ export function isQueuedForClaim(
 export function listChargeNumberAdminQueue(authorizations: readonly Authorization[]): Authorization[] {
   return authorizations.filter((authorization) => {
     if (authorization.chargeNumber !== null) return false;
+    if (authorization.onHold) return false;
     const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
     return isMintStage(stage);
   });
 }
 
 /** Whether `participant` may mint `authorization`'s charge number - a
- *  Charge Number Admin, while it sits at the mint stage and has not
- *  already been completed. */
+ *  Charge Number Admin, while it sits at the mint stage, has not already
+ *  been completed, and is not on hold (#61). */
 export function isQueuedForMint(
   authorization: Authorization,
   participant: { role: string },
 ): boolean {
   if (participant.role !== "Charge Number Admin") return false;
   if (authorization.chargeNumber !== null) return false;
+  if (authorization.onHold) return false;
   const stage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
   return isMintStage(stage);
 }
