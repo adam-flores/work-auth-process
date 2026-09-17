@@ -6,13 +6,16 @@ import type {
   PermissibilityRuleInput,
   ResourceInput,
 } from "../shared/rules.ts";
-import type { ResolvedDepartment } from "../hierarchy/index.ts";
+import type { NodeKind } from "../shared/constants.ts";
+import type { HierarchyChange, HierarchyNode, ResolvedDepartment } from "../hierarchy/index.ts";
 import type { Draft } from "../drafts/index.ts";
 import type { PermissibilityRule } from "../permissibility/index.ts";
 import type { Authorization, CorrectableFieldKey, FrozenClassification } from "../authorizations/index.ts";
 import type { CorrectionFieldValuesInput } from "../shared/rules.ts";
 
 export type { ResolvedDepartment, Attribute } from "../hierarchy/index.ts";
+export type { HierarchyChange, HierarchyNode } from "../hierarchy/index.ts";
+export type { NodeKind } from "../shared/constants.ts";
 export type { Draft, Resource } from "../drafts/index.ts";
 export type { PermissibilityRule } from "../permissibility/index.ts";
 export type {
@@ -22,6 +25,14 @@ export type {
   FrozenClassification,
   StageVisit,
 } from "../authorizations/index.ts";
+
+/** What `api.addHierarchyNode` sends - mirrors `AddHierarchyNodeInput`'s
+ *  discriminated union (`shared/rules.ts`) without importing zod into the
+ *  browser bundle for a type alone. */
+export type AddHierarchyNodeInput =
+  | { nodeKind: "legal-entity"; name: string }
+  | { nodeKind: "division"; name: string; legalEntityId: string }
+  | { nodeKind: "department"; name: string; divisionId: string };
 
 /** What the service returns about the store it is reading. */
 export type StoreInfo = {
@@ -36,6 +47,11 @@ export type DepartmentQueryParams = {
   attributes?: AttributeFilter[];
   legalEntityId?: string;
   divisionId?: string;
+  /** An administrative or historical read, unlike the picker's own search
+   *  (#64: an Administrator's hierarchy view needs an inactive department
+   *  to close, rename or simply see, not only the ones a submitter may
+   *  still name). */
+  includeInactive?: boolean;
 };
 
 export class ApiError extends Error {
@@ -78,6 +94,7 @@ function departmentQueryString(query: DepartmentQueryParams): string {
   if (query.text) params.set("text", query.text);
   if (query.legalEntityId) params.set("legalEntityId", query.legalEntityId);
   if (query.divisionId) params.set("divisionId", query.divisionId);
+  if (query.includeInactive) params.set("includeInactive", "true");
   for (const { name, value } of query.attributes ?? []) params.append("attr", `${name}:${value}`);
   const qs = params.toString();
   return qs ? `?${qs}` : "";
@@ -159,5 +176,33 @@ export const api = {
       `/api/permissibility-rules/${encodeURIComponent(ruleId)}`,
       actor,
       "DELETE",
+    ),
+
+  /** What a submitter is told about their own authorizations after they
+   *  left the relay without them (#64, CONTEXT.md: "Notification"). */
+  listMyRevocations: (actor: string) => call<Authorization[]>("/api/revocations", actor),
+
+  listLegalEntities: (actor: string) => call<HierarchyNode[]>("/api/hierarchy/legal-entities", actor),
+  listDivisions: (actor: string, legalEntityId?: string) =>
+    call<(HierarchyNode & { legalEntityId: string })[]>(
+      `/api/hierarchy/divisions${legalEntityId ? `?legalEntityId=${encodeURIComponent(legalEntityId)}` : ""}`,
+      actor,
+    ),
+  listHierarchyChanges: (actor: string) => call<HierarchyChange[]>("/api/hierarchy/changes", actor),
+  addHierarchyNode: (actor: string, input: AddHierarchyNodeInput) =>
+    call<HierarchyNode>("/api/hierarchy", actor, "POST", input),
+  renameHierarchyNode: (actor: string, nodeKind: NodeKind, nodeId: string, name: string) =>
+    call<HierarchyNode>(
+      `/api/hierarchy/${encodeURIComponent(nodeKind)}/${encodeURIComponent(nodeId)}/rename`,
+      actor,
+      "POST",
+      { name },
+    ),
+  setHierarchyNodeInactive: (actor: string, nodeKind: NodeKind, nodeId: string) =>
+    call<HierarchyNode>(
+      `/api/hierarchy/${encodeURIComponent(nodeKind)}/${encodeURIComponent(nodeId)}/set-inactive`,
+      actor,
+      "POST",
+      {},
     ),
 };

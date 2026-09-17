@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api.ts";
 import type { StoreInfo } from "./api.ts";
+import { HierarchyAdmin } from "./HierarchyAdmin.tsx";
 import { MasterDashboard } from "./MasterDashboard.tsx";
 import { MyDrafts } from "./MyDrafts.tsx";
 import { MyQueue } from "./MyQueue.tsx";
 import { PermissibilityRules } from "./PermissibilityRules.tsx";
+import { RevocationNotices } from "./RevocationNotices.tsx";
 import { SYSTEM_PARTICIPANT_ID } from "../shared/constants.ts";
 import type { Participant } from "../shared/rules.ts";
 
@@ -147,6 +149,8 @@ export function App() {
         </table>
       </section>
 
+      <RevocationNotices actingId={actingId} />
+
       <MyDrafts actingId={actingId} />
 
       <MyQueue actingId={actingId} />
@@ -154,6 +158,8 @@ export function App() {
       <MasterDashboard actingId={actingId} />
 
       <PermissibilityRules actingId={actingId} isAdministrator={acting?.role === "Administrator"} />
+
+      <HierarchyAdmin actingId={actingId} isAdministrator={acting?.role === "Administrator"} />
     </main>
   );
 }

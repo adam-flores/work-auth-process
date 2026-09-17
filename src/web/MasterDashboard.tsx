@@ -43,6 +43,7 @@ const STAGE_FILTER_OPTIONS: { value: string; label: string }[] = [
   ...RELAY_CONFIG.map((stage) => ({ value: stage.id, label: STAGE_LABELS[stage.id] })),
   { value: "completed", label: "Completed" },
   { value: "withdrawn", label: "Withdrawn" },
+  { value: "revoked", label: "Revoked" },
 ];
 
 /** The stage label a row is filtered and displayed by - not a stored
@@ -52,6 +53,7 @@ const STAGE_FILTER_OPTIONS: { value: string; label: string }[] = [
 function stageOf(authorization: Authorization): string {
   if (authorization.chargeNumber !== null) return "completed";
   if (authorization.withdrawnAt !== null) return "withdrawn";
+  if (authorization.revokedAt !== null) return "revoked";
   return authorization.currentStageId;
 }
 
@@ -59,6 +61,7 @@ function stageLabel(stageValue: string): string {
   if (stageValue === "draft") return "Draft";
   if (stageValue === "completed") return "Completed";
   if (stageValue === "withdrawn") return "Withdrawn";
+  if (stageValue === "revoked") return "Revoked";
   return STAGE_LABELS[stageValue as StageId] ?? stageValue;
 }
 
@@ -141,6 +144,11 @@ function AuthorizationHistory({
         <dt>Current stage</dt>
         <dd>{stageLabel(stageOf(authorization))}</dd>
         {authorization.onHold && <dd data-testid="dashboard-on-hold">On hold</dd>}
+        {authorization.revokedAt && (
+          <dd data-testid="dashboard-revocation">
+            Revoked on {new Date(authorization.revokedAt).toLocaleString()}: {authorization.revocationComment}
+          </dd>
+        )}
       </dl>
 
       <h4>Stage history</h4>
