@@ -121,6 +121,14 @@ export function classificationOf(department: {
  *  merged into it. */
 export type HoldInterval = { heldAt: string; releasedAt: string | null };
 
+/** One referral (#62, BDR-0011): whoever holds an authorization at their
+ *  stage showing it to a named colleague, to ask what they cannot answer
+ *  themselves. Notifies and records, and does nothing else - it moves
+ *  nothing, names no owner, and grants the colleague no power to act. Every
+ *  one is kept, in order; a referral can recur any number of times over an
+ *  authorization's life, the same way a hold can. */
+export type Referral = { colleagueId: string; referredBy: string; referredAt: string };
+
 export type Authorization = AuthorizationFields & {
   id: string;
   submitterId: string;
@@ -184,6 +192,11 @@ export type Authorization = AuthorizationFields & {
    *  `chargeNumber` existing - the two are mutually exclusive, and
    *  `classification` above is frozen by whichever of them happens. */
   withdrawnAt: string | null;
+  /** Every colleague this authorization has been shown to (#62, BDR-0011),
+   *  in the order it happened - readable in the authorization's history and
+   *  excluded from every measure, aggregate counts included, so nothing here
+   *  is ever folded down to a total. */
+  referrals: Referral[];
 };
 
 type TransitionRow = {
@@ -238,6 +251,10 @@ type CompletionPayload = {
 type WithdrawalPayload = {
   classification: { requesting: FrozenClassification; performing: FrozenClassification };
 };
+/** Whoever holds an authorization at their stage referring it to a named
+ *  colleague (#62, BDR-0011) - just who, since the mechanism carries no
+ *  comment of its own the way a correction request's does. */
+type ReferralPayload = { colleagueId: string };
 
 function readTransitions(db: DatabaseSync, authorizationId: string): TransitionRow[] {
   return db
@@ -376,6 +393,23 @@ function foldHoldIntervals(transitions: TransitionRow[]): HoldInterval[] {
   return intervals;
 }
 
+/**
+ * Every referral appended so far (#62) - unlike a hold or a correction
+ * request, a referral never resolves anything, so there is nothing to pair a
+ * later transition against: every `referral` row is its own complete record,
+ * kept in log order rather than folded down to a latest one.
+ */
+function foldReferrals(transitions: TransitionRow[]): Referral[] {
+  const referrals: Referral[] = [];
+  for (const row of transitions) {
+    if (row.kind === "referral") {
+      const { colleagueId } = JSON.parse(row.payload) as ReferralPayload;
+      referrals.push({ colleagueId, referredBy: row.actor_id, referredAt: row.occurred_at });
+    }
+  }
+  return referrals;
+}
+
 function foldAuthorization(authorizationId: string, transitions: TransitionRow[]): Authorization | null {
   const initiation = transitions.find((row) => row.kind === "initiation");
   if (!initiation) return null;
@@ -430,6 +464,7 @@ function foldAuthorization(authorizationId: string, transitions: TransitionRow[]
     holdIntervals,
     onHold,
     withdrawnAt: withdrawal ? withdrawal.occurred_at : null,
+    referrals: foldReferrals(transitions),
     ...fields,
     ...fieldOverrides,
   };
@@ -806,6 +841,26 @@ export function appendReleaseTransition(
     `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
      VALUES (?, ?, 'release', ?, ?, '{}')`,
   ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt);
+  return findAuthorization(db, input.authorizationId)!;
+}
+
+/**
+ * Whoever holds an authorization at their stage showing it to a named
+ * colleague (#62, BDR-0011): appends a transition and changes nothing else -
+ * no arrival, no resolution, no ownership named, nothing added to any queue.
+ * The service checks eligibility (`isHolderOf` in `queues/index.ts`) and
+ * that the colleague is a real, known participant before this is reached,
+ * the same trust `appendClaimTransition` extends its caller.
+ */
+export function appendReferralTransition(
+  db: DatabaseSync,
+  input: { authorizationId: string; actorId: string; occurredAt: string; colleagueId: string },
+): Authorization {
+  const payload: ReferralPayload = { colleagueId: input.colleagueId };
+  db.prepare(
+    `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+     VALUES (?, ?, 'referral', ?, ?, ?)`,
+  ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt, JSON.stringify(payload));
   return findAuthorization(db, input.authorizationId)!;
 }
 
