@@ -77,6 +77,21 @@ button:disabled { opacity: 0.6; cursor: progress; }
 .error { color: var(--error); font-weight: 600; }
 .field-guidance { margin: 0 0 0.35rem; font-size: 0.85rem; color: var(--muted); max-width: 34rem; }
 
+/* Visually hidden but still reachable by assistive technology - the
+   standard accessible pattern (unlike `display: none` or `hidden`, which
+   remove content from the accessibility tree too). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 dl { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 1.25rem; margin: 0 0 1rem; }
 dt { color: var(--muted); font-size: 0.85rem; }
 dd { margin: 0; font-variant-numeric: tabular-nums; }
@@ -221,4 +236,26 @@ input[type="number"] {
   background: transparent;
   color: var(--error);
   border-color: var(--error);
+}
+
+.tab-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1.25rem;
+}
+.tab-list .tab {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  padding: 0.55rem 0.9rem;
+  white-space: nowrap;
+}
+.tab-list .tab.active {
+  color: var(--ink);
+  background: var(--raised);
+  border-color: var(--line);
 }

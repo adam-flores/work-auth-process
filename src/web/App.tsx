@@ -8,14 +8,18 @@ import { MyDrafts } from "./MyDrafts.tsx";
 import { MyQueue } from "./MyQueue.tsx";
 import { PermissibilityRules } from "./PermissibilityRules.tsx";
 import { RevocationNotices } from "./RevocationNotices.tsx";
+import { Tabs } from "./Tabs.tsx";
+import type { TabDefinition } from "./Tabs.tsx";
 import { SYSTEM_PARTICIPANT_ID } from "../shared/constants.ts";
 import type { Participant } from "../shared/rules.ts";
 
 /**
- * The walking skeleton's one screen. It exists to prove the path a request
- * takes - browser to HTTP adapter to service to store and back - and to carry
- * the participant switcher, which is the concrete form mocked identity takes
- * (ADR-0010: the caller says who is acting).
+ * The app's one page (#91): a persistent header - the participant switcher,
+ * the store-info panel and reset control, the participant roster, and
+ * revocation notices - above tabbed content, so a presenter can jump
+ * straight to a screen instead of scrolling past everything else. The
+ * switcher itself is the concrete form mocked identity takes (ADR-0010: the
+ * caller says who is acting).
  */
 export function App() {
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -61,6 +65,34 @@ export function App() {
   };
 
   const acting = participants.find((p) => p.id === actingId);
+  const isAdministrator = acting?.role === "Administrator";
+
+  // The hierarchy tree and the permissibility rules stay open to everyone to
+  // read (HierarchyAdmin.tsx: "the same as every other reference-data
+  // read") - only the mutation controls inside are gated to an
+  // Administrator, unchanged from before this tab shell. So unlike issue
+  // #91's literal wording, this tab isn't Administrator-only; it's simply
+  // where those two read surfaces live.
+  const tabs: [TabDefinition, ...TabDefinition[]] = [
+    { id: "submit", label: "Submit", content: <MyDrafts actingId={actingId} /> },
+    { id: "my-queue", label: "My Queue", content: <MyQueue actingId={actingId} /> },
+    {
+      id: "all-authorizations",
+      label: "All Authorizations",
+      content: <MasterDashboard actingId={actingId} />,
+    },
+    { id: "insights", label: "Insights", content: <InsightsDashboard actingId={actingId} /> },
+    {
+      id: "reference-data",
+      label: "Reference Data",
+      content: (
+        <>
+          <PermissibilityRules actingId={actingId} isAdministrator={isAdministrator} />
+          <HierarchyAdmin actingId={actingId} isAdministrator={isAdministrator} />
+        </>
+      ),
+    },
+  ];
 
   return (
     <main>
@@ -152,17 +184,7 @@ export function App() {
 
       <RevocationNotices actingId={actingId} />
 
-      <MyDrafts actingId={actingId} />
-
-      <MyQueue actingId={actingId} />
-
-      <MasterDashboard actingId={actingId} />
-
-      <InsightsDashboard actingId={actingId} />
-
-      <PermissibilityRules actingId={actingId} isAdministrator={acting?.role === "Administrator"} />
-
-      <HierarchyAdmin actingId={actingId} isAdministrator={acting?.role === "Administrator"} />
+      <Tabs tabs={tabs} defaultTabId="submit" />
     </main>
   );
 }

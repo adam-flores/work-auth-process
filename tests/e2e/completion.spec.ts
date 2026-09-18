@@ -66,6 +66,7 @@ test("draft, initiate, the four acknowledgements, both gates, and the charge num
 
   // Requesting program manager, then requesting finance.
   await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByRole("tab", { name: "My Queue" }).click();
   await acknowledgeAsCurrentParticipant(page, project);
   await acknowledgeAsCurrentParticipant(page, project);
 

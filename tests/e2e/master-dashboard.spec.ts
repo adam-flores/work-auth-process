@@ -80,6 +80,7 @@ test("the master dashboard shows every authorization and draft, filterable by su
   // from Alpha, which is what makes the stage filter's assertion mean
   // something rather than passing by coincidence.
   await page.getByLabel("Participant", { exact: true }).selectOption("p-mira-devane");
+  await page.getByRole("tab", { name: "My Queue" }).click();
   await page
     .getByTestId("my-queue")
     .getByTestId("queue-row")
@@ -92,6 +93,7 @@ test("the master dashboard shows every authorization and draft, filterable by su
   // A draft, left unsubmitted - visible on the dashboard like anything else
   // (BDR-0003).
   await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByRole("tab", { name: "Submit" }).click();
   await page.getByTestId("new-draft").click();
   await page.getByLabel("Project").fill(projectDraft);
   await page.getByTestId("draft-form").getByRole("button", { name: "Save" }).click();
@@ -100,6 +102,7 @@ test("the master dashboard shows every authorization and draft, filterable by su
   // Viewed as an unrelated Administrator - the master dashboard is open to
   // anyone with access, not only a party to the record (BDR-0002).
   await page.getByLabel("Participant", { exact: true }).selectOption("p-erez-caldwell");
+  await page.getByRole("tab", { name: "All Authorizations" }).click();
   const dashboard = page.getByTestId("master-dashboard");
   await expect(dashboard.getByTestId("dashboard-row").filter({ hasText: projectAlpha })).toBeVisible();
   await expect(dashboard.getByTestId("dashboard-row").filter({ hasText: projectBeta })).toBeVisible();
@@ -165,6 +168,7 @@ test("the participant filter matches a draft's own named fields, not only its su
   await page.getByTestId("draft-form").getByRole("button", { name: "Close" }).click();
 
   await page.getByLabel("Participant", { exact: true }).selectOption("p-erez-caldwell");
+  await page.getByRole("tab", { name: "All Authorizations" }).click();
   const dashboard = page.getByTestId("master-dashboard");
   await dashboard.getByTestId("dashboard-filter-participant").fill(distinctiveManager);
   await expect(dashboard.getByTestId("dashboard-row").filter({ hasText: projectDraft })).toBeVisible();
@@ -177,6 +181,7 @@ test("a notification fires when an authorization arrives in a role's queue", asy
   // queue when the authorization arrives.
   await page.goto("/");
   await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByRole("tab", { name: "My Queue" }).click();
   await expect(page.getByTestId("my-queue")).toBeVisible();
   await expect(page.getByTestId("notification-list")).toHaveCount(0);
 
