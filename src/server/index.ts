@@ -133,6 +133,7 @@ const ROUTES: Record<string, Handler> = {
   "GET /api/drafts": (s, ctx) => s.listMyDrafts(ctx),
   "GET /api/queue": (s, ctx) => s.listMyQueue(ctx),
   "GET /api/dashboard": (s, ctx) => s.listDashboard(ctx),
+  "GET /api/insights": (s, ctx) => s.getMeasures(ctx),
   "GET /api/permissibility-rules": (s, ctx) => s.listPermissibilityRules(ctx),
   "POST /api/permissibility-rules": (s, ctx, _query, body) =>
     s.addPermissibilityRule(ctx, body as PermissibilityRuleInput),

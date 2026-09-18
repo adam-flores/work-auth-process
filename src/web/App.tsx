@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api.ts";
 import type { StoreInfo } from "./api.ts";
 import { HierarchyAdmin } from "./HierarchyAdmin.tsx";
+import { InsightsDashboard } from "./InsightsDashboard.tsx";
 import { MasterDashboard } from "./MasterDashboard.tsx";
 import { MyDrafts } from "./MyDrafts.tsx";
 import { MyQueue } from "./MyQueue.tsx";
@@ -156,6 +157,8 @@ export function App() {
       <MyQueue actingId={actingId} />
 
       <MasterDashboard actingId={actingId} />
+
+      <InsightsDashboard actingId={actingId} />
 
       <PermissibilityRules actingId={actingId} isAdministrator={acting?.role === "Administrator"} />
 

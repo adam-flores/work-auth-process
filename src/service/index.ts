@@ -93,6 +93,8 @@ import {
   listCorrectionQueue,
 } from "../queues/index.ts";
 import { isContributionStage, RELAY_CONFIG } from "../relay/config.ts";
+import { computeMeasures } from "../measures/index.ts";
+import type { Measures } from "../measures/index.ts";
 import { DomainError } from "./errors.ts";
 
 /**
@@ -820,6 +822,21 @@ export function createService(options: ServiceOptions = {}) {
       requireParticipant(ctx);
       purgeExpiredDrafts(db);
       return { authorizations: listAllAuthorizations(db), drafts: listAllDrafts(db) };
+    },
+
+    /**
+     * The insights dashboard's measures (#66, BDR-0006, ADR-0006): M1-M3 and
+     * the held / awaiting-correction / re-review decompositions, every one a
+     * fold over the same transition log the live product writes. Open to
+     * any known participant rather than gated behind `requireAdministrator`
+     * - the map rules authentication out of scope and every participant is
+     * mocked, so "admin-only" is recorded as this surface's stated intent
+     * rather than an enforced boundary (ADR-0006: "reachable by whoever runs
+     * the prototype").
+     */
+    getMeasures(ctx: ActingParticipant): Measures {
+      requireParticipant(ctx);
+      return computeMeasures(db);
     },
 
     /**
