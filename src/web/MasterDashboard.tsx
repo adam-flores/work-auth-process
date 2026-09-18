@@ -436,48 +436,39 @@ export function MasterDashboard({ actingId }: MasterDashboardProps) {
         </select>
       </div>
 
-      <table className="dashboard-table">
-        <thead>
-          <tr>
-            <th scope="col">Identifier</th>
-            <th scope="col">Project</th>
-            <th scope="col">Submitter</th>
-            <th scope="col">Stage</th>
-            <th scope="col" />
-          </tr>
-        </thead>
-        <tbody data-testid="dashboard-rows">
-          {authorizations === null || drafts === null ? (
-            <tr>
-              <td colSpan={5} className="hint">
-                Loading…
-              </td>
-            </tr>
-          ) : filteredRows.length === 0 ? (
-            <tr>
-              <td colSpan={5} className="hint">
-                No matching authorizations or drafts.
-              </td>
-            </tr>
-          ) : (
-            filteredRows.map((row) => (
-              <tr key={row.id} data-testid="dashboard-row">
-                <td>{row.id}</td>
-                <td>{row.project}</td>
-                <td>{participantName(row.submitterId)}</td>
-                <td>{stageLabel(row.stage)}</td>
-                <td>
-                  {row.kind === "authorization" && (
-                    <button type="button" onClick={() => setOpenId(row.id)} data-testid="dashboard-view-history">
-                      View history
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+      <ul className="card-list dashboard-cards" data-testid="dashboard-rows">
+        {authorizations === null || drafts === null ? (
+          <li className="hint">Loading…</li>
+        ) : filteredRows.length === 0 ? (
+          <li className="hint">No matching authorizations or drafts.</li>
+        ) : (
+          filteredRows.map((row) => (
+            <li key={row.id} className="card dashboard-card" data-testid="dashboard-row">
+              <div className="card-header">
+                <span className="card-title" data-testid="dashboard-row-project">
+                  {row.project}
+                </span>
+                {row.kind === "authorization" && (
+                  <button type="button" onClick={() => setOpenId(row.id)} data-testid="dashboard-view-history">
+                    View history
+                  </button>
+                )}
+              </div>
+              <div className="card-badges">
+                <span className="badge" data-testid="dashboard-row-stage">
+                  {stageLabel(row.stage)}
+                </span>
+                <span className="card-meta" data-testid="dashboard-row-submitter">
+                  {participantName(row.submitterId)}
+                </span>
+              </div>
+              <span className="card-identifier" data-testid="dashboard-row-identifier">
+                {row.id}
+              </span>
+            </li>
+          ))
+        )}
+      </ul>
 
       {openAuthorization && (
         <div data-testid="dashboard-detail">
