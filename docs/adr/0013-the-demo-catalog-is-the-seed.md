@@ -19,10 +19,12 @@ still carry the collision and disclosure-treatment complexity ADR-0012 exists to
 this catalog deliberately does not show. Nothing in it is transcribed from a chart; there is no
 conflated code column, no comma-separated code field, no shared cost centre, and no near-identical
 sibling name to disambiguate. Every attribute ADR-0012 defines still appears at least once —
-`jurisdiction`, `home-office-disclosure` (held at the division level on one division, so both its
-departments inherit it without carrying it directly — the same inheritance case ADR-0012's
-consequences call out), `offshore-shared-service`, and `contracting-exception` — so the picker and
-the permissibility rule both still have something real to work against.
+`affiliation` (legal-entity level, inherited by every department — the full three-level chain,
+even with only one legal entity), `jurisdiction`, `home-office-disclosure` (held at the division
+level on one division, so both its departments inherit it without carrying it directly — the same
+inheritance case ADR-0012's consequences call out), `offshore-shared-service`, and
+`contracting-exception` — so the picker and the permissibility rule both still have something real
+to work against.
 
 **The seeding mechanism is unchanged and governs this catalog too.** ADR-0012 decided deterministic
 ids derived from names, the attribute/detail split, and seeding an unclassifiable department
