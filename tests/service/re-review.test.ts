@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { createService } from "../../src/service/index.ts";
 import { RELAY_CONFIG } from "../../src/relay/config.ts";
 import { appendConfigurationChangeReReviewTransition } from "../../src/authorizations/index.ts";
-import { withTempStore } from "../helpers/temp-store.ts";
+import { withTempStore, addTestParticipant } from "../helpers/temp-store.ts";
 
 /**
  * Re-review, both causes, one mechanism (#60, ADR-0004, ADR-0005): an
@@ -24,13 +24,15 @@ import { withTempStore } from "../helpers/temp-store.ts";
  * this suite needs to - the seeded scenario a migration would eventually
  * trigger.
  *
- * The seeded roster and fixture departments are the same ones
- * `correction.test.ts` and `completion.test.ts` already use: two Approvers
- * at "Heat Exchange Products" (requesting) and "Rotor Hubs" (performing),
- * plus Contracts and Global Trade's own seeded Approvers. A correction is
- * always supplied by the submitter (BDR-0005: "the submitter corrects it,
- * generally") - only `performingEmployee` belongs to the performing
- * contributor, and this suite never corrects that field.
+ * The fixture departments are the same ones `correction.test.ts` and
+ * `completion.test.ts` already use: "Rotor Assemblies" (requesting) and
+ * "Flight Controls Software" (performing). The demo roster (#92) seeds no
+ * gate Approvers at all, so Contracts and Global Trade's Approvers are added
+ * directly to this test's own store (`addTestParticipant`), the same way
+ * `gates.test.ts` does. A correction is always supplied by the submitter
+ * (BDR-0005: "the submitter corrects it, generally") - only
+ * `performingEmployee` belongs to the performing contributor, and this suite
+ * never corrects that field.
  */
 
 describe("re-review, both causes, one mechanism", () => {
@@ -49,19 +51,31 @@ describe("re-review, both causes, one mechanism", () => {
   before(() => {
     store = withTempStore();
     service = createService({ storePath: store.path });
+    addTestParticipant(store.path, {
+      id: "p-test-contracts-approver",
+      name: "Test Contracts Approver",
+      role: "Approver",
+      department: "Contracts",
+    });
+    addTestParticipant(store.path, {
+      id: "p-test-global-trade-approver",
+      name: "Test Global Trade Approver",
+      role: "Approver",
+      department: "Global Trade",
+    });
 
     const people = service.listParticipants({ participantId: "system" });
-    submitter = people.find((p) => p.id === "p-avery-lund")!.id;
-    requestingApproverA = people.find((p) => p.id === "p-cate-marchetti")!.id;
-    requestingApproverB = people.find((p) => p.id === "p-hugo-strand")!.id;
-    performingApproverA = people.find((p) => p.id === "p-mira-devane")!.id;
-    contributorAtPerformingDept = people.find((p) => p.id === "p-nils-oyelaran")!.id;
-    contractsApprover = people.find((p) => p.id === "p-farah-quintela")!.id;
-    globalTradeApprover = people.find((p) => p.id === "p-oskar-lindqvist")!.id;
+    submitter = people.find((p) => p.id === "p-teo-brandt")!.id;
+    requestingApproverA = people.find((p) => p.id === "p-priya-anand")!.id;
+    requestingApproverB = people.find((p) => p.id === "p-priya-anand")!.id;
+    performingApproverA = people.find((p) => p.id === "p-marcus-oduya")!.id;
+    contributorAtPerformingDept = people.find((p) => p.id === "p-jordan-hale")!.id;
+    contractsApprover = people.find((p) => p.id === "p-test-contracts-approver")!.id;
+    globalTradeApprover = people.find((p) => p.id === "p-test-global-trade-approver")!.id;
 
     const departments = service.searchDepartments({ participantId: "system" });
-    requestingDeptId = departments.find((d) => d.name === "Heat Exchange Products")!.id;
-    performingDeptId = departments.find((d) => d.name === "Rotor Hubs")!.id;
+    requestingDeptId = departments.find((d) => d.name === "Rotor Assemblies")!.id;
+    performingDeptId = departments.find((d) => d.name === "Flight Controls Software")!.id;
   });
   after(() => {
     service.close();

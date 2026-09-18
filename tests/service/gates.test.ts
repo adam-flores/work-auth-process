@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { createService } from "../../src/service/index.ts";
 import { DomainError } from "../../src/service/errors.ts";
-import { withTempStore } from "../helpers/temp-store.ts";
+import { withTempStore, addTestParticipant } from "../helpers/temp-store.ts";
 
 /**
  * The two gates (#57): Contracts and Global Trade, the two conditional
@@ -19,10 +19,12 @@ import { withTempStore } from "../helpers/temp-store.ts";
  * value that decided it (ADR-0004) rather than leaving the skip to be
  * inferred later.
  *
- * The seeded roster (config/participants.json) puts one Approver at
- * "Contracts" (Farah Quintela) and one at "Global Trade" (Oskar Lindqvist) -
- * fixed department names, not drawn from the org hierarchy the way the four
- * mandatory approvals' departments are.
+ * The demo roster (config/participants.json) seeds no gate Approvers at all
+ * (#92: the happy path is company-funded with matching location types, so
+ * it skips both gates) - one is added directly to this test's own store
+ * (`addTestParticipant`) at each gate's own fixed department name
+ * ("Contracts", "Global Trade"), not drawn from the org hierarchy the way
+ * the four mandatory approvals' departments are.
  */
 
 describe("the two gates", () => {
@@ -41,19 +43,31 @@ describe("the two gates", () => {
   before(() => {
     store = withTempStore();
     service = createService({ storePath: store.path });
+    addTestParticipant(store.path, {
+      id: "p-test-contracts-approver",
+      name: "Test Contracts Approver",
+      role: "Approver",
+      department: "Contracts",
+    });
+    addTestParticipant(store.path, {
+      id: "p-test-global-trade-approver",
+      name: "Test Global Trade Approver",
+      role: "Approver",
+      department: "Global Trade",
+    });
 
     const people = service.listParticipants({ participantId: "system" });
-    submitter = people.find((p) => p.id === "p-avery-lund")!.id;
-    requestingApproverA = people.find((p) => p.id === "p-cate-marchetti")!.id;
-    requestingApproverB = people.find((p) => p.id === "p-hugo-strand")!.id;
-    performingApproverA = people.find((p) => p.id === "p-mira-devane")!.id;
-    contributorAtPerformingDept = people.find((p) => p.id === "p-nils-oyelaran")!.id;
-    contractsApprover = people.find((p) => p.id === "p-farah-quintela")!.id;
-    globalTradeApprover = people.find((p) => p.id === "p-oskar-lindqvist")!.id;
+    submitter = people.find((p) => p.id === "p-teo-brandt")!.id;
+    requestingApproverA = people.find((p) => p.id === "p-priya-anand")!.id;
+    requestingApproverB = people.find((p) => p.id === "p-priya-anand")!.id;
+    performingApproverA = people.find((p) => p.id === "p-marcus-oduya")!.id;
+    contributorAtPerformingDept = people.find((p) => p.id === "p-jordan-hale")!.id;
+    contractsApprover = people.find((p) => p.id === "p-test-contracts-approver")!.id;
+    globalTradeApprover = people.find((p) => p.id === "p-test-global-trade-approver")!.id;
 
     const departments = service.searchDepartments({ participantId: "system" });
-    requestingDeptId = departments.find((d) => d.name === "Heat Exchange Products")!.id;
-    performingDeptId = departments.find((d) => d.name === "Rotor Hubs")!.id;
+    requestingDeptId = departments.find((d) => d.name === "Rotor Assemblies")!.id;
+    performingDeptId = departments.find((d) => d.name === "Flight Controls Software")!.id;
   });
   after(() => {
     service.close();

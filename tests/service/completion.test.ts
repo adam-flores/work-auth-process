@@ -17,7 +17,7 @@ import { withTempStore } from "../helpers/temp-store.ts";
  * change cannot rewrite a settled record.
  *
  * The seeded roster (config/participants.json) puts one Charge Number Admin,
- * Sadie Okonkwo, at "Northline Service Center" - a department unrelated to
+ * Elin Vasquez, at "Landing Gear Systems" - a department unrelated to
  * either side of any authorization here, which is what proves the mint
  * queue is scoped by role alone rather than by department the way an
  * Approver's or a gate's is.
@@ -40,16 +40,16 @@ describe("charge number, completion, and the classification freeze", () => {
     service = createService({ storePath: store.path });
 
     const people = service.listParticipants({ participantId: "system" });
-    submitter = people.find((p) => p.id === "p-avery-lund")!.id;
-    requestingApproverA = people.find((p) => p.id === "p-cate-marchetti")!.id;
-    requestingApproverB = people.find((p) => p.id === "p-hugo-strand")!.id;
-    performingApproverA = people.find((p) => p.id === "p-mira-devane")!.id;
-    contributorAtPerformingDept = people.find((p) => p.id === "p-nils-oyelaran")!.id;
-    chargeNumberAdmin = people.find((p) => p.id === "p-sadie-okonkwo")!.id;
+    submitter = people.find((p) => p.id === "p-teo-brandt")!.id;
+    requestingApproverA = people.find((p) => p.id === "p-priya-anand")!.id;
+    requestingApproverB = people.find((p) => p.id === "p-priya-anand")!.id;
+    performingApproverA = people.find((p) => p.id === "p-marcus-oduya")!.id;
+    contributorAtPerformingDept = people.find((p) => p.id === "p-jordan-hale")!.id;
+    chargeNumberAdmin = people.find((p) => p.id === "p-elin-vasquez")!.id;
 
     const departments = service.searchDepartments({ participantId: "system" });
-    requestingDeptId = departments.find((d) => d.name === "Heat Exchange Products")!.id;
-    performingDeptId = departments.find((d) => d.name === "Rotor Hubs")!.id;
+    requestingDeptId = departments.find((d) => d.name === "Rotor Assemblies")!.id;
+    performingDeptId = departments.find((d) => d.name === "Flight Controls Software")!.id;
   });
   after(() => {
     service.close();
