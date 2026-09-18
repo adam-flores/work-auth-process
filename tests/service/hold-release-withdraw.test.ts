@@ -337,4 +337,93 @@ describe("hold, release and withdraw", () => {
       (err: unknown) => err instanceof DomainError && err.code === "AUTHORIZATION_ON_HOLD",
     );
   });
+
+  // #84: withdrawal is terminal "wherever it happens to sit" - mid-relay,
+  // at an ordinary acknowledgeable stage, exactly like the one place
+  // `requireNotTerminal` was already proven (hold/release/withdraw above).
+  // Nothing about `currentStageId` or a queue's own membership check moves
+  // when a withdrawal is appended, so these seven commands only refuse a
+  // withdrawn authorization because each now calls `requireNotTerminal`
+  // itself, not because the queue functions they call afterward noticed
+  // anything was wrong.
+  test("a withdrawn authorization refuses acknowledgement, claim, mint and referral, called directly, mid-relay", () => {
+    const acknowledgeAuthorization = initiateAuthorization("Withdrawn mid-relay, acknowledge refused directly");
+    service.withdraw({ participantId: submitter }, acknowledgeAuthorization.id);
+    assert.throws(
+      () => service.acknowledge({ participantId: requestingApproverA }, acknowledgeAuthorization.id),
+      (err: unknown) => err instanceof DomainError && err.code === "AUTHORIZATION_TERMINAL",
+    );
+    // The same authorization: `requestingApproverA` held its queue right up
+    // until the withdrawal, so a referral attempt exercises the same guard
+    // rather than failing for the unrelated reason of never having held it.
+    assert.throws(
+      () =>
+        service.refer({ participantId: requestingApproverA }, acknowledgeAuthorization.id, {
+          colleagueId: chargeNumberAdmin,
+        }),
+      (err: unknown) => err instanceof DomainError && err.code === "AUTHORIZATION_TERMINAL",
+    );
+
+    const claimAuthorization = initiateAuthorization("Withdrawn mid-relay, claim refused directly");
+    service.acknowledge({ participantId: requestingApproverA }, claimAuthorization.id);
+    service.acknowledge({ participantId: requestingApproverB }, claimAuthorization.id); // -> performing-department
+    service.withdraw({ participantId: submitter }, claimAuthorization.id);
+    assert.throws(
+      () => service.claim({ participantId: contributorAtPerformingDept }, claimAuthorization.id),
+      (err: unknown) => err instanceof DomainError && err.code === "AUTHORIZATION_TERMINAL",
+    );
+
+    const mintAuthorization = reachMintStage("Withdrawn mid-relay, mint refused directly");
+    service.withdraw({ participantId: submitter }, mintAuthorization.id);
+    assert.throws(
+      () =>
+        service.mintChargeNumber({ participantId: chargeNumberAdmin }, mintAuthorization.id, {
+          chargeNumber: "CN-84-1",
+        }),
+      (err: unknown) => err instanceof DomainError && err.code === "AUTHORIZATION_TERMINAL",
+    );
+  });
+
+  test("a withdrawn authorization refuses a contribution, a correction request and a correction's fulfillment, called directly, mid-relay", () => {
+    const contributeAuthorization = initiateAuthorization("Withdrawn mid-relay, contribution refused directly");
+    service.acknowledge({ participantId: requestingApproverA }, contributeAuthorization.id);
+    service.acknowledge({ participantId: requestingApproverB }, contributeAuthorization.id); // -> performing-department
+    service.claim({ participantId: contributorAtPerformingDept }, contributeAuthorization.id);
+    service.withdraw({ participantId: submitter }, contributeAuthorization.id);
+    assert.throws(
+      () =>
+        service.contribute({ participantId: contributorAtPerformingDept }, contributeAuthorization.id, {
+          performingEmployee: "Jade Okafor",
+        }),
+      (err: unknown) => err instanceof DomainError && err.code === "AUTHORIZATION_TERMINAL",
+    );
+
+    const requestCorrectionAuthorization = initiateAuthorization(
+      "Withdrawn mid-relay, correction request refused directly",
+    );
+    service.withdraw({ participantId: submitter }, requestCorrectionAuthorization.id);
+    assert.throws(
+      () =>
+        service.requestCorrection({ participantId: requestingApproverA }, requestCorrectionAuthorization.id, {
+          fields: ["project"],
+          comment: "Too late.",
+        }),
+      (err: unknown) => err instanceof DomainError && err.code === "AUTHORIZATION_TERMINAL",
+    );
+
+    // Withdrawal is reachable even while a correction sits outstanding
+    // (`withdraw` checks only `isTerminal`, never `awaitingCorrection`) -
+    // so the fulfillment side of the same gap is reachable too, unless
+    // `correct` refuses it just as directly.
+    const correctAuthorization = initiateAuthorization("Withdrawn mid-relay, correction fulfillment refused directly");
+    service.requestCorrection({ participantId: requestingApproverA }, correctAuthorization.id, {
+      fields: ["project"],
+      comment: "Wrong project name.",
+    });
+    service.withdraw({ participantId: submitter }, correctAuthorization.id);
+    assert.throws(
+      () => service.correct({ participantId: submitter }, correctAuthorization.id, { project: "Corrected name" }),
+      (err: unknown) => err instanceof DomainError && err.code === "AUTHORIZATION_TERMINAL",
+    );
+  });
 });
