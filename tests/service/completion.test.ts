@@ -195,7 +195,7 @@ describe("charge number, completion, and the classification freeze", () => {
     service.mintChargeNumber({ participantId: chargeNumberAdmin }, authorization.id, { chargeNumber: "CN-1" });
     assert.throws(
       () => service.mintChargeNumber({ participantId: chargeNumberAdmin }, authorization.id, { chargeNumber: "CN-2" }),
-      (err: unknown) => err instanceof DomainError && err.code === "NOT_IN_QUEUE",
+      (err: unknown) => err instanceof DomainError && err.code === "AUTHORIZATION_TERMINAL",
     );
   });
 

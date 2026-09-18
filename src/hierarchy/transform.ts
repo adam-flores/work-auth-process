@@ -1,4 +1,7 @@
 import type { Fixture } from "./fixture.ts";
+import type { NodeKind } from "../shared/constants.ts";
+
+export type { NodeKind } from "../shared/constants.ts";
 
 /**
  * Seeding the hierarchy is a transformation, not a load (ADR-0011), and this is
@@ -19,8 +22,6 @@ import type { Fixture } from "./fixture.ts";
  *     department missing the one attribute a control is evaluated against is
  *     seeded inactive rather than given a guess.
  */
-
-export type NodeKind = "legal-entity" | "division" | "department";
 
 export type CodeKind = "cost-accounting" | "cost-center";
 
@@ -77,7 +78,7 @@ const CONTRACTING_EXCEPTION_FOOTNOTE = "fn-2";
  * silently merged — two departments becoming one is the failure this ticket
  * exists to prevent.
  */
-function slug(text: string): string {
+export function slug(text: string): string {
   return text
     .normalize("NFKD")
     .toLowerCase()

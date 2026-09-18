@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FUNDING_TYPE_VALUES, JURISDICTION_VALUES, LOCATION_TYPE_VALUES } from "./constants.ts";
+import { FUNDING_TYPE_VALUES, JURISDICTION_VALUES, LOCATION_TYPE_VALUES, NODE_KIND_VALUES } from "./constants.ts";
 import type { CorrectableFieldKey } from "../authorizations/index.ts";
 
 /**
@@ -325,6 +325,29 @@ export type TransitionOptions = z.infer<typeof TransitionOptions>;
 export type TransitionOptionsInput = z.input<typeof TransitionOptions>;
 
 /**
+ * Completed, withdrawn or revoked (#58, #61, #64, ADR-0007): the three
+ * terminal states, mutually exclusive by construction, checked identically
+ * everywhere something needs to know whether there is anything left to act
+ * on. A duck-typed parameter rather than importing `Authorization` from
+ * `authorizations/index.ts` - that module also imports from `node:crypto`
+ * for its own appends, which this file must stay free of so the browser can
+ * import it too (ADR-0002). The service seam's `requireNotTerminal` and the
+ * master dashboard's stage label (#63) both read this instead of each
+ * keeping its own copy of the same three-field check.
+ */
+export function isTerminal(authorization: {
+  chargeNumber: string | null;
+  withdrawnAt: string | null;
+  revokedAt: string | null;
+}): boolean {
+  return (
+    authorization.chargeNumber !== null ||
+    authorization.withdrawnAt !== null ||
+    authorization.revokedAt !== null
+  );
+}
+
+/**
  * A permissibility rule (#53, BDR-0007): a pairing of jurisdictions that may
  * not work together, held as data rather than code so a new pairing costs no
  * build. The seeded rule reads "a foreign department may not perform work
@@ -341,4 +364,44 @@ export const PermissibilityRuleInput = z.object({
 export type Jurisdiction = z.infer<typeof Jurisdiction>;
 export type PermissibilityRuleInput = z.infer<typeof PermissibilityRuleInput>;
 
-export { SYSTEM_PARTICIPANT_ID, FUNDING_TYPE_VALUES, LOCATION_TYPE_VALUES, JURISDICTION_VALUES } from "./constants.ts";
+/**
+ * An Administrator maintaining the hierarchy (#64, BDR-0010): add, rename and
+ * set-inactive for a legal entity, a division or a department - never a
+ * delete, and never a re-parent, which BDR-0010 specifies and deliberately
+ * defers. `AddHierarchyNodeInput` is a discriminated union rather than one
+ * object with optional parents because which parent a node needs depends
+ * entirely on which level it is - a legal entity names none, a division
+ * names a legal entity, a department names a division.
+ */
+export const NodeKind = z.enum(NODE_KIND_VALUES);
+export const HierarchyNodeName = z
+  .string()
+  .trim()
+  .min(1, "A name is required.")
+  .max(200);
+
+export const AddHierarchyNodeInput = z.discriminatedUnion("nodeKind", [
+  z.object({ nodeKind: z.literal("legal-entity"), name: HierarchyNodeName }),
+  z.object({ nodeKind: z.literal("division"), name: HierarchyNodeName, legalEntityId: HierarchyId }),
+  z.object({ nodeKind: z.literal("department"), name: HierarchyNodeName, divisionId: HierarchyId }),
+]);
+
+/** `nodeKind` travels separately (a path segment on the HTTP adapter, an
+ *  explicit argument at the service seam) rather than inside this body -
+ *  it says which table a rename or a set-inactive acts on, which the
+ *  caller already had to know to name `nodeId` in the first place. */
+export const RenameHierarchyNodeInput = z.object({
+  name: HierarchyNodeName,
+});
+
+export type NodeKind = z.infer<typeof NodeKind>;
+export type AddHierarchyNodeInput = z.infer<typeof AddHierarchyNodeInput>;
+export type RenameHierarchyNodeInput = z.infer<typeof RenameHierarchyNodeInput>;
+
+export {
+  SYSTEM_PARTICIPANT_ID,
+  FUNDING_TYPE_VALUES,
+  LOCATION_TYPE_VALUES,
+  JURISDICTION_VALUES,
+  NODE_KIND_VALUES,
+} from "./constants.ts";

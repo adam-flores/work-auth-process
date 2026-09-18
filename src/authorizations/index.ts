@@ -6,6 +6,7 @@ import type { GateStage, RelayStage } from "../relay/config.ts";
 import type { Resource } from "../drafts/index.ts";
 import type { FundingType, LocationType } from "../shared/constants.ts";
 import { SYSTEM_PARTICIPANT_ID } from "../shared/constants.ts";
+import { isTerminal } from "../shared/rules.ts";
 
 /**
  * The transition log: the append-only half of ADR-0009, and the record
@@ -170,11 +171,10 @@ export type Authorization = AuthorizationFields & {
    *  separate stored state for completion to drift from this. */
   chargeNumber: string | null;
   /** The three resolved levels for each side, frozen at the instant a
-   *  terminal transition is appended - completion (minting) or withdrawal
-   *  today, revocation once #64 builds it (ADR-0007) - `null` while the
-   *  authorization is still live, at which point a caller resolves
-   *  classification from the hierarchy instead (`resolveDepartment`) and
-   *  never reads this. */
+   *  terminal transition is appended - completion (minting), withdrawal or
+   *  revocation (ADR-0007) - `null` while the authorization is still live,
+   *  at which point a caller resolves classification from the hierarchy
+   *  instead (`resolveDepartment`) and never reads this. */
   classification: { requesting: FrozenClassification; performing: FrozenClassification } | null;
   /** Every span the submitter has held this authorization for (#61), in the
    *  order they occurred - a hold and the release that closes it are each
@@ -192,6 +192,16 @@ export type Authorization = AuthorizationFields & {
    *  `chargeNumber` existing - the two are mutually exclusive, and
    *  `classification` above is frozen by whichever of them happens. */
   withdrawnAt: string | null;
+  /** When an Administrator's hierarchy change revoked this authorization
+   *  (#64, BDR-0010: "a cancellation is a Revocation, performed by the
+   *  Administrator"), `null` while it is still live. Terminal and mutually
+   *  exclusive with `chargeNumber` and `withdrawnAt`, the same as either of
+   *  those two is with each other. */
+  revokedAt: string | null;
+  /** The comment recorded on the revocation, supplied by the system rather
+   *  than typed by the Administrator (BDR-0010) - `null` while `revokedAt`
+   *  is. */
+  revocationComment: string | null;
   /** Every colleague this authorization has been shown to (#62, BDR-0011),
    *  in the order it happened - readable in the authorization's history and
    *  excluded from every measure, aggregate counts included, so nothing here
@@ -249,6 +259,18 @@ type CompletionPayload = {
  *  payload - withdrawal does not resolve a stage, it ends the authorization
  *  wherever it happens to sit. */
 type WithdrawalPayload = {
+  classification: { requesting: FrozenClassification; performing: FrozenClassification };
+};
+/** An Administrator's hierarchy change revoking this authorization (#64,
+ *  BDR-0010): terminal like completion's and withdrawal's payloads, and
+ *  carrying the same frozen classification (ADR-0007) - a revoked record
+ *  reads as the structure it was revoked under, exactly as a completed or
+ *  withdrawn one does. `comment` is the one thing this payload adds: fixed
+ *  text the system supplies, "the comment supplied by the system rather
+ *  than typed" - BDR-0005's mandatory-comment rule carried over rather than
+ *  a free-text field an Administrator fills in. */
+type RevocationPayload = {
+  comment: string;
   classification: { requesting: FrozenClassification; performing: FrozenClassification };
 };
 /** Whoever holds an authorization at their stage referring it to a named
@@ -436,6 +458,13 @@ function foldAuthorization(authorizationId: string, transitions: TransitionRow[]
   const withdrawal = transitions.find((row) => row.kind === "withdrawal");
   const withdrawalPayload = withdrawal ? (JSON.parse(withdrawal.payload) as WithdrawalPayload) : null;
 
+  // Revocation is likewise recorded once and never more than once - it is
+  // one of the three mutually-exclusive terminal states `requireNotTerminal`
+  // in `service/index.ts` already refuses a second terminal transition
+  // against.
+  const revocation = transitions.find((row) => row.kind === "revocation");
+  const revocationPayload = revocation ? (JSON.parse(revocation.payload) as RevocationPayload) : null;
+
   const holdIntervals = foldHoldIntervals(transitions);
   const onHold = holdIntervals.length > 0 && holdIntervals[holdIntervals.length - 1]!.releasedAt === null;
 
@@ -460,10 +489,14 @@ function foldAuthorization(authorizationId: string, transitions: TransitionRow[]
       ? completionPayload.classification
       : withdrawalPayload
         ? withdrawalPayload.classification
-        : null,
+        : revocationPayload
+          ? revocationPayload.classification
+          : null,
     holdIntervals,
     onHold,
     withdrawnAt: withdrawal ? withdrawal.occurred_at : null,
+    revokedAt: revocation ? revocation.occurred_at : null,
+    revocationComment: revocationPayload ? revocationPayload.comment : null,
     referrals: foldReferrals(transitions),
     ...fields,
     ...fieldOverrides,
@@ -932,6 +965,38 @@ export function appendWithdrawalTransition(
 }
 
 /**
+ * An Administrator's hierarchy change revoking this authorization (#64,
+ * BDR-0010: "a cancellation is a Revocation, performed by the
+ * Administrator"). Terminal, the same as withdrawal - it ends the
+ * authorization wherever it happens to sit, and the classification this
+ * carries is resolved live by the caller just before calling this, exactly
+ * as `appendWithdrawalTransition` already does. `actorId` is the
+ * Administrator who made the hierarchy edit, not the system sentinel: the
+ * edit is theirs, even though the comment is not typed. The service is what
+ * finds every in-flight authorization a hierarchy edit affects and calls
+ * this once per authorization (`setHierarchyNodeInactive` in
+ * `service/index.ts`); nothing here decides which authorizations are
+ * affected.
+ */
+export function appendRevocationTransition(
+  db: DatabaseSync,
+  input: {
+    authorizationId: string;
+    actorId: string;
+    occurredAt: string;
+    comment: string;
+    classification: { requesting: FrozenClassification; performing: FrozenClassification };
+  },
+): Authorization {
+  const payload: RevocationPayload = { comment: input.comment, classification: input.classification };
+  db.prepare(
+    `INSERT INTO transitions (id, authorization_id, kind, actor_id, occurred_at, payload)
+     VALUES (?, ?, 'revocation', ?, ?, ?)`,
+  ).run(`transition-${randomUUID()}`, input.authorizationId, input.actorId, input.occurredAt, JSON.stringify(payload));
+  return findAuthorization(db, input.authorizationId)!;
+}
+
+/**
  * An Approver raising a correction request at the stage an authorization
  * currently sits at (#59, BDR-0005): names the fields at fault and carries
  * a mandatory comment. The authorization's position does not change - no
@@ -1095,11 +1160,11 @@ export function correctionOwner(
 /**
  * Every initiated authorization still in flight - what a queue is filtered
  * from (#55), and today the only consumer of this function
- * (`listMyQueue` in `service/index.ts`). Completed and withdrawn
+ * (`listMyQueue` in `service/index.ts`). Completed, withdrawn and revoked
  * authorizations are excluded here rather than left for each queue
- * function in `queues/index.ts` to filter out individually (#61) -
- * revocation will join them once #64 builds it. On-hold authorizations are
- * not excluded here: holding does not end an authorization, and each queue
+ * function in `queues/index.ts` to filter out individually (#61, #64).
+ * On-hold authorizations are not excluded here: holding does not end an
+ * authorization, and each queue
  * function already checks `onHold` itself, the same way each already
  * checks `awaitingCorrection`.
  *
@@ -1110,11 +1175,13 @@ export function correctionOwner(
  * over that unfiltered reader rather than a second copy of its query, so
  * the one place that knows what "every initiated authorization" means
  * cannot drift from the one place that knows what "still in flight" means.
+ *
+ * Revoked authorizations are excluded here too (#64) - a revoked
+ * authorization "arrives in nobody's queue" (BDR-0010), the same as a
+ * completed or withdrawn one.
  */
 export function listAuthorizations(db: DatabaseSync): Authorization[] {
-  return listAllAuthorizations(db).filter(
-    (authorization) => authorization.chargeNumber === null && authorization.withdrawnAt === null,
-  );
+  return listAllAuthorizations(db).filter((authorization) => !isTerminal(authorization));
 }
 
 /**
