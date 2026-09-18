@@ -207,6 +207,26 @@ export type Authorization = AuthorizationFields & {
    *  excluded from every measure, aggregate counts included, so nothing here
    *  is ever folded down to a total. */
   referrals: Referral[];
+  /** Every correction-request round raised against this authorization so far
+   *  (#66, BDR-0006), in the order it happened - unlike `correctionRequest`
+   *  above, which only ever holds the *outstanding* one, this keeps every
+   *  round a stage has ever raised, closed or not. It is what M1 ("zero
+   *  correction requests") and M3 ("correction requests per authorization")
+   *  fold over, and what attributes awaiting-correction time to the stage
+   *  visit that raised it - one fold, so the insights dashboard and anything
+   *  else that reports on corrections cannot each keep their own count. */
+  correctionHistory: CorrectionInterval[];
+};
+
+/** One correction-request round (#59, #66): the interval a stage spent
+ *  awaiting correction, from the request to the correction that resolved it.
+ *  `correctedAt` is `null` while the round is still the outstanding one -
+ *  the same span `Authorization.correctionRequest` already names, seen from
+ *  the measurement side rather than the current-state side. */
+export type CorrectionInterval = {
+  stageId: StageId;
+  requestedAt: string;
+  correctedAt: string | null;
 };
 
 type TransitionRow = {
@@ -416,6 +436,29 @@ function foldHoldIntervals(transitions: TransitionRow[]): HoldInterval[] {
 }
 
 /**
+ * Every correction-request round appended so far (#66, BDR-0006): unlike
+ * `foldCorrectionState`, which only ever needs the latest of either kind to
+ * answer "is this stage awaiting correction right now," a measure needs
+ * every round a stage ever raised - the same distinction `foldHoldIntervals`
+ * already draws against `onHold`. The service refuses a second
+ * correction-request while one stands (`service/index.ts`'s `isQueuedFor`),
+ * so there is never more than one open round at a time to close.
+ */
+function foldCorrectionHistory(transitions: TransitionRow[]): CorrectionInterval[] {
+  const history: CorrectionInterval[] = [];
+  for (const row of transitions) {
+    if (row.kind === "correction-request") {
+      const { stageId } = JSON.parse(row.payload) as CorrectionRequestPayload;
+      history.push({ stageId, requestedAt: row.occurred_at, correctedAt: null });
+    } else if (row.kind === "correction") {
+      const open = history[history.length - 1];
+      if (open && open.correctedAt === null) open.correctedAt = row.occurred_at;
+    }
+  }
+  return history;
+}
+
+/**
  * Every referral appended so far (#62) - unlike a hold or a correction
  * request, a referral never resolves anything, so there is nothing to pair a
  * later transition against: every `referral` row is its own complete record,
@@ -498,6 +541,7 @@ function foldAuthorization(authorizationId: string, transitions: TransitionRow[]
     revokedAt: revocation ? revocation.occurred_at : null,
     revocationComment: revocationPayload ? revocationPayload.comment : null,
     referrals: foldReferrals(transitions),
+    correctionHistory: foldCorrectionHistory(transitions),
     ...fields,
     ...fieldOverrides,
   };
