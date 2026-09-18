@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { api, ApiError } from "./api.ts";
 import type { Attribute, Authorization, CorrectableFieldKey, ResolvedDepartment } from "./api.ts";
 import { DepartmentPicker } from "./DepartmentPicker.tsx";
@@ -784,11 +785,21 @@ const QUEUE_POLL_MS = 3000;
  *  collide the two rather than treating each arrival as its own event. */
 type ArrivalNotification = { key: string; authorizationId: string; project: string };
 
+function arrivalMessage(project: string): string {
+  return `${project} has arrived in your queue.`;
+}
+
 export function MyQueue({ actingId }: MyQueueProps) {
   const [items, setItems] = useState<Authorization[] | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<ArrivalNotification[]>([]);
+  // Mirrors the notification banner below into a visually-hidden live
+  // region, portaled out from under this tab's own panel (see the portal
+  // near the end of this component) - the browser drops the banner itself
+  // from the accessibility tree whenever another tab is active, the same as
+  // any ARIA tabs pattern does for inactive content.
+  const [announcement, setAnnouncement] = useState("");
 
   const latest = useRef(0);
   // `null` until the first successful poll for the participant currently
@@ -812,6 +823,17 @@ export function MyQueue({ actingId }: MyQueueProps) {
             ...prev,
             ...arrived.map((a) => ({ key: crypto.randomUUID(), authorizationId: a.id, project: a.project })),
           ]);
+          // One combined announcement, not one call per arrival: a plain
+          // `setState` per item would collapse under React's batching and
+          // leave only the last arrival's text live. Cleared first and set
+          // on the next frame so a repeat of the exact same text - the same
+          // authorization arriving again via a hold release, a referral, or
+          // a re-review, per this file's own `ArrivalNotification` comment -
+          // still mutates the DOM and gets announced; most screen readers
+          // stay silent on a live region whose text didn't actually change.
+          const message = arrived.map((a) => arrivalMessage(a.project)).join(" ");
+          setAnnouncement("");
+          requestAnimationFrame(() => setAnnouncement(message));
         }
       }
       seenIds.current = currentIds;
@@ -825,6 +847,7 @@ export function MyQueue({ actingId }: MyQueueProps) {
   useEffect(() => {
     setOpenId(null);
     setNotifications([]);
+    setAnnouncement("");
     seenIds.current = null;
     void load(actingId);
   }, [load, actingId]);
@@ -871,85 +894,93 @@ export function MyQueue({ actingId }: MyQueueProps) {
   const open = items?.find((a) => a.id === openId) ?? null;
 
   return (
-    <section aria-labelledby="queue-heading" data-testid="my-queue">
-      <h2 id="queue-heading">My queue</h2>
-      <p className="hint">
-        What has arrived at your role and department, derived from the log - not a list anyone
-        maintains. Every holder of the role sees the same queue, and any of them may act on it
-        (BDR-0013).
-      </p>
-
-      {error && (
-        <p role="alert" className="error">
-          {error}
+    <>
+      {createPortal(
+        <p aria-live="polite" className="sr-only" data-testid="queue-arrival-announcement">
+          {announcement}
+        </p>,
+        document.body,
+      )}
+      <section aria-labelledby="queue-heading" data-testid="my-queue">
+        <h2 id="queue-heading">My queue</h2>
+        <p className="hint">
+          What has arrived at your role and department, derived from the log - not a list anyone
+          maintains. Every holder of the role sees the same queue, and any of them may act on it
+          (BDR-0013).
         </p>
-      )}
 
-      {notifications.length > 0 && (
-        <ul className="notification-list" data-testid="notification-list">
-          {notifications.map((notification) => (
-            <li key={notification.key} role="status" data-testid="arrival-notification">
-              <span>{notification.project} has arrived in your queue.</span>
-              <button type="button" onClick={() => dismissNotification(notification.key)}>
-                Dismiss
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+        {error && (
+          <p role="alert" className="error">
+            {error}
+          </p>
+        )}
 
-      <ul className="queue-list" data-testid="queue-list">
-        {items === null ? (
-          <li className="hint">Loading…</li>
-        ) : items.length === 0 ? (
-          <li className="hint">Nothing is waiting on you.</li>
-        ) : (
-          items.map((authorization) => {
-            const relayStage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
-            return (
-              <li key={authorization.id} data-testid="queue-row">
-                <span>{authorization.project}</span>
-                {isContributionStage(relayStage) && (
-                  <span data-testid="claim-status">
-                    {authorization.performingContributorId === null ? "Unclaimed" : "Claimed"}
-                  </span>
-                )}
-                {authorization.awaitingCorrection && (
-                  <span data-testid="awaiting-correction">Awaiting your correction</span>
-                )}
-                {authorization.isReReview && (
-                  <span data-testid="re-review">
-                    Re-review
-                    {authorization.reReviewCause === "configuration-change"
-                      ? " (the rules changed)"
-                      : " (a correction changed this)"}
-                  </span>
-                )}
-                <button type="button" onClick={() => setOpenId(authorization.id)}>
-                  Open
+        {notifications.length > 0 && (
+          <ul className="notification-list" data-testid="notification-list">
+            {notifications.map((notification) => (
+              <li key={notification.key} role="status" data-testid="arrival-notification">
+                <span>{arrivalMessage(notification.project)}</span>
+                <button type="button" onClick={() => dismissNotification(notification.key)}>
+                  Dismiss
                 </button>
               </li>
-            );
-          })
+            ))}
+          </ul>
         )}
-      </ul>
 
-      {open && (
-        // Keyed by id so switching the open row directly - clicking another
-        // "Open" without Close first - remounts rather than reuses this
-        // instance. Without it, `OpenAuthorization`'s own state (the
-        // employee-name input, and #59's correction form fields) would carry
-        // the previous authorization's half-typed values into whatever gets
-        // opened next.
-        <OpenAuthorization
-          key={open.id}
-          actingId={actingId}
-          authorization={open}
-          onResolved={onResolved}
-          onClaimed={onClaimed}
-          onClose={() => setOpenId(null)}
-        />
-      )}
-    </section>
+        <ul className="queue-list" data-testid="queue-list">
+          {items === null ? (
+            <li className="hint">Loading…</li>
+          ) : items.length === 0 ? (
+            <li className="hint">Nothing is waiting on you.</li>
+          ) : (
+            items.map((authorization) => {
+              const relayStage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
+              return (
+                <li key={authorization.id} data-testid="queue-row">
+                  <span>{authorization.project}</span>
+                  {isContributionStage(relayStage) && (
+                    <span data-testid="claim-status">
+                      {authorization.performingContributorId === null ? "Unclaimed" : "Claimed"}
+                    </span>
+                  )}
+                  {authorization.awaitingCorrection && (
+                    <span data-testid="awaiting-correction">Awaiting your correction</span>
+                  )}
+                  {authorization.isReReview && (
+                    <span data-testid="re-review">
+                      Re-review
+                      {authorization.reReviewCause === "configuration-change"
+                        ? " (the rules changed)"
+                        : " (a correction changed this)"}
+                    </span>
+                  )}
+                  <button type="button" onClick={() => setOpenId(authorization.id)}>
+                    Open
+                  </button>
+                </li>
+              );
+            })
+          )}
+        </ul>
+
+        {open && (
+          // Keyed by id so switching the open row directly - clicking another
+          // "Open" without Close first - remounts rather than reuses this
+          // instance. Without it, `OpenAuthorization`'s own state (the
+          // employee-name input, and #59's correction form fields) would carry
+          // the previous authorization's half-typed values into whatever gets
+          // opened next.
+          <OpenAuthorization
+            key={open.id}
+            actingId={actingId}
+            authorization={open}
+            onResolved={onResolved}
+            onClaimed={onClaimed}
+            onClose={() => setOpenId(null)}
+          />
+        )}
+      </section>
+    </>
   );
 }

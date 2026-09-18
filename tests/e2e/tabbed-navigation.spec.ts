@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 /**
  * The tab shell (#91): a persistent header - the acting-as switcher, the
@@ -17,6 +18,37 @@ import { test, expect } from "@playwright/test";
  * them - Reference Data - is not Administrator-only. Only the mutation
  * controls inside it are, unchanged from before this issue.
  */
+
+async function initiateAuthorization(page: Page, project: string): Promise<void> {
+  await page.goto("/");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByTestId("new-draft").click();
+  await expect(page.getByTestId("draft-form")).toBeVisible();
+  await page.getByLabel("Project").fill(project);
+
+  const requesting = page.getByTestId("draft-requesting-department");
+  await requesting.getByLabel("Search by name").fill("Heat Exchange Products");
+  await requesting.getByRole("button", { name: "Heat Exchange Products", exact: true }).click();
+
+  const performing = page.getByTestId("draft-performing-department");
+  await performing.getByLabel("Search by name").fill("Rotor Hubs");
+  await performing.getByRole("button", { name: "Rotor Hubs", exact: true }).click();
+
+  await page.getByLabel("Funding type").selectOption("company-funded");
+  await page.getByLabel("Requesting location type").selectOption("domestic");
+  await page.getByLabel("Performing location type").selectOption("domestic");
+  await page.getByLabel("Requesting program manager").fill("Dana Ferris");
+  await page.getByLabel("Requesting finance approver").fill("Kim Osei");
+  await page.getByLabel("Performing program manager").fill("Lior Amsel");
+  await page.getByLabel("Performing finance approver").fill("Priya Nandan");
+  await page.getByLabel("Budget hours").fill("40");
+  await page.getByLabel("Labor rate").fill("85.5");
+  await page.getByRole("button", { name: "Add resource" }).click();
+  await expect(page.getByTestId("draft-resources")).toContainText("40 hrs @ $85.5/hr");
+  await page.getByTestId("initiate-draft").click();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByTestId("draft-form")).toHaveCount(0);
+}
 
 test("only the active tab's content is visible", async ({ page }) => {
   await page.goto("/");
@@ -95,40 +127,74 @@ test("a queue arrival while looking at another tab is still shown on return", as
 
   const project = `Tab Away Arrival ${Date.now()}`;
   const submitterPage = await context.newPage();
-  await submitterPage.goto("/");
-  await submitterPage.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
-  await submitterPage.getByTestId("new-draft").click();
-  await expect(submitterPage.getByTestId("draft-form")).toBeVisible();
-  await submitterPage.getByLabel("Project").fill(project);
-
-  const requesting = submitterPage.getByTestId("draft-requesting-department");
-  await requesting.getByLabel("Search by name").fill("Heat Exchange Products");
-  await requesting.getByRole("button", { name: "Heat Exchange Products", exact: true }).click();
-
-  const performing = submitterPage.getByTestId("draft-performing-department");
-  await performing.getByLabel("Search by name").fill("Rotor Hubs");
-  await performing.getByRole("button", { name: "Rotor Hubs", exact: true }).click();
-
-  await submitterPage.getByLabel("Funding type").selectOption("company-funded");
-  await submitterPage.getByLabel("Requesting location type").selectOption("domestic");
-  await submitterPage.getByLabel("Performing location type").selectOption("domestic");
-  await submitterPage.getByLabel("Requesting program manager").fill("Dana Ferris");
-  await submitterPage.getByLabel("Requesting finance approver").fill("Kim Osei");
-  await submitterPage.getByLabel("Performing program manager").fill("Lior Amsel");
-  await submitterPage.getByLabel("Performing finance approver").fill("Priya Nandan");
-  await submitterPage.getByLabel("Budget hours").fill("40");
-  await submitterPage.getByLabel("Labor rate").fill("85.5");
-  await submitterPage.getByRole("button", { name: "Add resource" }).click();
-  await expect(submitterPage.getByTestId("draft-resources")).toContainText("40 hrs @ $85.5/hr");
-  await submitterPage.getByTestId("initiate-draft").click();
-  await expect(submitterPage.getByRole("alert")).toHaveCount(0);
-  await expect(submitterPage.getByTestId("draft-form")).toHaveCount(0);
+  await initiateAuthorization(submitterPage, project);
   await submitterPage.close();
 
   await page.getByRole("tab", { name: "My Queue" }).click();
   await expect(
     page.getByTestId("arrival-notification").filter({ hasText: project }),
   ).toBeVisible({ timeout: 10_000 });
+});
+
+test("a queue arrival while looking at another tab updates a live region for assistive technology", async ({
+  page,
+  context,
+}) => {
+  // The visible notification banner above lives inside the "My Queue"
+  // tabpanel, which the browser removes from the accessibility tree while
+  // another tab is active (the ARIA tabs pattern, same as any tab widget) -
+  // so a screen-reader user relies instead on MyQueue's own always-mounted,
+  // visually-hidden `aria-live="polite"` region, portaled to `document.body`
+  // and kept updated regardless of which tab is showing or whether "My
+  // Queue" was ever opened.
+  await page.goto("/");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByRole("tab", { name: "Insights" }).click();
+  await expect(page.getByTestId("insights-dashboard")).toBeVisible();
+
+  const project = `Live Region Arrival ${Date.now()}`;
+  const submitterPage = await context.newPage();
+  await initiateAuthorization(submitterPage, project);
+  await submitterPage.close();
+
+  await expect(page.getByTestId("queue-arrival-announcement")).toContainText(
+    `${project} has arrived in your queue.`,
+    { timeout: 10_000 },
+  );
+  // Still on Insights - the region updated without switching tabs.
+  await expect(page.getByTestId("insights-dashboard")).toBeVisible();
+});
+
+test("two arrivals in the same poll cycle are both named in the live region, not just the last", async ({
+  page,
+  context,
+}) => {
+  // A plain `setState` call per arrival, inside a loop, collapses under
+  // React's batching - only the last one would ever reach the DOM. MyQueue
+  // builds one combined announcement per poll instead, so this asserts both
+  // projects survive together rather than the second silently winning.
+  await page.goto("/");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByRole("tab", { name: "Insights" }).click();
+  await expect(page.getByTestId("insights-dashboard")).toBeVisible();
+
+  const ts = Date.now();
+  const projectOne = `Batched Arrival One ${ts}`;
+  const projectTwo = `Batched Arrival Two ${ts}`;
+
+  // Concurrent, not sequential, so both land inside the same poll window
+  // rather than risking a poll tick falling between the two.
+  const submitterPageOne = await context.newPage();
+  const submitterPageTwo = await context.newPage();
+  await Promise.all([
+    initiateAuthorization(submitterPageOne, projectOne),
+    initiateAuthorization(submitterPageTwo, projectTwo),
+  ]);
+  await Promise.all([submitterPageOne.close(), submitterPageTwo.close()]);
+
+  const announcement = page.getByTestId("queue-arrival-announcement");
+  await expect(announcement).toContainText(`${projectOne} has arrived in your queue.`, { timeout: 10_000 });
+  await expect(announcement).toContainText(`${projectTwo} has arrived in your queue.`);
 });
 
 test("the Reference Data tab is reachable acting as a non-Administrator, read-only", async ({ page }) => {
