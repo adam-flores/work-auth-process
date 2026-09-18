@@ -8,11 +8,13 @@ import {
   FUNDING_TYPE_VALUES,
   LOCATION_TYPE_LABELS,
   LOCATION_TYPE_VALUES,
+  SYSTEM_PARTICIPANT_ID,
 } from "../shared/constants.ts";
 import type { FundingType, LocationType } from "../shared/constants.ts";
 import { STAGE_CRITERIA } from "../guidance/content.ts";
 import { RELAY_CONFIG, isContributionStage, isMintStage } from "../relay/config.ts";
 import { CORRECTABLE_FIELD_KEYS } from "../shared/rules.ts";
+import type { Participant } from "../shared/rules.ts";
 
 /**
  * A queue (#55, #56, #57, BDR-0002): what has arrived at this participant's
@@ -189,6 +191,111 @@ function RequestCorrectionForm({
           data-testid="submit-request-correction"
         >
           {busy ? "Requesting…" : "Request correction"}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} disabled={busy}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Whoever holds an authorization at its stage showing it to a named
+ *  colleague (#62, BDR-0011) - available on every item this queue opens,
+ *  since arriving here at all already means the acting participant is a
+ *  holder (`isHolderOf` in `queues/index.ts`: the same population that fills
+ *  an Approver's, a Contributor's or the Charge Number Admin's queue, plus
+ *  whoever an outstanding correction is addressed to). Collapsed behind a
+ *  toggle, the same as `RequestCorrectionForm`, so it never competes with
+ *  the stage's own action for attention. */
+function ReferForm({
+  actingId,
+  authorization,
+  onReferred,
+}: {
+  actingId: string;
+  authorization: Authorization;
+  onReferred: (authorization: Authorization) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [participants, setParticipants] = useState<Participant[] | null>(null);
+  const [colleagueId, setColleagueId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || participants !== null) return;
+    let cancelled = false;
+    void api.listParticipants(actingId).then((people) => {
+      if (!cancelled) setParticipants(people);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, participants, actingId]);
+
+  // A colleague, not the referrer themselves or the system identity - the
+  // same two exclusions the service itself refuses (`refer` in
+  // `service/index.ts`), applied here too so the dropdown never offers a
+  // choice the submit would only reject.
+  const colleagues = (participants ?? []).filter(
+    (p) => p.id !== actingId && p.id !== SYSTEM_PARTICIPANT_ID,
+  );
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await api.refer(actingId, authorization.id, { colleagueId });
+      onReferred(updated);
+      setOpen(false);
+      setColleagueId("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} data-testid="open-refer">
+        Refer to a colleague
+      </button>
+    );
+  }
+
+  return (
+    <div className="refer-form" data-testid="refer-form">
+      <h4>Refer to a colleague</h4>
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
+      <label htmlFor="refer-colleague">Colleague</label>
+      <select
+        id="refer-colleague"
+        value={colleagueId}
+        onChange={(e) => setColleagueId(e.target.value)}
+        disabled={busy || participants === null}
+        data-testid="refer-colleague"
+      >
+        <option value="">Choose a colleague</option>
+        {colleagues.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+      <div className="refer-form-actions">
+        <button
+          type="button"
+          onClick={() => void submit()}
+          disabled={busy || colleagueId === ""}
+          data-testid="submit-refer"
+        >
+          {busy ? "Referring…" : "Refer"}
         </button>
         <button type="button" onClick={() => setOpen(false)} disabled={busy}>
           Cancel
@@ -454,6 +561,12 @@ function OpenAuthorization({
   const isContribution = isContributionStage(relayStage);
   const isMint = isMintStage(relayStage);
   const isClaimant = authorization.performingContributorId === actingId;
+  // Mirrors `isHolderOf` in `queues/index.ts`: everyone this queue shows is
+  // a holder except a contributor colleague viewing an item somebody else
+  // already claimed - `listContributorQueue` shows claimed and unclaimed
+  // alike, but only the claimant (or, before a claim, anyone eligible to
+  // make one) still holds it once claimed.
+  const isHolder = !isContribution || authorization.performingContributorId === null || isClaimant;
 
   const acknowledge = async () => {
     setBusy(true);
@@ -644,6 +757,7 @@ function OpenAuthorization({
             <RequestCorrectionForm actingId={actingId} authorization={authorization} onRequested={onResolved} />
           </>
         )}
+        {isHolder && <ReferForm actingId={actingId} authorization={authorization} onReferred={onClaimed} />}
         <button type="button" onClick={onClose} disabled={busy}>
           Close
         </button>
