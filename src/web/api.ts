@@ -12,6 +12,7 @@ import type { Draft } from "../drafts/index.ts";
 import type { PermissibilityRule } from "../permissibility/index.ts";
 import type { Authorization, CorrectableFieldKey, FrozenClassification } from "../authorizations/index.ts";
 import type { CorrectionFieldValuesInput } from "../shared/rules.ts";
+import type { Measures } from "../measures/index.ts";
 
 export type { ResolvedDepartment, Attribute } from "../hierarchy/index.ts";
 export type { HierarchyChange, HierarchyNode } from "../hierarchy/index.ts";
@@ -25,6 +26,7 @@ export type {
   FrozenClassification,
   StageVisit,
 } from "../authorizations/index.ts";
+export type { Measures, Occurrence, StageOccurrenceMeasure } from "../measures/index.ts";
 
 /** What `api.addHierarchyNode` sends - mirrors `AddHierarchyNodeInput`'s
  *  discriminated union (`shared/rules.ts`) without importing zod into the
@@ -135,6 +137,7 @@ export const api = {
     call<Authorization>(`/api/authorizations/${encodeURIComponent(authorizationId)}`, actor),
   listMyQueue: (actor: string) => call<Authorization[]>("/api/queue", actor),
   listDashboard: (actor: string) => call<{ authorizations: Authorization[]; drafts: Draft[] }>("/api/dashboard", actor),
+  getMeasures: (actor: string) => call<Measures>("/api/insights", actor),
   acknowledge: (actor: string, authorizationId: string) =>
     call<Authorization>(`/api/authorizations/${encodeURIComponent(authorizationId)}/acknowledge`, actor, "POST"),
   claim: (actor: string, authorizationId: string) =>
