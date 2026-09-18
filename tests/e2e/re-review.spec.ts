@@ -67,6 +67,7 @@ test("a correction reaching an already-resolved stage returns it there as a re-r
   // finance, the performing department claims and contributes, performing
   // program manager.
   await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByRole("tab", { name: "My Queue" }).click();
   await acknowledgeAsCurrentParticipant(page, project);
   await acknowledgeAsCurrentParticipant(page, project);
 

@@ -49,6 +49,7 @@ test("a permitted pairing: a domestic department performing for a foreign one sa
 test("only an Administrator sees the surface to add or remove a pairing", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund"); // a Contributor
+  await page.getByRole("tab", { name: "Reference Data" }).click();
 
   const rules = page.getByTestId("permissibility-rules");
   await expect(rules.getByTestId("permissibility-rule-row")).toContainText(
@@ -63,6 +64,7 @@ test("an Administrator adds a pairing, it refuses immediately, and removing it r
 }) => {
   await page.goto("/");
   await page.getByLabel("Participant", { exact: true }).selectOption("p-erez-caldwell"); // the Administrator
+  await page.getByRole("tab", { name: "Reference Data" }).click();
 
   const rules = page.getByTestId("permissibility-rules");
   await expect(rules.getByTestId("permissibility-rule-row")).toContainText(
@@ -76,6 +78,7 @@ test("an Administrator adds a pairing, it refuses immediately, and removing it r
   await rules.getByTestId("add-permissibility-rule").click();
   await expect(rules.getByTestId("permissibility-rule-row")).toHaveCount(2);
 
+  await page.getByRole("tab", { name: "Submit" }).click();
   await page.getByTestId("new-draft").click();
   await pickDepartment(page, "draft-requesting-department", "Rotor Hubs - Pacific");
   await pickDepartment(page, "draft-performing-department", "Thermal Coatings");
@@ -83,6 +86,7 @@ test("an Administrator adds a pairing, it refuses immediately, and removing it r
   await expect(page.getByRole("alert")).toContainText("not a permitted pairing");
 
   await page.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("tab", { name: "Reference Data" }).click();
 
   const addedRow = rules
     .getByTestId("permissibility-rule-row")

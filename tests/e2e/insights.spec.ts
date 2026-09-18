@@ -57,6 +57,7 @@ test("the insights dashboard renders every headline measure, and a live correcti
 }) => {
   await page.goto("/");
   await page.getByLabel("Participant", { exact: true }).selectOption("p-erez-caldwell");
+  await page.getByRole("tab", { name: "Insights" }).click();
 
   const insights = page.getByTestId("insights-dashboard");
   await expect(insights).toBeVisible();
@@ -87,6 +88,7 @@ test("the insights dashboard renders every headline measure, and a live correcti
   // correction against the authorization that just arrived, rather than
   // acknowledging it.
   await page.getByLabel("Participant", { exact: true }).selectOption("p-mira-devane");
+  await page.getByRole("tab", { name: "My Queue" }).click();
   await page
     .getByTestId("my-queue")
     .getByTestId("queue-row")
@@ -101,6 +103,7 @@ test("the insights dashboard renders every headline measure, and a live correcti
   await expect(page.getByTestId("queue-item-detail")).toHaveCount(0);
 
   await page.getByLabel("Participant", { exact: true }).selectOption("p-erez-caldwell");
+  await page.getByRole("tab", { name: "Insights" }).click();
   await expect(insights.getByTestId("insights-m3-total-correction-requests")).toHaveText(String(totalBefore + 1));
   await expect(insights.getByTestId("insights-m3-authorization-count")).toHaveText(String(countBefore + 1));
 });

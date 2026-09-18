@@ -41,6 +41,7 @@ async function addHierarchyNode(
 test("add, rename, and set-inactive with its revocation fan-out", async ({ page, context }) => {
   const adminPage = await context.newPage();
   await actAs(adminPage, ADMINISTRATOR);
+  await adminPage.getByRole("tab", { name: "Reference Data" }).click();
 
   const legalEntityName = `E2E Legal Entity ${Date.now()}`;
   const divisionName = `E2E Division ${Date.now()}`;
@@ -124,6 +125,7 @@ test("add, rename, and set-inactive with its revocation fan-out", async ({ page,
   // "the master dashboard is what they go and look at").
   await page.reload();
   await page.getByLabel("Participant", { exact: true }).selectOption(SUBMITTER);
+  await page.getByRole("tab", { name: "All Authorizations" }).click();
 
   // The master dashboard reads the revocation back too, with the system's
   // own comment - open on the submitter's page like anything else.
@@ -138,6 +140,7 @@ test("add, rename, and set-inactive with its revocation fan-out", async ({ page,
 
 test("only an Administrator sees the surface to add, rename or set a node inactive", async ({ page }) => {
   await actAs(page, SUBMITTER);
+  await page.getByRole("tab", { name: "Reference Data" }).click();
   const admin = page.getByTestId("hierarchy-admin");
   await expect(admin.getByTestId("hierarchy-add-form")).toHaveCount(0);
   await expect(admin.getByTestId("hierarchy-rename")).toHaveCount(0);

@@ -62,6 +62,7 @@ test("the whole mandatory relay is walkable end to end", async ({ page }) => {
   // Requesting program manager, then requesting finance - both route to the
   // same department, so the same Approver acts on each in turn.
   await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByRole("tab", { name: "My Queue" }).click();
   await acknowledgeAsCurrentParticipant(page, project);
   await acknowledgeAsCurrentParticipant(page, project);
 

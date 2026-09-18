@@ -53,6 +53,7 @@ test("an approver reports a problem, the submitter corrects it, and the approver
   // The requesting program manager approver finds the project name wrong
   // and raises a correction request instead of acknowledging it.
   await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByRole("tab", { name: "My Queue" }).click();
   const approverQueue = page.getByTestId("my-queue");
   const row = approverQueue.getByTestId("queue-row").filter({ hasText: project });
   await row.getByRole("button", { name: "Open" }).click();

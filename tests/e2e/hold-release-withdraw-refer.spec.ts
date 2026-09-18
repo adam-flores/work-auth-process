@@ -69,6 +69,7 @@ test("a submitter can hold, release, and withdraw their own authorization from t
   // initiated.
   await page.getByLabel("Participant", { exact: true }).selectOption("p-erez-caldwell");
   await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByRole("tab", { name: "All Authorizations" }).click();
 
   // The submitter's own view of it: the master dashboard, open to anyone,
   // with hold/release/withdraw appearing only because this is the same
@@ -96,8 +97,10 @@ test("a submitter can hold, release, and withdraw their own authorization from t
   // reloads the dashboard from scratch (`MasterDashboard.tsx` has no poll)
   // and closes whatever was open, so the detail view is reopened afterward.
   await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByRole("tab", { name: "My Queue" }).click();
   await expect(page.getByTestId("my-queue").getByTestId("queue-row").filter({ hasText: project })).toHaveCount(0);
   await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByRole("tab", { name: "All Authorizations" }).click();
   await dashboard
     .getByTestId("dashboard-row")
     .filter({ hasText: project })
@@ -126,6 +129,7 @@ test("whoever holds an authorization at its stage can refer it to a colleague", 
 
   // The first stage's queue: an Approver at the requesting department.
   await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByRole("tab", { name: "My Queue" }).click();
   await page
     .getByTestId("my-queue")
     .getByTestId("queue-row")
@@ -149,6 +153,7 @@ test("whoever holds an authorization at its stage can refer it to a colleague", 
   // Recorded on the authorization's history, readable from the master
   // dashboard - never counted anywhere else (BDR-0011).
   await page.getByLabel("Participant", { exact: true }).selectOption("p-erez-caldwell");
+  await page.getByRole("tab", { name: "All Authorizations" }).click();
   const dashboard = page.getByTestId("master-dashboard");
   await dashboard
     .getByTestId("dashboard-row")

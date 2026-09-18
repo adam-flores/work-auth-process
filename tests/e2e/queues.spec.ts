@@ -56,6 +56,7 @@ test("a queue renders what has arrived, and acknowledging it advances the record
   // An Approver at the requesting department - the stage's queue, not a
   // named person (BDR-0013).
   await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByRole("tab", { name: "My Queue" }).click();
 
   const queue = page.getByTestId("my-queue");
   const row = queue.getByTestId("queue-row").filter({ hasText: project });
@@ -88,6 +89,7 @@ test("a stage routes to every holder of the role at the department, not to a nam
 
   // Two different Approvers at Heat Exchange Products both see it.
   await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByRole("tab", { name: "My Queue" }).click();
   await expect(
     page.getByTestId("my-queue").getByTestId("queue-row").filter({ hasText: project }),
   ).toBeVisible();
