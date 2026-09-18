@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api.ts";
 import type { Authorization, Draft } from "./api.ts";
 import type { Participant } from "../shared/rules.ts";
+import { isTerminal } from "../shared/rules.ts";
 import type { StageId } from "../guidance/content.ts";
 import { RELAY_CONFIG } from "../relay/config.ts";
 import { useResolvedDepartments } from "./useResolvedDepartments.ts";
@@ -121,14 +122,75 @@ type DashboardRow =
  *  Every stage visit, hold span and referral the log has ever recorded for
  *  it - the same fields `Authorization` already carries, rendered rather
  *  than re-derived. */
+/** The submitter's own controls over their authorization (#61, CONTEXT.md:
+ *  "On hold" / "Withdrawn"): hold, release a hold, and withdraw outright.
+ *  Shown only to the submitter, and only while the authorization is not
+ *  already terminal - the same two conditions the service checks
+ *  (`requireSubmitter`, `requireNotTerminal`), enforced here too so a
+ *  disabled control never invites a request the service would refuse.
+ *  There is no dedicated "my authorizations" view yet (`MyDrafts.tsx` is
+ *  drafts only), so this is the submitter's view of their own authorization
+ *  today: the master dashboard, open to anyone, with these three controls
+ *  appearing only when the person looking is the one who raised it. */
+function SubmitterControls({
+  actingId,
+  authorization,
+  onUpdated,
+}: {
+  actingId: string;
+  authorization: Authorization;
+  onUpdated: (authorization: Authorization) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (authorization.submitterId !== actingId || isTerminal(authorization)) return null;
+
+  const run = async (action: (actor: string, id: string) => Promise<Authorization>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      onUpdated(await action(actingId, authorization.id));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="submitter-controls" data-testid="submitter-controls">
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
+      {authorization.onHold ? (
+        <button type="button" onClick={() => void run(api.release)} disabled={busy} data-testid="release">
+          {busy ? "Releasing…" : "Release"}
+        </button>
+      ) : (
+        <button type="button" onClick={() => void run(api.hold)} disabled={busy} data-testid="hold">
+          {busy ? "Holding…" : "Hold"}
+        </button>
+      )}
+      <button type="button" onClick={() => void run(api.withdraw)} disabled={busy} data-testid="withdraw">
+        {busy ? "Withdrawing…" : "Withdraw"}
+      </button>
+    </div>
+  );
+}
+
 function AuthorizationHistory({
   actingId,
   authorization,
   participantName,
+  onUpdated,
 }: {
   actingId: string;
   authorization: Authorization;
   participantName: (id: string) => string;
+  onUpdated: (authorization: Authorization) => void;
 }) {
   const { requesting, performing } = useResolvedDepartments(actingId, authorization);
 
@@ -150,6 +212,8 @@ function AuthorizationHistory({
           </dd>
         )}
       </dl>
+
+      <SubmitterControls actingId={actingId} authorization={authorization} onUpdated={onUpdated} />
 
       <h4>Stage history</h4>
       <table data-testid="dashboard-stage-history">
@@ -306,6 +370,13 @@ export function MasterDashboard({ actingId }: MasterDashboardProps) {
       ? (authorizations ?? []).find((authorization) => authorization.id === openId) ?? null
       : null;
 
+  // Patched in from what the action itself returned, the same discipline
+  // `MyQueue.tsx`'s `onClaimed` already follows - a reload is async and
+  // would race the click handler's own `busy` reset.
+  const onAuthorizationUpdated = (updated: Authorization) => {
+    setAuthorizations((prev) => prev?.map((a) => (a.id === updated.id ? updated : a)) ?? prev);
+  };
+
   return (
     <section aria-labelledby="dashboard-heading" data-testid="master-dashboard">
       <h2 id="dashboard-heading">Master dashboard</h2>
@@ -416,6 +487,7 @@ export function MasterDashboard({ actingId }: MasterDashboardProps) {
             actingId={actingId}
             authorization={openAuthorization}
             participantName={participantName}
+            onUpdated={onAuthorizationUpdated}
           />
           <button type="button" onClick={() => setOpenId(null)}>
             Close

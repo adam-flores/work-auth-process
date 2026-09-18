@@ -193,6 +193,10 @@ const AUTHORIZATION_MINT_PATH = /^\/api\/authorizations\/([^/]+)\/mint$/;
 const AUTHORIZATION_CLASSIFICATION_PATH = /^\/api\/authorizations\/([^/]+)\/classification$/;
 const AUTHORIZATION_REQUEST_CORRECTION_PATH = /^\/api\/authorizations\/([^/]+)\/request-correction$/;
 const AUTHORIZATION_CORRECT_PATH = /^\/api\/authorizations\/([^/]+)\/correct$/;
+const AUTHORIZATION_HOLD_PATH = /^\/api\/authorizations\/([^/]+)\/hold$/;
+const AUTHORIZATION_RELEASE_PATH = /^\/api\/authorizations\/([^/]+)\/release$/;
+const AUTHORIZATION_WITHDRAW_PATH = /^\/api\/authorizations\/([^/]+)\/withdraw$/;
+const AUTHORIZATION_REFER_PATH = /^\/api\/authorizations\/([^/]+)\/refer$/;
 const PERMISSIBILITY_RULE_PATH = /^\/api\/permissibility-rules\/([^/]+)$/;
 const HIERARCHY_RENAME_PATH = /^\/api\/hierarchy\/([^/]+)\/([^/]+)\/rename$/;
 const HIERARCHY_SET_INACTIVE_PATH = /^\/api\/hierarchy\/([^/]+)\/([^/]+)\/set-inactive$/;
@@ -287,6 +291,46 @@ export function createHttpServer(service: Service) {
         const ctx = actingParticipant(req);
         const body = await readJsonBody(req);
         return sendJson(res, 200, service.correct(ctx, decodeURIComponent(correctMatch[1]), body));
+      }
+
+      const holdMatch = method === "POST" ? AUTHORIZATION_HOLD_PATH.exec(pathname) : null;
+      if (holdMatch?.[1]) {
+        const ctx = actingParticipant(req);
+        const body = await readJsonBody(req);
+        return sendJson(
+          res,
+          200,
+          service.hold(ctx, decodeURIComponent(holdMatch[1]), body as TransitionOptionsInput),
+        );
+      }
+
+      const releaseMatch = method === "POST" ? AUTHORIZATION_RELEASE_PATH.exec(pathname) : null;
+      if (releaseMatch?.[1]) {
+        const ctx = actingParticipant(req);
+        const body = await readJsonBody(req);
+        return sendJson(
+          res,
+          200,
+          service.release(ctx, decodeURIComponent(releaseMatch[1]), body as TransitionOptionsInput),
+        );
+      }
+
+      const withdrawMatch = method === "POST" ? AUTHORIZATION_WITHDRAW_PATH.exec(pathname) : null;
+      if (withdrawMatch?.[1]) {
+        const ctx = actingParticipant(req);
+        const body = await readJsonBody(req);
+        return sendJson(
+          res,
+          200,
+          service.withdraw(ctx, decodeURIComponent(withdrawMatch[1]), body as TransitionOptionsInput),
+        );
+      }
+
+      const referMatch = method === "POST" ? AUTHORIZATION_REFER_PATH.exec(pathname) : null;
+      if (referMatch?.[1]) {
+        const ctx = actingParticipant(req);
+        const body = await readJsonBody(req);
+        return sendJson(res, 200, service.refer(ctx, decodeURIComponent(referMatch[1]), body));
       }
 
       // A draft's id, and a resource's id nested under it - the same

@@ -169,6 +169,14 @@ export const api = {
     ),
   correct: (actor: string, authorizationId: string, fields: CorrectionFieldValuesInput) =>
     call<Authorization>(`/api/authorizations/${encodeURIComponent(authorizationId)}/correct`, actor, "POST", fields),
+  hold: (actor: string, authorizationId: string) =>
+    call<Authorization>(`/api/authorizations/${encodeURIComponent(authorizationId)}/hold`, actor, "POST"),
+  release: (actor: string, authorizationId: string) =>
+    call<Authorization>(`/api/authorizations/${encodeURIComponent(authorizationId)}/release`, actor, "POST"),
+  withdraw: (actor: string, authorizationId: string) =>
+    call<Authorization>(`/api/authorizations/${encodeURIComponent(authorizationId)}/withdraw`, actor, "POST"),
+  refer: (actor: string, authorizationId: string, fields: { colleagueId: string }) =>
+    call<Authorization>(`/api/authorizations/${encodeURIComponent(authorizationId)}/refer`, actor, "POST", fields),
 
   listPermissibilityRules: (actor: string) =>
     call<PermissibilityRule[]>("/api/permissibility-rules", actor),
