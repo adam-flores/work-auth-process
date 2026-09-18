@@ -1,0 +1,167 @@
+import { test, expect } from "@playwright/test";
+
+/**
+ * The tab shell (#91): a persistent header - the acting-as switcher, the
+ * store-info panel, the reset control, the participant roster, and
+ * revocation notices - stays visible above tab content no matter which tab
+ * is open, and only the active tab's content is visible at a time.
+ *
+ * Every tab mounts up front and stays mounted - switching only toggles
+ * visibility (`Tabs.tsx`) - the same as every section always being mounted
+ * on the one scrolling page this shell replaces, so these tests assert
+ * visibility, never DOM presence, for another tab's content.
+ *
+ * Reading the hierarchy tree and the permissibility rules stays open to
+ * everyone (HierarchyAdmin.tsx: "the same as every other reference-data
+ * read"), so unlike issue #91's literal Admin-tab wording, the tab holding
+ * them - Reference Data - is not Administrator-only. Only the mutation
+ * controls inside it are, unchanged from before this issue.
+ */
+
+test("only the active tab's content is visible", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.getByTestId("my-drafts")).toBeVisible();
+  await expect(page.getByTestId("my-queue")).not.toBeVisible();
+  await expect(page.getByTestId("master-dashboard")).not.toBeVisible();
+  await expect(page.getByTestId("insights-dashboard")).not.toBeVisible();
+  await expect(page.getByTestId("permissibility-rules")).not.toBeVisible();
+  await expect(page.getByTestId("hierarchy-admin")).not.toBeVisible();
+
+  await page.getByRole("tab", { name: "My Queue" }).click();
+  await expect(page.getByTestId("my-queue")).toBeVisible();
+  await expect(page.getByTestId("my-drafts")).not.toBeVisible();
+
+  await page.getByRole("tab", { name: "All Authorizations" }).click();
+  await expect(page.getByTestId("master-dashboard")).toBeVisible();
+  await expect(page.getByTestId("my-queue")).not.toBeVisible();
+
+  await page.getByRole("tab", { name: "Insights" }).click();
+  await expect(page.getByTestId("insights-dashboard")).toBeVisible();
+  await expect(page.getByTestId("master-dashboard")).not.toBeVisible();
+
+  await page.getByRole("tab", { name: "Reference Data" }).click();
+  await expect(page.getByTestId("permissibility-rules")).toBeVisible();
+  await expect(page.getByTestId("hierarchy-admin")).toBeVisible();
+  await expect(page.getByTestId("insights-dashboard")).not.toBeVisible();
+
+  await page.getByRole("tab", { name: "My Queue" }).click();
+  await expect(page.getByTestId("my-queue")).toBeVisible();
+  await expect(page.getByTestId("permissibility-rules")).not.toBeVisible();
+});
+
+test("arrow keys move focus and selection between tabs, and Home/End jump to the ends", async ({ page }) => {
+  await page.goto("/");
+
+  const submit = page.getByRole("tab", { name: "Submit" });
+  const myQueue = page.getByRole("tab", { name: "My Queue" });
+  const referenceData = page.getByRole("tab", { name: "Reference Data" });
+
+  await submit.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(myQueue).toBeFocused();
+  await expect(myQueue).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("my-queue")).toBeVisible();
+
+  await page.keyboard.press("ArrowLeft");
+  await expect(submit).toBeFocused();
+  await expect(submit).toHaveAttribute("aria-selected", "true");
+
+  await page.keyboard.press("End");
+  await expect(referenceData).toBeFocused();
+  await expect(referenceData).toHaveAttribute("aria-selected", "true");
+
+  await page.keyboard.press("Home");
+  await expect(submit).toBeFocused();
+  await expect(submit).toHaveAttribute("aria-selected", "true");
+});
+
+test("a queue arrival while looking at another tab is still shown on return", async ({ page, context }) => {
+  // MyQueue.tsx polls from mount, standing in for CONTEXT.md's
+  // "Notification" push - and mounts up front with every other tab
+  // (Tabs.tsx), so this holds even for a participant who never opens "My
+  // Queue" during the session, not only one who opened it and looked away.
+  // This covers the notification banner's presence for a sighted user, not
+  // whether it fires an assistive-technology live-region announcement while
+  // its tab is inactive - the ARIA tabs pattern removes an inactive panel
+  // from the accessibility tree by design, same as any other tab widget.
+  await page.goto("/");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByRole("tab", { name: "My Queue" }).click();
+  await expect(page.getByTestId("my-queue")).toBeVisible();
+
+  await page.getByRole("tab", { name: "Insights" }).click();
+  await expect(page.getByTestId("insights-dashboard")).toBeVisible();
+
+  const project = `Tab Away Arrival ${Date.now()}`;
+  const submitterPage = await context.newPage();
+  await submitterPage.goto("/");
+  await submitterPage.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await submitterPage.getByTestId("new-draft").click();
+  await expect(submitterPage.getByTestId("draft-form")).toBeVisible();
+  await submitterPage.getByLabel("Project").fill(project);
+
+  const requesting = submitterPage.getByTestId("draft-requesting-department");
+  await requesting.getByLabel("Search by name").fill("Heat Exchange Products");
+  await requesting.getByRole("button", { name: "Heat Exchange Products", exact: true }).click();
+
+  const performing = submitterPage.getByTestId("draft-performing-department");
+  await performing.getByLabel("Search by name").fill("Rotor Hubs");
+  await performing.getByRole("button", { name: "Rotor Hubs", exact: true }).click();
+
+  await submitterPage.getByLabel("Funding type").selectOption("company-funded");
+  await submitterPage.getByLabel("Requesting location type").selectOption("domestic");
+  await submitterPage.getByLabel("Performing location type").selectOption("domestic");
+  await submitterPage.getByLabel("Requesting program manager").fill("Dana Ferris");
+  await submitterPage.getByLabel("Requesting finance approver").fill("Kim Osei");
+  await submitterPage.getByLabel("Performing program manager").fill("Lior Amsel");
+  await submitterPage.getByLabel("Performing finance approver").fill("Priya Nandan");
+  await submitterPage.getByLabel("Budget hours").fill("40");
+  await submitterPage.getByLabel("Labor rate").fill("85.5");
+  await submitterPage.getByRole("button", { name: "Add resource" }).click();
+  await expect(submitterPage.getByTestId("draft-resources")).toContainText("40 hrs @ $85.5/hr");
+  await submitterPage.getByTestId("initiate-draft").click();
+  await expect(submitterPage.getByRole("alert")).toHaveCount(0);
+  await expect(submitterPage.getByTestId("draft-form")).toHaveCount(0);
+  await submitterPage.close();
+
+  await page.getByRole("tab", { name: "My Queue" }).click();
+  await expect(
+    page.getByTestId("arrival-notification").filter({ hasText: project }),
+  ).toBeVisible({ timeout: 10_000 });
+});
+
+test("the Reference Data tab is reachable acting as a non-Administrator, read-only", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund"); // a Contributor
+
+  await page.getByRole("tab", { name: "Reference Data" }).click();
+  await expect(page.getByTestId("permissibility-rules")).toBeVisible();
+  await expect(page.getByTestId("hierarchy-admin")).toBeVisible();
+  await expect(page.getByTestId("permissibility-rules").getByTestId("add-permissibility-rule")).toHaveCount(0);
+  await expect(page.getByTestId("hierarchy-admin").getByTestId("hierarchy-add-form")).toHaveCount(0);
+});
+
+test("header controls stay visible and functional regardless of the active tab", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("tab", { name: "Insights" }).click();
+
+  await expect(page.getByTestId("store-info")).toBeVisible();
+
+  const select = page.getByLabel("Participant", { exact: true });
+  await select.selectOption("p-erez-caldwell");
+  await expect(page.getByTestId("acting-detail")).toContainText("Erez Caldwell");
+
+  // Switching identity doesn't kick the presenter back to another tab.
+  await expect(page.getByTestId("insights-dashboard")).toBeVisible();
+
+  await page.getByRole("button", { name: "Reset the store" }).click();
+  await expect(page.getByRole("button", { name: "Reset the store" })).toBeEnabled();
+});
+
+test("Submit is the default tab on load", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.getByRole("tab", { name: "Submit", selected: true })).toBeVisible();
+  await expect(page.getByTestId("my-drafts")).toBeVisible();
+});

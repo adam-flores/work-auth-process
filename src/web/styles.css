@@ -222,3 +222,25 @@ input[type="number"] {
   color: var(--error);
   border-color: var(--error);
 }
+
+.tab-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1.25rem;
+}
+.tab-list .tab {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  padding: 0.55rem 0.9rem;
+  white-space: nowrap;
+}
+.tab-list .tab.active {
+  color: var(--ink);
+  background: var(--raised);
+  border-color: var(--line);
+}
