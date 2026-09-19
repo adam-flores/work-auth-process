@@ -5,6 +5,8 @@ import { extname, join, normalize, resolve, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createService } from "../service/index.ts";
 import type { Service } from "../service/index.ts";
+import { createDemoRunner } from "../demo/index.ts";
+import type { DemoRunner } from "../demo/index.ts";
 import { DomainError } from "../service/errors.ts";
 import type { DomainErrorCode } from "../service/errors.ts";
 import type {
@@ -53,6 +55,9 @@ const STATUS_FOR: Record<DomainErrorCode, number> = {
   NOT_ON_HOLD: 409,
   AUTHORIZATION_ON_HOLD: 409,
   AUTHORIZATION_TERMINAL: 409,
+  DEMO_NOT_IDLE: 409,
+  DEMO_NOT_RUNNING: 409,
+  DEMO_NOT_PAUSED: 409,
 };
 
 /**
@@ -201,7 +206,25 @@ const PERMISSIBILITY_RULE_PATH = /^\/api\/permissibility-rules\/([^/]+)$/;
 const HIERARCHY_RENAME_PATH = /^\/api\/hierarchy\/([^/]+)\/([^/]+)\/rename$/;
 const HIERARCHY_SET_INACTIVE_PATH = /^\/api\/hierarchy\/([^/]+)\/([^/]+)\/set-inactive$/;
 
-export function createHttpServer(service: Service) {
+/** The scripted demo player's control bar (#94): each button is one exact
+ *  path with no body and no dynamic segment, so a lookup table is enough -
+ *  unlike the rest of this adapter's dynamic paths, there is nothing here
+ *  for a regex to capture. Built inside `createHttpServer` so it closes over
+ *  the one `DemoRunner` this process holds, the same single-global-runner
+ *  shape `src/demo/index.ts` documents. */
+function demoRoutes(demo: DemoRunner): Record<string, () => unknown> {
+  return {
+    "GET /api/demo": () => demo.getState(),
+    "POST /api/demo/start": () => demo.start(),
+    "POST /api/demo/pause": () => demo.pause(),
+    "POST /api/demo/resume": () => demo.resume(),
+    "POST /api/demo/advance": () => demo.advance(),
+    "POST /api/demo/reset": () => demo.reset(),
+  };
+}
+
+export function createHttpServer(service: Service, demo: DemoRunner) {
+  const DEMO_ROUTES = demoRoutes(demo);
   return createServer(async (req, res) => {
     const url = req.url ?? "/";
     const [pathname = "/", queryString] = url.split("?");
@@ -426,6 +449,12 @@ export function createHttpServer(service: Service) {
         return sendJson(res, 200, service.updateDraft(ctx, draftId, body as DraftFieldsInput));
       }
 
+      const demoRoute = DEMO_ROUTES[`${method} ${pathname}`];
+      if (demoRoute) {
+        actingParticipant(req);
+        return sendJson(res, 200, demoRoute());
+      }
+
       const route = ROUTES[`${method} ${pathname}`];
       if (!route) {
         if (pathname.startsWith("/api/")) return sendJson(res, 404, { error: "No such endpoint." });
@@ -448,7 +477,8 @@ export function createHttpServer(service: Service) {
 // built web app from a single URL.
 if (process.argv[1] && import.meta.filename === resolve(process.argv[1])) {
   const service = createService();
-  createHttpServer(service).listen(PORT, () => {
+  const demo = createDemoRunner(service);
+  createHttpServer(service, demo).listen(PORT, () => {
     console.log(`work authorization prototype -> http://localhost:${PORT}`);
   });
 }
