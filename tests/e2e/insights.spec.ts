@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { RELAY_CONFIG } from "../../src/relay/config.ts";
 
 /**
  * The insights dashboard (#66, BDR-0006, ADR-0006): every figure a fold over
@@ -64,8 +65,24 @@ test("the insights dashboard renders every headline measure, and a live correcti
   await expect(insights.getByTestId("insights-m1")).toBeVisible();
   await expect(insights.getByTestId("insights-m2")).toBeVisible();
   await expect(insights.getByTestId("insights-m3")).toBeVisible();
-  await expect(insights.getByTestId("insights-stage-table")).toBeVisible();
-  await expect(insights.getByTestId("insights-stage-row").first()).toBeVisible();
+  await expect(insights.getByTestId("insights-stage-chart")).toBeVisible();
+
+  const stageRows = insights.getByTestId("insights-stage-chart-row");
+  await expect(stageRows.first()).toBeVisible();
+  await expect(stageRows).toHaveCount(RELAY_CONFIG.length);
+
+  // One bar per relay stage, in the relay's own sequence rather than sorted
+  // by value (#93) - asserted against `RELAY_CONFIG` itself so this never
+  // drifts from whatever order the relay is actually configured in.
+  const stageIdsInOrder = await stageRows.evaluateAll((rows) => rows.map((row) => row.getAttribute("data-stage-id")));
+  expect(stageIdsInOrder).toEqual(RELAY_CONFIG.map((stage) => stage.id));
+
+  // Every stage's value is plain visible text, not a pixel-only chart
+  // value, so the same figure serves as the bar's accessible name and as
+  // something Playwright can assert on directly (#93).
+  for (const row of await stageRows.all()) {
+    await expect(row.getByTestId("insights-stage-chart-value")).toBeVisible();
+  }
 
   const totalBefore = Number(await insights.getByTestId("insights-m3-total-correction-requests").textContent());
   const countBefore = Number(await insights.getByTestId("insights-m3-authorization-count").textContent());

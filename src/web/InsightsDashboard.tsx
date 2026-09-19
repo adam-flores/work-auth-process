@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api.ts";
 import type { Measures, Occurrence, StageOccurrenceMeasure } from "./api.ts";
 import type { StageId } from "../guidance/content.ts";
+import { RELAY_CONFIG } from "../relay/config.ts";
 
 /**
  * The insights dashboard (#66, BDR-0006, ADR-0006): every figure a fold over
@@ -15,6 +16,13 @@ import type { StageId } from "../guidance/content.ts";
  * (ADR-0006) - every participant is mocked, so this renders for whoever is
  * acting rather than checking a role, the same openness the master
  * dashboard already has.
+ *
+ * The headline measures render as stat tiles and the per-stage breakdown as
+ * a hand-built bar chart (#93, ADR-0014) rather than a definition list and a
+ * table, so a demo audience reads the argument at a glance. Every number a
+ * chart shows is also plain visible text - not a pixel-only value or a
+ * separate hidden copy - so the same figure is both the chart's label and
+ * its accessible name.
  */
 
 export type InsightsDashboardProps = { actingId: string };
@@ -50,20 +58,67 @@ function formatAverage(value: number | null, digits = 2): string {
   return value === null ? "—" : value.toFixed(digits);
 }
 
-function StageRow({ row }: { row: StageOccurrenceMeasure }) {
+type StageTotal = {
+  stageId: StageId;
+  visitCount: number;
+  totalMs: number;
+  reReview: { visitCount: number; totalMs: number };
+};
+
+/** One entry per relay stage (#93) - the two occurrence buckets
+ *  `computeMeasures` keeps separate (first-pass, re-review) folded into a
+ *  single bar's length and visit count, since the chart's story is "where
+ *  does time go by stage," not first-pass-versus-re-review. Re-review time
+ *  is not lost in the fold: whenever a stage has any, it still gets its own
+ *  visible line beneath the bar (BDR-0006: "the days it costs stay attached
+ *  to the stage that found it"), the same fact the old table's separate row
+ *  reported. */
+function stageTotals(rows: StageOccurrenceMeasure[]): StageTotal[] {
+  return RELAY_CONFIG.map((stage) => {
+    const forStage = rows.filter((row) => row.stageId === stage.id);
+    const reReview = forStage.find((row) => row.occurrence === "re-review");
+    return {
+      stageId: stage.id,
+      visitCount: forStage.reduce((sum, row) => sum + row.visitCount, 0),
+      totalMs: forStage.reduce((sum, row) => sum + row.approverMs + row.awaitingCorrectionMs, 0),
+      reReview: {
+        visitCount: reReview?.visitCount ?? 0,
+        totalMs: (reReview?.approverMs ?? 0) + (reReview?.awaitingCorrectionMs ?? 0),
+      },
+    };
+  });
+}
+
+function StageChartRow({ total, maxMs }: { total: StageTotal; maxMs: number }) {
+  const widthPercent = maxMs > 0 ? (total.totalMs / maxMs) * 100 : 0;
+  // Gated on `totalMs` as well as `visitCount`, not `visitCount` alone: a
+  // visit that is itself still open can already carry closed
+  // awaiting-correction time (`computeMeasures`'s own documented case, "even
+  // when that stage's own visit never resolves"), which counts toward the
+  // bar's width without ever incrementing `visitCount`. Gating the text on
+  // `visitCount` alone would render a nonzero bar next to "No visits yet" -
+  // exactly the mismatch the old table's separate, independently-gated
+  // columns avoided.
+  const hasAnyTime = total.visitCount > 0 || total.totalMs > 0;
+  const hasReReviewTime = total.reReview.visitCount > 0 || total.reReview.totalMs > 0;
   return (
-    <tr data-testid="insights-stage-row">
-      <td>{STAGE_LABELS[row.stageId]}</td>
-      <td>{OCCURRENCE_LABELS[row.occurrence]}</td>
-      <td>{row.visitCount}</td>
-      <td>{row.visitCount > 0 ? formatDuration(row.approverMs) : "—"}</td>
-      {/* Awaiting-correction time is credited to whichever visit was open
-          when the round was raised, even one that itself never resolves
-          and so never adds to `visitCount` (`computeMeasures`'s own
-          comment on this) - gating this column on `visitCount` would hide
-          exactly that time. */}
-      <td>{row.awaitingCorrectionMs > 0 ? formatDuration(row.awaitingCorrectionMs) : "—"}</td>
-    </tr>
+    <li className="stage-chart-row" data-testid="insights-stage-chart-row" data-stage-id={total.stageId}>
+      <span className="stage-chart-label">{STAGE_LABELS[total.stageId]}</span>
+      <span className="stage-chart-track" aria-hidden="true">
+        <span className="stage-chart-bar" style={{ width: `${widthPercent.toFixed(1)}%` }} />
+      </span>
+      <span className="stage-chart-value" data-testid="insights-stage-chart-value">
+        {hasAnyTime
+          ? `${formatDuration(total.totalMs)} across ${total.visitCount} visit${total.visitCount === 1 ? "" : "s"}`
+          : "No visits yet"}
+      </span>
+      {hasReReviewTime && (
+        <span className="stage-chart-detail" data-testid="insights-stage-chart-re-review">
+          Includes {OCCURRENCE_LABELS["re-review"].toLowerCase()}: {total.reReview.visitCount} visit
+          {total.reReview.visitCount === 1 ? "" : "s"}, {formatDuration(total.reReview.totalMs)}
+        </span>
+      )}
+    </li>
   );
 }
 
@@ -87,6 +142,9 @@ export function InsightsDashboard({ actingId }: InsightsDashboardProps) {
     void load(actingId);
   }, [load, actingId]);
 
+  const stageChartRows = measures === null ? [] : stageTotals(measures.stageOccurrences);
+  const maxStageMs = Math.max(0, ...stageChartRows.map((total) => total.totalMs));
+
   return (
     <section aria-labelledby="insights-heading" data-testid="insights-dashboard">
       <h2 id="insights-heading">Insights dashboard</h2>
@@ -107,67 +165,72 @@ export function InsightsDashboard({ actingId }: InsightsDashboardProps) {
         <p className="hint">Loading…</p>
       ) : (
         <>
-          <dl data-testid="insights-headline-measures">
-            <dt>M1 - completed with zero correction requests</dt>
-            <dd data-testid="insights-m1">
-              {formatPercent(measures.m1ZeroCorrectionShare.share)} (
-              <span data-testid="insights-m1-zero-correction-count">
-                {measures.m1ZeroCorrectionShare.zeroCorrectionCount}
-              </span>{" "}
-              of{" "}
-              <span data-testid="insights-m1-completed-count">{measures.m1ZeroCorrectionShare.completedCount}</span>{" "}
-              completed)
-            </dd>
+          <div className="stat-tiles" data-testid="insights-headline-measures">
+            <div className="stat-tile" data-testid="insights-m1-tile">
+              <span className="stat-tile-label">M1 — completed with zero correction requests</span>
+              <span className="stat-tile-value" data-testid="insights-m1">
+                {formatPercent(measures.m1ZeroCorrectionShare.share)}
+              </span>
+              <span className="stat-tile-detail">
+                <span data-testid="insights-m1-zero-correction-count">
+                  {measures.m1ZeroCorrectionShare.zeroCorrectionCount}
+                </span>{" "}
+                of{" "}
+                <span data-testid="insights-m1-completed-count">
+                  {measures.m1ZeroCorrectionShare.completedCount}
+                </span>{" "}
+                completed
+              </span>
+            </div>
 
-            <dt>M2 - average cycle time, initiation to completion (held time excluded)</dt>
-            <dd data-testid="insights-m2">
-              {measures.m2CycleTime.averageMs === null ? "—" : formatDuration(measures.m2CycleTime.averageMs)} (n=
-              <span data-testid="insights-m2-completed-count">{measures.m2CycleTime.completedCount}</span>)
-            </dd>
+            <div className="stat-tile" data-testid="insights-m2-tile">
+              <span className="stat-tile-label">M2 — average cycle time (held time excluded)</span>
+              <span className="stat-tile-value" data-testid="insights-m2">
+                {measures.m2CycleTime.averageMs === null ? "—" : formatDuration(measures.m2CycleTime.averageMs)}
+              </span>
+              <span className="stat-tile-detail">
+                n=<span data-testid="insights-m2-completed-count">{measures.m2CycleTime.completedCount}</span>
+              </span>
+            </div>
 
-            <dt>M3 - correction requests per authorization</dt>
-            <dd data-testid="insights-m3">
-              {formatAverage(measures.m3CorrectionsPerAuthorization.average)} (
-              <span data-testid="insights-m3-total-correction-requests">
-                {measures.m3CorrectionsPerAuthorization.totalCorrectionRequests}
-              </span>{" "}
-              across{" "}
-              <span data-testid="insights-m3-authorization-count">
-                {measures.m3CorrectionsPerAuthorization.authorizationCount}
-              </span>{" "}
-              authorizations)
-            </dd>
+            <div className="stat-tile" data-testid="insights-m3-tile">
+              <span className="stat-tile-label">M3 — correction requests per authorization</span>
+              <span className="stat-tile-value" data-testid="insights-m3">
+                {formatAverage(measures.m3CorrectionsPerAuthorization.average)}
+              </span>
+              <span className="stat-tile-detail">
+                <span data-testid="insights-m3-total-correction-requests">
+                  {measures.m3CorrectionsPerAuthorization.totalCorrectionRequests}
+                </span>{" "}
+                across{" "}
+                <span data-testid="insights-m3-authorization-count">
+                  {measures.m3CorrectionsPerAuthorization.authorizationCount}
+                </span>{" "}
+                authorizations
+              </span>
+            </div>
+          </div>
 
-            <dt>Held time - reported separately, excluded from every measure above</dt>
-            <dd data-testid="insights-held-time">
-              {formatDuration(measures.heldTime.totalMs)} total, across{" "}
-              <span data-testid="insights-held-authorization-count">{measures.heldTime.authorizationCount}</span>{" "}
-              held authorization{measures.heldTime.authorizationCount === 1 ? "" : "s"}
-            </dd>
-          </dl>
+          <p className="hint" data-testid="insights-held-time">
+            Held time — reported separately, excluded from every measure above:{" "}
+            {formatDuration(measures.heldTime.totalMs)} total, across{" "}
+            <span data-testid="insights-held-authorization-count">{measures.heldTime.authorizationCount}</span> held
+            authorization{measures.heldTime.authorizationCount === 1 ? "" : "s"}.
+          </p>
 
           <h3>Time in each stage</h3>
           <p className="hint">
-            First-pass time is a stage's own clock; a re-entered stage is reported as its own line
-            rather than folded into first-pass, so nobody is charged for the rules or the data
-            moving beneath them (#60, BDR-0006). Held time is excluded from both columns below.
+            One bar per relay stage, in the relay's own sequence rather than sorted by value, so the
+            chart reads as where time goes in the process (#93, ADR-0006). First-pass and re-review
+            time are folded into one bar per stage; a stage with any re-review time still gets a
+            visible line for it, so nobody is charged for the rules or the data moving beneath them
+            (#60, BDR-0006). Held time is excluded throughout.
           </p>
-          <table data-testid="insights-stage-table">
-            <thead>
-              <tr>
-                <th scope="col">Stage</th>
-                <th scope="col">Occurrence</th>
-                <th scope="col">Visits</th>
-                <th scope="col">Approver time</th>
-                <th scope="col">Awaiting correction</th>
-              </tr>
-            </thead>
-            <tbody>
-              {measures.stageOccurrences.map((row) => (
-                <StageRow key={`${row.stageId}-${row.occurrence}`} row={row} />
-              ))}
-            </tbody>
-          </table>
+          <ul className="stage-chart" data-testid="insights-stage-chart">
+            {stageChartRows.map((total) => (
+              <StageChartRow key={total.stageId} total={total} maxMs={maxStageMs} />
+            ))}
+          </ul>
         </>
       )}
     </section>
