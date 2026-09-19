@@ -6,14 +6,17 @@ import { DomainError } from "../../src/service/errors.ts";
 import { withTempStore } from "../helpers/temp-store.ts";
 
 /**
- * The demo module's own seam (#94), parallel to `tests/service/*.test.ts` -
- * closest in shape to `correction.test.ts`, since the script's middle beats
- * are a correction raised and corrected in place. Drives `start`, `advance`
- * through every step, `pause`/`resume` mid-script, and `reset` directly
- * against the runner, asserting on its own status/step shape and on the
- * underlying authorization's state via the same service queries a real
- * client would use - never against Playwright timing (#94's testing
- * decisions).
+ * The demo module's own seam (#94), parallel to `tests/service/*.test.ts`.
+ * Drives `start`, `advance` through every step, `pause`/`resume` mid-script,
+ * and `reset` directly against the runner, asserting on its own status/step
+ * shape and on the underlying authorization's state via the same service
+ * queries a real client would use - never against Playwright timing (#94's
+ * testing decisions).
+ *
+ * The script itself is happy-path only (#94 follow-up): an earlier version
+ * raised a correction request mid-script, cut after a first walkthrough
+ * showed it asked an audience to track more than a three-minute demo can
+ * afford (see `src/demo/script.ts`'s own doc comment).
  */
 
 describe("the scripted demo runner", () => {
@@ -30,10 +33,11 @@ describe("the scripted demo runner", () => {
     store.cleanup();
   });
   beforeEach(() => {
-    // A fresh runner per test, on the same temp store, reset first - a
-    // demo run's own `reset` step already proves the store side of this,
-    // so this only needs the store to start empty for each test in turn.
-    service.resetStore({ participantId: "system" });
+    // A fresh runner per test, on a store wiped of whatever the previous
+    // test (including its own `runner.reset()`, which now seeds synthetic
+    // history) left behind - `reset`'s own store-clearing behavior is
+    // exercised directly by the "reset" tests below, not relied on here.
+    service.resetStore({ participantId: "system" }, { wipeProcessData: true });
     runner = createDemoRunner(service);
   });
 
@@ -111,29 +115,6 @@ describe("the scripted demo runner", () => {
       assert.equal(state.status, "finished");
     });
 
-    test("was genuinely awaiting correction in the middle of the script, at the performing-program-manager stage", () => {
-      runner.start();
-      let state = runner.getState();
-      // Steps: 0 initiate, 1-2 requesting approvals, 3 claim, 4 contribute,
-      // 5 request correction. Six advances lands just after the correction
-      // request - the same authorization already reachable by id.
-      for (let i = 0; i < 6; i += 1) state = runner.advance();
-
-      const authorization = service.getAuthorization({ participantId: "system" }, state.authorizationId!);
-      assert.equal(authorization.currentStageId, "performing-program-manager");
-      assert.equal(authorization.awaitingCorrection, true);
-      assert.deepEqual(authorization.correctionRequest?.fields, ["performingEmployee"]);
-      assert.equal(authorization.performingEmployee, "Sam Riddley");
-
-      // One more advance supplies the correction; the approver resumes on
-      // the same stage rather than moving anywhere.
-      state = runner.advance();
-      const corrected = service.getAuthorization({ participantId: "system" }, state.authorizationId!);
-      assert.equal(corrected.awaitingCorrection, false);
-      assert.equal(corrected.performingEmployee, "Sam Ridley");
-      assert.equal(corrected.currentStageId, "performing-program-manager");
-    });
-
     test("each advance reports which tab and participant the presenter's screen should show", () => {
       runner.start();
       const first = runner.advance();
@@ -197,12 +178,24 @@ describe("the scripted demo runner", () => {
       assert.equal(state.current, null);
     });
 
-    test("returns the store to empty - no drafts or authorizations left over from the run", () => {
-      runToCompletion();
+    test("clears the run's own drafts and authorizations, then seeds the synthetic history fixture", () => {
+      const finished = runToCompletion();
+      const ranAuthorizationId = finished.authorizationId!;
+
       runner.reset();
       const dashboard = service.listDashboard({ participantId: "system" });
-      assert.deepEqual(dashboard.authorizations, []);
+
+      // The demo's own authorization is gone - a genuine wipe, not merely
+      // superseded - and drafts never carry over a reset either way
+      // (ADR-0009).
+      assert.ok(!dashboard.authorizations.some((a) => a.id === ranAuthorizationId));
       assert.deepEqual(dashboard.drafts, []);
+
+      // In its place: the same synthetic history `npm run reset` seeds
+      // (#65, ADR-0006) - so Insights and the master dashboard have real
+      // figures to show a presenter who has not started the script yet
+      // (#94 follow-up), rather than every measure reading zero.
+      assert.ok(dashboard.authorizations.length > 0);
     });
 
     test("is valid mid-run, not only once idle or finished", () => {

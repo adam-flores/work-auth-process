@@ -3,13 +3,19 @@ import type { Service } from "../service/index.ts";
 /**
  * The fixed story a demo run tells (#94). A Contributor submits an
  * authorization naming a department other than their own; it advances
- * through the requesting side's Approver; the performing side's Approver
- * raises a correction request; the Contributor who claimed it corrects the
- * flagged field in place, not by a new submission (BDR-0005); the same
- * Approver resumes exactly where they left it; the remaining stages
- * acknowledge through to Completed, skipping both gates (company-funded,
- * domestic on both sides). Every step calls a real service command - the
- * runner can never drift from what the product can actually do (ADR-0010).
+ * through the requesting side's Approver, is claimed and completed by the
+ * performing side's Contributor, advances through the performing side's
+ * Approver, and reaches Completed at the Charge Number Admin's mint -
+ * skipping both gates (company-funded, domestic on both sides). Every step
+ * calls a real service command - the runner can never drift from what the
+ * product can actually do (ADR-0010).
+ *
+ * Kept to the happy path only, deliberately: an earlier version raised a
+ * correction request mid-script and had the Contributor fix it in place.
+ * Cut after a first walkthrough (#94 follow-up) - reading a typo, a
+ * correction comment, and a resumed approval in a few seconds of narration
+ * asked an audience to track more than a three-minute demo can afford, and
+ * it wasn't earning its place next to the relay itself moving.
  *
  * The participants and departments are the demo roster (#92,
  * `config/participants.json`, `docs/reference/demo-hierarchy.json`): Jordan
@@ -129,31 +135,9 @@ export function buildDemoScript(): DemoStep[] {
     {
       tabId: "my-queue",
       actingId: CONTRIBUTOR_ID,
-      narration: "Jordan Hale names the employee performing the work - typing the name in a hurry.",
+      narration: "Jordan Hale names the employee who will perform the work.",
       run(service, ctx) {
         service.contribute({ participantId: CONTRIBUTOR_ID }, requireAuthorizationId(ctx), {
-          performingEmployee: "Sam Riddley",
-        });
-      },
-    },
-    {
-      tabId: "my-queue",
-      actingId: PERFORMING_APPROVER_ID,
-      narration:
-        "Marcus Oduya, the performing-side Approver, catches the typo and raises a correction request.",
-      run(service, ctx) {
-        service.requestCorrection({ participantId: PERFORMING_APPROVER_ID }, requireAuthorizationId(ctx), {
-          fields: ["performingEmployee"],
-          comment: 'The employee\'s name is misspelled - it should be "Ridley," not "Riddley."',
-        });
-      },
-    },
-    {
-      tabId: "my-queue",
-      actingId: CONTRIBUTOR_ID,
-      narration: "Jordan Hale corrects the employee's name in place - not a new submission (BDR-0005).",
-      run(service, ctx) {
-        service.correct({ participantId: CONTRIBUTOR_ID }, requireAuthorizationId(ctx), {
           performingEmployee: "Sam Ridley",
         });
       },
@@ -161,7 +145,7 @@ export function buildDemoScript(): DemoStep[] {
     {
       tabId: "my-queue",
       actingId: PERFORMING_APPROVER_ID,
-      narration: "Marcus Oduya resumes exactly where he left off and acknowledges.",
+      narration: "Marcus Oduya, the performing-side Approver, acknowledges the program-manager stage.",
       run(service, ctx) {
         service.acknowledge({ participantId: PERFORMING_APPROVER_ID }, requireAuthorizationId(ctx));
       },

@@ -1,6 +1,7 @@
 import type { Service } from "../service/index.ts";
 import { SYSTEM_PARTICIPANT_ID } from "../shared/constants.ts";
 import { DomainError } from "../service/errors.ts";
+import { seedAuthorizationHistory } from "../fixtures/authorization-history.ts";
 import { buildDemoScript, createDemoContext } from "./script.ts";
 import type { DemoContext, DemoStep } from "./script.ts";
 
@@ -128,23 +129,47 @@ export function createDemoRunner(service: Service) {
       return state();
     },
 
-    /** Returns the store and the runner both to a known starting point
-     *  (#94), so the same demo can run again for a second audience. Reseeds
-     *  from the demo catalog (hierarchy and participants only, #92) rather
-     *  than layering in the synthetic transition-history fixture, and asks
-     *  for process data to be wiped too (`ReseedOptions.wipeProcessData`,
-     *  `src/store/index.ts`) - unlike the header's own general-purpose
-     *  "Reset the store" button, this reset needs the queue and dashboard
-     *  genuinely empty, not carrying whatever an earlier run of the same
-     *  script left behind, so everything the audience sees in the next run
-     *  was visibly created by the demo itself. Valid from any status,
-     *  including mid-run: a presenter can always start over. */
+    /**
+     * Returns the store and the runner both to a known starting point
+     * (#94), so the same demo can run again for a second audience. Reseeds
+     * from the demo catalog (hierarchy and participants only, #92), asks
+     * for process data to be wiped too (`ReseedOptions.wipeProcessData`,
+     * `src/store/index.ts`) - unlike the header's own general-purpose
+     * "Reset the store" button, this reset needs a genuinely clean slate,
+     * not carrying whatever an earlier run of the same script left behind
+     * - and then layers in the same synthetic transition history
+     * `npm run reset` seeds (`seedAuthorizationHistory`, #65/ADR-0006).
+     *
+     * That history is why Insights and the master dashboard have something
+     * to show the moment a presenter opens the app, rather than every
+     * measure reading zero (#94 follow-up) - the fixture is built to end
+     * safely before "now", so the demo's own scripted authorization is
+     * always the newest thing in the log once a run starts, and stays
+     * visibly distinct from the backdrop. The tradeoff, accepted
+     * deliberately: a couple of the fixture's own scenarios leave an
+     * authorization genuinely open (`seedOpenOnHold`, `seedFreshlyInitiated`
+     * in particular), so an Approver's queue is not perfectly empty the
+     * instant Reset finishes, the way it was before this history existed.
+     *
+     * Valid from any status, including mid-run: a presenter can always
+     * start over. The runner's own fields are set back to idle *before*
+     * either store call, not after - `resetStore` and
+     * `seedAuthorizationHistory` are several dozen service calls between
+     * them, and a failure partway through one (unexpected, but reachable
+     * the moment either ever changes) must not leave this runner believing
+     * it is still running or paused against an authorization the store no
+     * longer has. Idle-with-no-authorization is always a safe state to be
+     * in - if the store calls below throw, the error still reaches the
+     * caller, but the next `advance` or `start` finds a runner ready to
+     * try again rather than one wedged mid-script.
+     */
     reset(): DemoState {
-      service.resetStore({ participantId: SYSTEM_PARTICIPANT_ID }, { wipeProcessData: true });
       status = "idle";
       stepIndex = 0;
       ctx = createDemoContext();
       current = null;
+      service.resetStore({ participantId: SYSTEM_PARTICIPANT_ID }, { wipeProcessData: true });
+      seedAuthorizationHistory(service);
       return state();
     },
   };

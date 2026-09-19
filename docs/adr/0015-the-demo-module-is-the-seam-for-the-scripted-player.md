@@ -3,7 +3,7 @@
 **Status:** accepted
 
 [Issue #94](https://github.com/adam-flores/work-auth-process/issues/94) asks for a scripted demo
-that plays itself - a fixed happy-path-plus-correction story, advanced one step at a time by a
+that plays itself - a fixed happy-path story, advanced one step at a time by a
 Start/Pause/Continue/Reset control bar, reliable enough to repeat for more than one audience in a
 three-minute in-person slot. This records the shape that makes it real, the same way
 [ADR-0010](0010-the-service-module-is-the-seam.md) recorded the service module's.
@@ -14,10 +14,15 @@ which tab the presenter's screen switches to - and `src/demo/index.ts` holds `cr
 small state machine (`idle` / `running` / `paused` / `finished`, plus a step index) that plays it.
 Every step calls a real function on the same `Service` the product's own HTTP layer calls -
 `initiate` by way of `createDraft`/`addResource`/`initiateDraft`, `acknowledge`, `claim`,
-`contribute`, `requestCorrection`, `correct`, `mintChargeNumber` - so the runner can never show a
-story the product cannot actually produce. HTTP holds no logic here either: `src/server/index.ts`
-adds six routes (`GET /api/demo`, `POST /api/demo/{start,pause,resume,advance,reset}`), each one a
-direct call into the one `DemoRunner` the server process holds.
+`contribute`, `mintChargeNumber` - so the runner can never show a story the product cannot actually
+produce. The script was originally happy-path-plus-correction; a first walkthrough (#94 follow-up)
+found a correction request, its comment, and a resumed approval asked an audience to track more
+than a three-minute demo affords, so it was cut back to the happy path alone - `requestCorrection`
+and `correct` are no longer among the commands the script calls, though both remain fully exercised
+at the service seam (`tests/service/correction.test.ts`) and in the fixture generator below. HTTP
+holds no logic here either: `src/server/index.ts` adds six routes (`GET /api/demo`,
+`POST /api/demo/{start,pause,resume,advance,reset}`), each one a direct call into the one
+`DemoRunner` the server process holds.
 
 **Advancing is client-paced; there is no server-side timer.** While `status` is `running`, the
 browser calls `POST /api/demo/advance` on a fixed interval (`DemoPlayer.tsx`), and the server holds
@@ -45,14 +50,29 @@ drove by calling `setActingId` the same way a presenter's own click would.
 permissibility - back to the demo catalog; it leaves drafts and the transition log alone across a
 reseed, a deliberate choice `tests/service/authorization-history-fixture.test.ts` documents and
 `npm run reset` depends on (it layers `seedAuthorizationHistory` on top of a reseed rather than
-replacing it). The demo player's Reset needs the opposite: an empty queue and dashboard, so
-everything a second audience sees was visibly created by the demo itself (user story 8), not left
-over from the first run. Rather than a new service command, `resetStore` gained one optional
-argument - `ReseedOptions.wipeProcessData` (`src/store/index.ts`) - defaulted to `false` so every
-existing caller and every existing test is unaffected; the demo runner's `reset()` is the one
-caller that passes `true`. This is the smallest change that gives Reset what it needs without
-touching the header's own general-purpose "Reset the store" button, which keeps its current,
-tested, documented behavior.
+replacing it). The demo player's Reset needs a genuinely clean slate before it lays anything of its
+own down. Rather than a new service command, `resetStore` gained one optional argument -
+`ReseedOptions.wipeProcessData` (`src/store/index.ts`) - defaulted to `false` so every existing
+caller and every existing test is unaffected; the demo runner's `reset()` is the one caller that
+passes `true`. This is the smallest change that gives Reset what it needs without touching the
+header's own general-purpose "Reset the store" button, which keeps its current, tested, documented
+behavior.
+
+**Reset also seeds the synthetic transition-history fixture - a reversal of this ADR's first
+version.** The original design deliberately left Reset at an empty queue and dashboard (user story
+8: "everything the audience sees was visibly created by the demo itself"). A first walkthrough
+showed the cost of that purity: Insights and the master dashboard read as broken, not "not started
+yet," when every measure is genuinely zero, and there is no way for someone looking at the app for
+the first time to tell what either screen is for. `reset()` now calls `seedAuthorizationHistory`
+(`src/fixtures/authorization-history.ts`, #65/ADR-0006) immediately after wiping and reseeding -
+the same fixture `npm run reset` already layers on for local development, now reached from the
+in-app control too. The fixture is built to end safely before "now", so once a run starts, the
+demo's own scripted authorization is always the newest thing in the log and reads as distinct from
+the backdrop, the same property that already let `npm run reset` and a live demo coexist. The
+tradeoff, accepted deliberately: a couple of the fixture's own scenarios leave something open
+(`seedOpenOnHold`, `seedFreshlyInitiated` in particular), so an Approver's queue is not perfectly
+empty the instant Reset finishes the way user story 8 originally asked - Insights being legible
+mattered more than that particular purity once both were in front of an actual audience.
 
 ## Considered options
 
@@ -76,12 +96,12 @@ tested, documented behavior.
 
 ## Consequences
 
-**A demo run and the fixture generator's synthetic history are mutually exclusive within one
-store**, by construction rather than by convention: whichever ran last is what a fresh reset
-leaves behind, since both write through the same transition log. Running `npm run reset` (which
-seeds synthetic history) and then using the demo player in the same `.store/` file works exactly
-as it looks like it would - the demo's own Reset clears the synthetic history the same as it
-clears its own prior run.
+**A demo run always sits on top of the same synthetic history, never a mix of two runs' worth.**
+Reset wipes process data before reseeding the fixture, so repeating Start/.../Reset never
+accumulates a second copy of the history or a leftover authorization from the previous script run -
+each Reset is the fixture's ~9 synthetic authorizations and nothing else, exactly as `npm run
+reset` produces from a bare store. What a presenter's own scripted run adds is the only thing that
+was not there a moment before.
 
 **The control bar's correctness is proven at the module seam, not through Playwright.** The full
 script, pause/resume mid-story, and reset are exercised directly against `createDemoRunner`
