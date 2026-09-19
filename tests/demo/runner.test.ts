@@ -178,7 +178,7 @@ describe("the scripted demo runner", () => {
       assert.equal(state.current, null);
     });
 
-    test("clears the run's own drafts and authorizations, then seeds the synthetic history fixture", () => {
+    test("clears the run's own drafts and authorizations, then seeds five completed authorizations for Insights", () => {
       const finished = runToCompletion();
       const ranAuthorizationId = finished.authorizationId!;
 
@@ -191,11 +191,14 @@ describe("the scripted demo runner", () => {
       assert.ok(!dashboard.authorizations.some((a) => a.id === ranAuthorizationId));
       assert.deepEqual(dashboard.drafts, []);
 
-      // In its place: the same synthetic history `npm run reset` seeds
-      // (#65, ADR-0006) - so Insights and the master dashboard have real
-      // figures to show a presenter who has not started the script yet
-      // (#94 follow-up), rather than every measure reading zero.
-      assert.ok(dashboard.authorizations.length > 0);
+      // In its place: `seedInsightsHistory`'s five completed authorizations
+      // (`src/demo/insights-history.ts`, #94 follow-up) - so Insights has
+      // real figures to show a presenter who has not started the script
+      // yet, rather than every measure reading zero. Every one is
+      // terminal, so every queue is still empty (`tests/demo/insights-history.test.ts`
+      // covers that directly).
+      assert.equal(dashboard.authorizations.length, 5);
+      assert.ok(dashboard.authorizations.every((a) => a.chargeNumber !== null));
     });
 
     test("is valid mid-run, not only once idle or finished", () => {

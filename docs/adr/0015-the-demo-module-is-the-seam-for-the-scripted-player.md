@@ -58,21 +58,28 @@ passes `true`. This is the smallest change that gives Reset what it needs withou
 header's own general-purpose "Reset the store" button, which keeps its current, tested, documented
 behavior.
 
-**Reset also seeds the synthetic transition-history fixture - a reversal of this ADR's first
-version.** The original design deliberately left Reset at an empty queue and dashboard (user story
-8: "everything the audience sees was visibly created by the demo itself"). A first walkthrough
-showed the cost of that purity: Insights and the master dashboard read as broken, not "not started
-yet," when every measure is genuinely zero, and there is no way for someone looking at the app for
-the first time to tell what either screen is for. `reset()` now calls `seedAuthorizationHistory`
-(`src/fixtures/authorization-history.ts`, #65/ADR-0006) immediately after wiping and reseeding -
-the same fixture `npm run reset` already layers on for local development, now reached from the
-in-app control too. The fixture is built to end safely before "now", so once a run starts, the
-demo's own scripted authorization is always the newest thing in the log and reads as distinct from
-the backdrop, the same property that already let `npm run reset` and a live demo coexist. The
-tradeoff, accepted deliberately: a couple of the fixture's own scenarios leave something open
-(`seedOpenOnHold`, `seedFreshlyInitiated` in particular), so an Approver's queue is not perfectly
-empty the instant Reset finishes the way user story 8 originally asked - Insights being legible
-mattered more than that particular purity once both were in front of an actual audience.
+**Reset also seeds historical data - a reversal of this ADR's first version, refined twice.** The
+original design deliberately left Reset at an empty queue and dashboard (user story 8: "everything
+the audience sees was visibly created by the demo itself"). A first walkthrough showed the cost of
+that purity: Insights and the master dashboard read as broken, not "not started yet," when every
+measure is genuinely zero. The first fix reached for the fixture already at hand -
+`seedAuthorizationHistory` (`src/fixtures/authorization-history.ts`, #65/ADR-0006), the same one
+`npm run reset` layers on for local development - which worked, but at a real cost: that fixture
+exists to cover every transition kind ADR-0006 names, so a couple of its own scenarios
+(`seedOpenOnHold`, `seedFreshlyInitiated`) leave something genuinely open, landing back in the
+exact "not created by the demo itself" clutter user story 8 was written against, and its mixed bag
+of referrals, corrections, holds and revocations made M1-M3 harder to explain at a glance than they
+needed to be.
+
+The second round replaced it with a fixture built for this one purpose: `seedInsightsHistory`
+(`src/demo/insights-history.ts`) seeds exactly five completed authorizations and nothing else - a
+fixed spread of cycle times (3, 6, 7, 8, and 8 days, averaging 6.4) rather than a randomized one,
+so the number Insights shows is a specific, reviewable, explainable one rather than whatever a
+seeded PRNG happened to produce. Every one of the five is terminal, which resolves the tradeoff
+the first round accepted: every queue is genuinely empty the instant Reset finishes, same as user
+story 8 always asked. Both fixtures still seed through the same command surface a live user's
+click would (ADR-0010) and end safely before "now", so the demo's own scripted authorization is
+always the newest thing in the log once a run starts.
 
 ## Considered options
 
@@ -96,16 +103,16 @@ mattered more than that particular purity once both were in front of an actual a
 
 ## Consequences
 
-**A demo run always sits on top of the same synthetic history, never a mix of two runs' worth.**
-Reset wipes process data before reseeding the fixture, so repeating Start/.../Reset never
-accumulates a second copy of the history or a leftover authorization from the previous script run -
-each Reset is the fixture's ~9 synthetic authorizations and nothing else, exactly as `npm run
-reset` produces from a bare store. What a presenter's own scripted run adds is the only thing that
-was not there a moment before.
+**A demo run always sits on top of the same five completed authorizations, never a mix of two
+runs' worth.** Reset wipes process data before reseeding, so repeating Start/.../Reset never
+accumulates a second copy of the history or a leftover authorization from the previous script run
+- each Reset is exactly `seedInsightsHistory`'s five authorizations and nothing else. What a
+presenter's own scripted run adds is the only thing that was not there a moment before.
 
 **The control bar's correctness is proven at the module seam, not through Playwright.** The full
 script, pause/resume mid-story, and reset are exercised directly against `createDemoRunner`
-(`tests/demo/runner.test.ts`, parallel to `tests/service/*.test.ts`) the same way ADR-0010 already
-argues test cost should be paid at the narrowest seam. Playwright (`tests/e2e/`) only proves the
-four buttons produce visible change end to end - the step-by-step logic itself does not depend on
-browser timing to be correct.
+(`tests/demo/runner.test.ts`, parallel to `tests/service/*.test.ts`), and `seedInsightsHistory`
+itself against its own totals and cycle times (`tests/demo/insights-history.test.ts`) - the same
+way ADR-0010 already argues test cost should be paid at the narrowest seam. Playwright
+(`tests/e2e/`) only proves the four buttons produce visible change end to end - the step-by-step
+logic itself does not depend on browser timing to be correct.
