@@ -13,6 +13,7 @@ import type { PermissibilityRule } from "../permissibility/index.ts";
 import type { Authorization, CorrectableFieldKey, FrozenClassification } from "../authorizations/index.ts";
 import type { CorrectionFieldValuesInput } from "../shared/rules.ts";
 import type { Measures } from "../measures/index.ts";
+import type { DemoState } from "../demo/index.ts";
 
 export type { ResolvedDepartment, Attribute } from "../hierarchy/index.ts";
 export type { HierarchyChange, HierarchyNode } from "../hierarchy/index.ts";
@@ -27,6 +28,7 @@ export type {
   StageVisit,
 } from "../authorizations/index.ts";
 export type { Measures, Occurrence, StageOccurrenceMeasure } from "../measures/index.ts";
+export type { DemoState, DemoStatus, DemoStepSummary } from "../demo/index.ts";
 
 /** What `api.addHierarchyNode` sends - mirrors `AddHierarchyNodeInput`'s
  *  discriminated union (`shared/rules.ts`) without importing zod into the
@@ -216,4 +218,15 @@ export const api = {
       "POST",
       {},
     ),
+
+  /** The scripted demo player (#94). `actor` is only what every call needs
+   *  to reach the server (the `x-acting-participant` header) - which
+   *  participant the demo acts as on each step is the script's own call,
+   *  not this one's. */
+  getDemoState: (actor: string) => call<DemoState>("/api/demo", actor),
+  startDemo: (actor: string) => call<DemoState>("/api/demo/start", actor, "POST"),
+  pauseDemo: (actor: string) => call<DemoState>("/api/demo/pause", actor, "POST"),
+  resumeDemo: (actor: string) => call<DemoState>("/api/demo/resume", actor, "POST"),
+  advanceDemo: (actor: string) => call<DemoState>("/api/demo/advance", actor, "POST"),
+  resetDemo: (actor: string) => call<DemoState>("/api/demo/reset", actor, "POST"),
 };

@@ -6,6 +6,45 @@
   --raised: #f7f8fa;
   --accent: #1f5c8b;
   --error: #9b1c1c;
+
+  /* Status - a small fixed scale, reserved meaning, never reused for plain
+     series identity. Only the three tiers this app actually has a state
+     for are defined - the dataviz skill's palette also names a "serious"
+     step between these two, left out rather than added unused. Used as a
+     filled chip (background + a contrasting ink), not as text color on the
+     page surface - warning reads far too light for that (contrast 1.7
+     against this app's own light surface) - so the fill itself, not the
+     surrounding page, is what the ink is computed against. One set of
+     hexes for both modes: each clears 3:1 against a dark chart surface as
+     well as a light one (dataviz skill, palette.md). */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+
+  /* A secondary accent for "notable, not good-or-bad" flags (re-review) -
+     distinct from both --accent and the status scale, so a flag can never
+     be mistaken for approval or a problem. Passes as plain text on this
+     app's own surfaces (8.05:1 light) - no filled-chip treatment needed. */
+  --accent-info: #4a3aa7;
+
+  /* Insights' per-stage heat tiles (`InsightsDashboard.tsx`): an ordinal
+     ramp, one hue (blue), monotone light -> dark - ordinal rather than the
+     full sequential range because every stage is a real, always-meaningful
+     tile (never a near-zero heatmap cell fading toward the surface). Five
+     steps, not the sequential ramp's full ten - `validate_palette.js
+     --ordinal` failed at every finer spacing tried (adjacent steps need
+     >=0.06 OKLCH lightness apart; the sequential table's own consecutive
+     steps only clear ~0.047), so this skips every other entry rather than
+     shipping steps a viewer can't actually tell apart. Confirmed passing
+     in both modes. --seq-0..2 read with dark ink, --seq-3..4 with white
+     (`.stage-chart-cell--light-text`) - computed via the skill's own
+     contrast() export, not guessed. */
+  --seq-0: #86b6ef;
+  --seq-1: #5598e7;
+  --seq-2: #2a78d6;
+  --seq-3: #1c5cab;
+  --seq-4: #104281;
+
   color-scheme: light dark;
 }
 
@@ -18,6 +57,18 @@
     --raised: #1c2126;
     --accent: #7fb3d9;
     --error: #f08a8a;
+
+    --accent-info: #9085e9;
+
+    /* Capped at ordinal step 600 rather than reusing the light steps' 650 -
+       any darker and a tile stops clearing contrast against a dark page
+       (dataviz skill, palette.md: "on dark, go no darker than step 600").
+       Re-validated at this exact spacing, not assumed from the light set. */
+    --seq-0: #cde2fb;
+    --seq-1: #86b6ef;
+    --seq-2: #5598e7;
+    --seq-3: #2a78d6;
+    --seq-4: #184f95;
   }
 }
 
@@ -31,9 +82,50 @@ body {
 }
 
 main {
-  max-width: 56rem;
+  max-width: 78rem;
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
+}
+
+/* Two columns (#94 follow-up): setup material in a narrow sidebar, tabbed
+   content - the main event - taking the rest of the width, side by side
+   rather than stacked, so the demo player's narration sits beside the
+   content it describes instead of scrolled away above it. */
+.app-layout {
+  display: grid;
+  grid-template-columns: 19rem minmax(0, 1fr);
+  align-items: start;
+  gap: 1.75rem;
+}
+
+.app-sidebar {
+  position: sticky;
+  top: 1rem;
+  min-width: 0;
+}
+
+.app-content {
+  min-width: 0;
+}
+
+/* The roster table's three columns are tight in a 19rem sidebar - smaller
+   type and padding than the rest of the page rather than letting the
+   sidebar grow wider than the setup material deserves. */
+.app-sidebar table {
+  font-size: 0.78rem;
+}
+.app-sidebar th,
+.app-sidebar td {
+  padding: 0.3rem 0.4rem;
+}
+
+@media (max-width: 60rem) {
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+  .app-sidebar {
+    position: static;
+  }
 }
 
 h1 { font-size: 1.6rem; margin: 0 0 0.25rem; letter-spacing: -0.01em; }
@@ -58,7 +150,8 @@ select {
   border-radius: 6px;
   background: var(--ground);
   color: var(--ink);
-  min-width: min(100%, 22rem);
+  width: 100%;
+  max-width: 22rem;
 }
 
 button {
@@ -73,6 +166,23 @@ button {
 button:disabled { opacity: 0.6; cursor: progress; }
 
 .acting-detail { margin: 0.75rem 0 0; color: var(--muted); }
+
+.demo-player-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.demo-narration {
+  margin: 0.9rem 0 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--ground);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
 .hint { margin: 0.75rem 0 0; font-size: 0.85rem; color: var(--muted); max-width: 44rem; }
 .error { color: var(--error); font-weight: 600; }
 .field-guidance { margin: 0 0 0.35rem; font-size: 0.85rem; color: var(--muted); max-width: 34rem; }
@@ -232,6 +342,28 @@ input[type="number"] {
   gap: 0.75rem;
   margin-top: 1rem;
 }
+
+/* A queue item's own action row - Acknowledge, Claim, the employee-name
+   field and Complete, the charge-number field and Mint - had no spacing
+   rules of its own, so a label, a full-width input, and a button all
+   landed flush against each other. Laid out as a wrapping row with
+   consistent gaps instead, the same pattern `.draft-form-actions` already
+   uses. */
+.queue-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.queue-item-actions label {
+  margin: 0;
+}
+.queue-item-actions input[type="text"] {
+  margin: 0;
+  width: auto;
+  flex: 1 1 12rem;
+}
 .draft-form-actions [data-testid="delete-draft"] {
   background: transparent;
   color: var(--error);
@@ -287,9 +419,34 @@ input[type="number"] {
   color: var(--muted);
   font-size: 0.8rem;
 }
-.badge-attention {
-  color: var(--error);
-  border-color: var(--error);
+
+/* Status modifiers - a filled chip (background + a contrasting ink chosen
+   by that fill's own luminance), not colored text on the page surface,
+   since warning fails as plain text on this app's light surface (contrast
+   1.7). Ink was computed with the dataviz skill's contrast() export, not
+   guessed: good/warning read with dark ink (>=5.9:1 on both); critical
+   reads with white (4.8:1 - ink only manages 4.1:1 on this particular
+   red). */
+.badge-good,
+.badge-warning {
+  color: #0b0b0b;
+  border-color: transparent;
+}
+.badge-critical {
+  color: #ffffff;
+  border-color: transparent;
+}
+.badge-good { background: var(--status-good); }
+.badge-warning { background: var(--status-warning); }
+.badge-critical { background: var(--status-critical); }
+
+/* A flag that is notable but neither good nor bad (re-review) - plain
+   colored text reads fine here (8.05:1 light / 5.19:1 dark), so this one
+   stays the outlined-pill treatment `.badge` already uses rather than a
+   filled chip. */
+.badge-info {
+  color: var(--accent-info);
+  border-color: var(--accent-info);
 }
 
 .card-meta {
@@ -329,49 +486,90 @@ input[type="number"] {
 }
 .stat-tile-detail { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 
+/* A heat-tile grid, not a bar list: one card per relay stage, its fill
+   drawn from the --seq-0..7 ordinal ramp by how much time it holds relative
+   to the slowest stage (`InsightsDashboard.tsx` computes the level; the
+   hex-per-level and light/dark ink split both come from the dataviz
+   skill's validated blue ramp and its contrast() export, not eyeballed). */
 .stage-chart {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.75rem;
 }
 
 .stage-chart-row {
-  display: grid;
-  grid-template-columns: 12rem 1fr auto;
-  align-items: center;
-  column-gap: 0.75rem;
-  row-gap: 0.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
-.stage-chart-label { font-size: 0.85rem; }
-
-.stage-chart-track {
-  height: 0.6rem;
-  border-radius: 999px;
-  background: var(--raised);
-  border: 1px solid var(--line);
-  overflow: hidden;
+/* A fixed two-line slot, not however tall each label happens to wrap -
+   "Requesting program manager" wraps, "Performing finance" doesn't, and
+   without this every tile in a row starts at a different height depending
+   on whether its own neighbor's label happened to wrap. `flex-end` lets a
+   one-line label sit flush against its tile either way, the same distance
+   from it as a two-line label's second line. */
+.stage-chart-label {
+  display: flex;
+  align-items: flex-end;
+  min-height: 2.1rem;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--muted);
 }
 
-.stage-chart-bar {
-  display: block;
-  height: 100%;
-  min-width: 2px;
-  background: var(--accent);
-  border-radius: 999px;
+/* Ink is set per level here, in CSS, rather than by a class the component
+   computes - it has to be, since which ink clears contrast on a given
+   level is a property of *that level's actual hex in this mode*, and
+   level 3's hex is different in light mode (#1c5cab, wants white) than in
+   dark mode (#2a78d6, wants dark ink by a hair: 4.46:1 vs white's 4.42:1 -
+   both computed with the dataviz skill's contrast() export). A
+   mode-agnostic component picking one ink per level number would get that
+   one level backwards in whichever mode it wasn't tuned for. */
+.stage-chart-cell {
+  border-radius: 8px;
+  padding: 0.75rem 0.85rem;
+  min-height: 4.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.2rem;
+  color: #0b0b0b;
+}
+.stage-chart-cell[data-level="0"] { background: var(--seq-0); }
+.stage-chart-cell[data-level="1"] { background: var(--seq-1); }
+.stage-chart-cell[data-level="2"] { background: var(--seq-2); }
+.stage-chart-cell[data-level="3"] { background: var(--seq-3); color: #ffffff; }
+.stage-chart-cell[data-level="4"] { background: var(--seq-4); color: #ffffff; }
+
+@media (prefers-color-scheme: dark) {
+  /* Dark mode's level 3 is light mode's level 2 hex (#2a78d6) - see the
+     comment above. */
+  .stage-chart-cell[data-level="3"] { color: #0b0b0b; }
 }
 
 .stage-chart-value {
-  font-size: 0.85rem;
+  font-size: 1.3rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  line-height: 1.1;
+}
+
+/* No opacity here - it was dropping the already-borderline level-2/3
+   boundary hex (4.42-4.46:1 at full strength) below AA for this small
+   text. De-emphasized by size and weight only, both of which cost nothing
+   in contrast. */
+.stage-chart-meta {
+  font-size: 0.78rem;
+  font-weight: 500;
 }
 
 .stage-chart-detail {
-  grid-column: 2 / -1;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--muted);
 }
 

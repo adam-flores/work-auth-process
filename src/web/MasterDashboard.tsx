@@ -66,6 +66,16 @@ function stageLabel(stageValue: string): string {
   return STAGE_LABELS[stageValue as StageId] ?? stageValue;
 }
 
+/** Color follows the two states that are actually good or bad news -
+ *  completed and revoked; draft, withdrawn, and every in-progress relay
+ *  stage stay the plain neutral badge, since none of those are a status to
+ *  react to. */
+function stageBadgeClass(stageValue: string): string {
+  if (stageValue === "completed") return "badge badge-good";
+  if (stageValue === "revoked") return "badge badge-critical";
+  return "badge";
+}
+
 /** Every field, on either a draft or an authorization, a free-text
  *  "participant" filter searches - most of these are strings a submitter
  *  typed rather than a participant id BDR-0002's visibility rules can
@@ -455,7 +465,7 @@ export function MasterDashboard({ actingId }: MasterDashboardProps) {
                 )}
               </div>
               <div className="card-badges">
-                <span className="badge" data-testid="dashboard-row-stage">
+                <span className={stageBadgeClass(row.stage)} data-testid="dashboard-row-stage">
                   {stageLabel(row.stage)}
                 </span>
                 <span className="card-meta" data-testid="dashboard-row-submitter">

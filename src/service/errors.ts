@@ -26,7 +26,10 @@ export type DomainErrorCode =
   | "NOT_ON_HOLD"
   | "AUTHORIZATION_ON_HOLD"
   | "AUTHORIZATION_TERMINAL"
-  | "INVALID_REQUEST";
+  | "INVALID_REQUEST"
+  | "DEMO_NOT_IDLE"
+  | "DEMO_NOT_RUNNING"
+  | "DEMO_NOT_PAUSED";
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;

@@ -24,7 +24,7 @@ const SEED_PATH = resolve(repoRoot, "config/participants.json");
 
 export type Store = {
   readonly db: DatabaseSync;
-  reseed(): void;
+  reseed(options?: ReseedOptions): void;
   close(): void;
 };
 
@@ -39,10 +39,32 @@ function readSeed(): ParticipantRecord[] {
  * so a store is either fully seeded or untouched - there is no state in which
  * half a hierarchy is queryable.
  */
-function seed(db: DatabaseSync): void {
+export type ReseedOptions = {
+  /** Also clears drafts and the transition log every authorization is
+   *  folded from, not only reference data. Off by default: an ordinary
+   *  reseed deliberately leaves domain data alone across a reset
+   *  (`tests/service/authorization-history-fixture.test.ts` documents and
+   *  depends on this - `npm run reset` layers synthetic history on top of
+   *  a reseed rather than replacing it). The scripted demo player (#94) is
+   *  the one caller that turns this on: between walkthroughs it needs the
+   *  queue and dashboard genuinely empty, not carrying whatever an earlier
+   *  run of the same script left behind. */
+  wipeProcessData?: boolean;
+};
+
+function seed(db: DatabaseSync, options: ReseedOptions = {}): void {
   const participants = readSeed();
   db.exec("BEGIN");
   try {
+    if (options.wipeProcessData) {
+      // Children first: `draft_resources` references `drafts`, so it goes
+      // before it; `transitions` carries no foreign key at all and can
+      // clear in any order.
+      db.exec("DELETE FROM transitions");
+      db.exec("DELETE FROM draft_resources");
+      db.exec("DELETE FROM drafts");
+    }
+
     // A draft may name a real participant as its submitter (ADR-0009), and
     // re-seeding deletes every participant before reinserting them under the
     // same deterministic ids. Deferred checking is what makes that legal:
@@ -113,7 +135,7 @@ export function openStore(storePath: string = DEFAULT_STORE_PATH): Store {
 
   return {
     db,
-    reseed: () => seed(db),
+    reseed: (options) => seed(db, options),
     close: () => db.close(),
   };
 }

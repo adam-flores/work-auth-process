@@ -2,10 +2,12 @@ import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 /**
- * The tab shell (#91): a persistent header - the acting-as switcher, the
- * store-info panel, the reset control, the participant roster, and
- * revocation notices - stays visible above tab content no matter which tab
- * is open, and only the active tab's content is visible at a time.
+ * The tab shell (#91): a persistent sidebar (#94 follow-up: two columns,
+ * not a single scrolling stack) - the demo player, the acting-as switcher,
+ * the store-info panel, the reset control, and the participant roster -
+ * stays visible beside tab content no matter which tab is open; revocation
+ * notices stay above the tab content itself, in the same column. Only the
+ * active tab's content is visible at a time.
  *
  * Every tab mounts up front and stays mounted - switching only toggles
  * visibility (`Tabs.tsx`) - the same as every section always being mounted
