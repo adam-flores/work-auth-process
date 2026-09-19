@@ -21,18 +21,18 @@ import type { Page } from "@playwright/test";
 
 async function initiateAuthorization(page: Page, project: string): Promise<void> {
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await page.getByTestId("new-draft").click();
   await expect(page.getByTestId("draft-form")).toBeVisible();
   await page.getByLabel("Project").fill(project);
 
   const requesting = page.getByTestId("draft-requesting-department");
-  await requesting.getByLabel("Search by name").fill("Heat Exchange Products");
-  await requesting.getByRole("button", { name: "Heat Exchange Products", exact: true }).click();
+  await requesting.getByLabel("Search by name").fill("Rotor Assemblies");
+  await requesting.getByRole("button", { name: "Rotor Assemblies", exact: true }).click();
 
   const performing = page.getByTestId("draft-performing-department");
-  await performing.getByLabel("Search by name").fill("Rotor Hubs");
-  await performing.getByRole("button", { name: "Rotor Hubs", exact: true }).click();
+  await performing.getByLabel("Search by name").fill("Flight Controls Software");
+  await performing.getByRole("button", { name: "Flight Controls Software", exact: true }).click();
 
   await page.getByLabel("Funding type").selectOption("company-funded");
   await page.getByLabel("Requesting location type").selectOption("domestic");
@@ -118,7 +118,7 @@ test("a queue arrival while looking at another tab is still shown on return", as
   // its tab is inactive - the ARIA tabs pattern removes an inactive panel
   // from the accessibility tree by design, same as any other tab widget.
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-priya-anand");
   await page.getByRole("tab", { name: "My Queue" }).click();
   await expect(page.getByTestId("my-queue")).toBeVisible();
 
@@ -148,7 +148,7 @@ test("a queue arrival while looking at another tab updates a live region for ass
   // and kept updated regardless of which tab is showing or whether "My
   // Queue" was ever opened.
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-priya-anand");
   await page.getByRole("tab", { name: "Insights" }).click();
   await expect(page.getByTestId("insights-dashboard")).toBeVisible();
 
@@ -174,7 +174,7 @@ test("two arrivals in the same poll cycle are both named in the live region, not
   // builds one combined announcement per poll instead, so this asserts both
   // projects survive together rather than the second silently winning.
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-priya-anand");
   await page.getByRole("tab", { name: "Insights" }).click();
   await expect(page.getByTestId("insights-dashboard")).toBeVisible();
 
@@ -199,7 +199,7 @@ test("two arrivals in the same poll cycle are both named in the live region, not
 
 test("the Reference Data tab is reachable acting as a non-Administrator, read-only", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund"); // a Contributor
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-jordan-hale"); // a Contributor
 
   await page.getByRole("tab", { name: "Reference Data" }).click();
   await expect(page.getByTestId("permissibility-rules")).toBeVisible();
@@ -215,8 +215,8 @@ test("header controls stay visible and functional regardless of the active tab",
   await expect(page.getByTestId("store-info")).toBeVisible();
 
   const select = page.getByLabel("Participant", { exact: true });
-  await select.selectOption("p-erez-caldwell");
-  await expect(page.getByTestId("acting-detail")).toContainText("Erez Caldwell");
+  await select.selectOption("p-teo-brandt");
+  await expect(page.getByTestId("acting-detail")).toContainText("Teo Brandt");
 
   // Switching identity doesn't kick the presenter back to another tab.
   await expect(page.getByTestId("insights-dashboard")).toBeVisible();

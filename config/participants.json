@@ -1,18 +1,10 @@
 {
-  "readMeFirst": "Mocked identities for the prototype. Every participant in this system is mocked (the wayfinder map rules authentication out of scope), and this file is the roster the store is seeded from. Names are invented; departments are taken from the synthetic hierarchy in docs/reference/organization-hierarchy.json so the two fixtures agree, except for the two gates' Approvers - Contracts and Global Trade are centralized compliance functions tied to neither side (relay/config.ts), not departments in the org hierarchy, so their names are fixed rather than drawn from the fixture. The four roles are the cast in CONTEXT.md - Submitter is deliberately absent, because it is a relationship to one authorization rather than a role somebody holds.",
+  "readMeFirst": "Mocked identities for the prototype. Every participant in this system is mocked (the wayfinder map rules authentication out of scope), and this file is the roster the store is seeded from. Names are invented; departments are taken from the synthetic demo catalog in docs/reference/demo-hierarchy.json so the two fixtures agree. A Charge Number Admin's and an Administrator's department is not used for any routing decision (mint and hierarchy administration are not department-scoped); theirs are set to departments no scenario routes an authorization through, so neither ever ends up approving their own request in the seeded history (src/fixtures/authorization-history.ts). The four roles are the cast in CONTEXT.md - Submitter is deliberately absent, because it is a relationship to one authorization rather than a role somebody holds. Roster sized per #92: exactly one Contributor, one Approver per distinct stage the demo's happy path exercises, one Charge Number Admin, and one Administrator - no duplicates to choose between mid-demo. The demo's happy path is company-funded with matching location types, so it skips both gates (Contracts, Global Trade); neither gate has a seeded Approver here as a result - adding one is a small addition if a later demo script needs a gate to fire.",
   "participants": [
-    { "id": "p-avery-lund",     "name": "Avery Lund",     "role": "Contributor",        "department": "Heat Exchange Products" },
-    { "id": "p-rosa-imbert",    "name": "Rosa Imbert",    "role": "Contributor",        "department": "Thermal Coatings" },
-    { "id": "p-nils-oyelaran",  "name": "Nils Oyelaran",  "role": "Contributor",        "department": "Rotor Hubs" },
-    { "id": "p-lena-birch",     "name": "Lena Birch",     "role": "Contributor",        "department": "Rotor Hubs" },
-    { "id": "p-cate-marchetti", "name": "Cate Marchetti", "role": "Approver",           "department": "Heat Exchange Products" },
-    { "id": "p-hugo-strand",    "name": "Hugo Strand",    "role": "Approver",           "department": "Heat Exchange Products" },
-    { "id": "p-mira-devane",    "name": "Mira Devane",    "role": "Approver",           "department": "Rotor Hubs" },
-    { "id": "p-tomas-eiriksen", "name": "Tomas Eiriksen", "role": "Approver",           "department": "Rotor Hubs" },
-    { "id": "p-jun-abernathy",  "name": "Jun Abernathy",  "role": "Approver",           "department": "Thermal Cycling Lab" },
-    { "id": "p-farah-quintela", "name": "Farah Quintela", "role": "Approver",           "department": "Contracts" },
-    { "id": "p-oskar-lindqvist","name": "Oskar Lindqvist","role": "Approver",           "department": "Global Trade" },
-    { "id": "p-sadie-okonkwo",  "name": "Sadie Okonkwo",  "role": "Charge Number Admin", "department": "Northline Service Center" },
-    { "id": "p-erez-caldwell",  "name": "Erez Caldwell",  "role": "Administrator",      "department": "Vibration Lab" }
+    { "id": "p-jordan-hale",    "name": "Jordan Hale",    "role": "Contributor",         "department": "Flight Controls Software" },
+    { "id": "p-priya-anand",    "name": "Priya Anand",    "role": "Approver",            "department": "Rotor Assemblies" },
+    { "id": "p-marcus-oduya",   "name": "Marcus Oduya",   "role": "Approver",            "department": "Flight Controls Software" },
+    { "id": "p-elin-vasquez",   "name": "Elin Vasquez",   "role": "Charge Number Admin", "department": "Landing Gear Systems" },
+    { "id": "p-teo-brandt",     "name": "Teo Brandt",     "role": "Administrator",       "department": "Sensor Integration" }
   ]
 }

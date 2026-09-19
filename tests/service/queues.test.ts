@@ -2,7 +2,7 @@ import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createService } from "../../src/service/index.ts";
 import { DomainError } from "../../src/service/errors.ts";
-import { withTempStore } from "../helpers/temp-store.ts";
+import { withTempStore, addTestParticipant } from "../helpers/temp-store.ts";
 
 /**
  * Queues, and the first acknowledgement (#55): a stage routes to a role at a
@@ -12,12 +12,12 @@ import { withTempStore } from "../helpers/temp-store.ts";
  * appends a transition that both resolves the current stage and arrives the
  * authorization at whatever the relay configuration names next.
  *
- * The seeded roster (config/participants.json) puts two Approvers at "Heat
- * Exchange Products" (Cate Marchetti, Hugo Strand) and two at "Rotor Hubs"
- * (Mira Devane, Tomas Eiriksen) - real department names from the synthetic
- * hierarchy, which is what lets a stage's queue be resolved by matching an
- * authorization's requesting/performing department name against a
- * participant's own.
+ * The demo roster (#92) seeds exactly one Approver at "Rotor Assemblies"
+ * (requesting) and one at "Flight Controls Software" (performing) - a second
+ * requesting-side Approver, needed to prove a queue is shared by role rather
+ * than by name, and a Contributor at the requesting department itself,
+ * needed to prove a Contributor holds no queue even there, are both added
+ * directly to this test's own store (`addTestParticipant`).
  */
 
 describe("queues and acknowledgement", () => {
@@ -35,18 +35,30 @@ describe("queues and acknowledgement", () => {
   before(() => {
     store = withTempStore();
     service = createService({ storePath: store.path });
+    addTestParticipant(store.path, {
+      id: "p-test-second-requesting-approver",
+      name: "Test Second Requesting Approver",
+      role: "Approver",
+      department: "Rotor Assemblies",
+    });
+    addTestParticipant(store.path, {
+      id: "p-test-contributor-at-requesting-dept",
+      name: "Test Contributor At Requesting Dept",
+      role: "Contributor",
+      department: "Rotor Assemblies",
+    });
 
     const people = service.listParticipants({ participantId: "system" });
-    submitter = people.find((p) => p.id === "p-avery-lund")!.id;
-    requestingApproverA = people.find((p) => p.id === "p-cate-marchetti")!.id;
-    requestingApproverB = people.find((p) => p.id === "p-hugo-strand")!.id;
-    performingApproverA = people.find((p) => p.id === "p-mira-devane")!.id;
-    contributorAtRequestingDept = people.find((p) => p.id === "p-avery-lund")!.id;
-    contributorAtPerformingDept = people.find((p) => p.id === "p-nils-oyelaran")!.id;
+    submitter = people.find((p) => p.id === "p-teo-brandt")!.id;
+    requestingApproverA = people.find((p) => p.id === "p-priya-anand")!.id;
+    requestingApproverB = people.find((p) => p.id === "p-test-second-requesting-approver")!.id;
+    performingApproverA = people.find((p) => p.id === "p-marcus-oduya")!.id;
+    contributorAtRequestingDept = people.find((p) => p.id === "p-test-contributor-at-requesting-dept")!.id;
+    contributorAtPerformingDept = people.find((p) => p.id === "p-jordan-hale")!.id;
 
     const departments = service.searchDepartments({ participantId: "system" });
-    requestingDeptId = departments.find((d) => d.name === "Heat Exchange Products")!.id;
-    performingDeptId = departments.find((d) => d.name === "Rotor Hubs")!.id;
+    requestingDeptId = departments.find((d) => d.name === "Rotor Assemblies")!.id;
+    performingDeptId = departments.find((d) => d.name === "Flight Controls Software")!.id;
   });
   after(() => {
     service.close();

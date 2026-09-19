@@ -2,7 +2,7 @@ import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createService } from "../../src/service/index.ts";
 import { DomainError } from "../../src/service/errors.ts";
-import { withTempStore } from "../helpers/temp-store.ts";
+import { withTempStore, addTestParticipant } from "../helpers/temp-store.ts";
 
 /**
  * Referral (#62, BDR-0011): whoever holds an authorization at their stage
@@ -13,6 +13,11 @@ import { withTempStore } from "../helpers/temp-store.ts";
  * from whoever the stage actually routed to. Available to the same
  * population that could act on the authorization right now, not approvers
  * only.
+ *
+ * The demo roster (#92) seeds only one Contributor, so a second one at the
+ * performing department, and an Approver at a department unrelated to
+ * either side of this suite's authorizations, are added directly to this
+ * test's own store (`addTestParticipant`).
  */
 
 describe("referral", () => {
@@ -32,20 +37,35 @@ describe("referral", () => {
   before(() => {
     store = withTempStore();
     service = createService({ storePath: store.path });
+    addTestParticipant(store.path, {
+      id: "p-test-another-contributor",
+      name: "Test Another Contributor",
+      role: "Contributor",
+      department: "Flight Controls Software",
+    });
+    addTestParticipant(store.path, {
+      id: "p-test-unrelated-approver",
+      name: "Test Unrelated Approver",
+      role: "Approver",
+      department: "Landing Gear Systems",
+    });
 
     const people = service.listParticipants({ participantId: "system" });
-    submitter = people.find((p) => p.id === "p-avery-lund")!.id;
-    requestingApproverA = people.find((p) => p.id === "p-cate-marchetti")!.id;
-    requestingApproverB = people.find((p) => p.id === "p-hugo-strand")!.id;
-    performingApproverA = people.find((p) => p.id === "p-mira-devane")!.id;
-    contributorAtPerformingDept = people.find((p) => p.id === "p-nils-oyelaran")!.id;
-    anotherContributorAtPerformingDept = people.find((p) => p.id === "p-lena-birch")!.id;
-    unrelatedApprover = people.find((p) => p.id === "p-jun-abernathy")!.id;
-    chargeNumberAdmin = people.find((p) => p.id === "p-sadie-okonkwo")!.id;
+    submitter = people.find((p) => p.id === "p-teo-brandt")!.id;
+    // Deliberately the same person: the demo roster (#92) seeds one Approver
+    // per department, and nothing here needs the two requesting-side stages
+    // acknowledged by different people.
+    requestingApproverA = people.find((p) => p.id === "p-priya-anand")!.id;
+    requestingApproverB = people.find((p) => p.id === "p-priya-anand")!.id;
+    performingApproverA = people.find((p) => p.id === "p-marcus-oduya")!.id;
+    contributorAtPerformingDept = people.find((p) => p.id === "p-jordan-hale")!.id;
+    anotherContributorAtPerformingDept = people.find((p) => p.id === "p-test-another-contributor")!.id;
+    unrelatedApprover = people.find((p) => p.id === "p-test-unrelated-approver")!.id;
+    chargeNumberAdmin = people.find((p) => p.id === "p-elin-vasquez")!.id;
 
     const departments = service.searchDepartments({ participantId: "system" });
-    requestingDeptId = departments.find((d) => d.name === "Heat Exchange Products")!.id;
-    performingDeptId = departments.find((d) => d.name === "Rotor Hubs")!.id;
+    requestingDeptId = departments.find((d) => d.name === "Rotor Assemblies")!.id;
+    performingDeptId = departments.find((d) => d.name === "Flight Controls Software")!.id;
   });
   after(() => {
     service.close();

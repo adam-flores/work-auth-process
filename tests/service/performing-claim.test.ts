@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { createService } from "../../src/service/index.ts";
 import { DomainError } from "../../src/service/errors.ts";
-import { withTempStore } from "../helpers/temp-store.ts";
+import { withTempStore, addTestParticipant } from "../helpers/temp-store.ts";
 
 /**
  * The performing department's claim, and contributing the performing-side
@@ -17,10 +17,11 @@ import { withTempStore } from "../helpers/temp-store.ts";
  * will perform the work. A named performing-side contact is notified, but
  * the department queue stays authoritative (CONTEXT.md: "Claim").
  *
- * The seeded roster (config/participants.json) puts two Contributors at
- * "Rotor Hubs" (Nils Oyelaran, Lena Birch) and one at "Thermal Coatings"
- * (Rosa Imbert) - real department names from the synthetic hierarchy, the
- * same fixture `queues.test.ts` uses.
+ * The demo roster (config/participants.json) seeds exactly one Contributor
+ * (#92), so the second Contributor at the performing department and the
+ * Contributor at another department are added directly to this test's own
+ * store (`addTestParticipant`) - real department names from the synthetic
+ * demo catalog, the same fixture `queues.test.ts` uses.
  */
 
 describe("the performing department's claim and contribution", () => {
@@ -38,18 +39,30 @@ describe("the performing department's claim and contribution", () => {
   before(() => {
     store = withTempStore();
     service = createService({ storePath: store.path });
+    addTestParticipant(store.path, {
+      id: "p-test-another-contributor",
+      name: "Test Another Contributor",
+      role: "Contributor",
+      department: "Flight Controls Software",
+    });
+    addTestParticipant(store.path, {
+      id: "p-test-other-dept-contributor",
+      name: "Test Other-Department Contributor",
+      role: "Contributor",
+      department: "Rotor Assemblies",
+    });
 
     const people = service.listParticipants({ participantId: "system" });
-    submitter = people.find((p) => p.id === "p-avery-lund")!.id;
-    requestingApprover = people.find((p) => p.id === "p-cate-marchetti")!.id;
-    performingApprover = people.find((p) => p.id === "p-mira-devane")!.id;
-    contributorAtPerformingDept = people.find((p) => p.id === "p-nils-oyelaran")!.id;
-    anotherContributorAtPerformingDept = people.find((p) => p.id === "p-lena-birch")!.id;
-    contributorAtOtherDept = people.find((p) => p.id === "p-rosa-imbert")!.id;
+    submitter = people.find((p) => p.id === "p-teo-brandt")!.id;
+    requestingApprover = people.find((p) => p.id === "p-priya-anand")!.id;
+    performingApprover = people.find((p) => p.id === "p-marcus-oduya")!.id;
+    contributorAtPerformingDept = people.find((p) => p.id === "p-jordan-hale")!.id;
+    anotherContributorAtPerformingDept = people.find((p) => p.id === "p-test-another-contributor")!.id;
+    contributorAtOtherDept = people.find((p) => p.id === "p-test-other-dept-contributor")!.id;
 
     const departments = service.searchDepartments({ participantId: "system" });
-    requestingDeptId = departments.find((d) => d.name === "Heat Exchange Products")!.id;
-    performingDeptId = departments.find((d) => d.name === "Rotor Hubs")!.id;
+    requestingDeptId = departments.find((d) => d.name === "Rotor Assemblies")!.id;
+    performingDeptId = departments.find((d) => d.name === "Flight Controls Software")!.id;
   });
   after(() => {
     service.close();

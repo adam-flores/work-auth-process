@@ -1,0 +1,54 @@
+{
+  "fiction": {
+    "notice": "EVERY NAME AND FIGURE IN THIS FILE IS INVENTED. No entity, division, or department here is copied from, derived from, or decodable back to any real organization. Any resemblance to a real company is coincidental.",
+    "purpose": "A small, deliberately synthetic catalog sized for a live demo (#92) rather than for realism. It replaces docs/reference/organization-hierarchy.json as the running store's seed; that file stays in the repository as the historical record ADR-0012 describes, and this one is what npm run reset and the in-app reset actually load. See docs/adr/0013-the-demo-catalog-is-the-seed.md.",
+    "ticket": "https://github.com/adam-flores/work-auth-process/issues/92"
+  },
+  "readMeFirst": {
+    "shapeAndSize": "One legal entity, two divisions, five departments - small enough to narrate live, with just enough departments that the picker still narrows a real list rather than offering one option. Requesting and performing departments in the demo's own story sit in different divisions, so cross-department routing is genuine rather than a same-department shortcut.",
+    "attributes": "Every attribute ADR-0012 defines appears at least once - affiliation (legal-entity level, so every department inherits it, demonstrating the full three-level chain even with only one legal entity), jurisdiction (foreign/domestic, on every department), home-office-disclosure (held at the division level on Avionics, so both its departments inherit it and neither carries it directly - the same inheritance case ADR-0012 calls out), offshore-shared-service, and contracting-exception - so the department picker has something real to narrow on (BDR-0008).",
+    "mechanism": "Read by the same Fixture schema and transform() that seeded the old 58-department fixture (src/hierarchy/fixture.ts, src/hierarchy/transform.ts). Nothing about the seeding mechanism changed for this catalog; it simply doesn't need the old fixture's chart-specific irregularities (a conflated code column, comma-separated codes, a shared cost centre) because it was authored fresh rather than transcribed from a chart."
+  },
+  "legalEntities": [
+    {
+      "id": "calderis-aerospace",
+      "name": "Calderis Aerospace",
+      "affiliation": "affiliated",
+      "divisions": [
+        {
+          "name": "Structures",
+          "departments": [
+            {
+              "legalName": "Rotor Assemblies",
+              "foreign": false
+            },
+            {
+              "legalName": "Heat Shielding",
+              "foreign": true,
+              "icons": ["star"]
+            },
+            {
+              "legalName": "Landing Gear Systems",
+              "foreign": false,
+              "footnotes": ["fn-2"]
+            }
+          ]
+        },
+        {
+          "name": "Avionics",
+          "icons": ["home-office-dot"],
+          "departments": [
+            {
+              "legalName": "Flight Controls Software",
+              "foreign": false
+            },
+            {
+              "legalName": "Sensor Integration",
+              "foreign": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

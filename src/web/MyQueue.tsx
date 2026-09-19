@@ -928,7 +928,7 @@ export function MyQueue({ actingId }: MyQueueProps) {
           </ul>
         )}
 
-        <ul className="queue-list" data-testid="queue-list">
+        <ul className="card-list queue-list" data-testid="queue-list">
           {items === null ? (
             <li className="hint">Loading…</li>
           ) : items.length === 0 ? (
@@ -936,28 +936,38 @@ export function MyQueue({ actingId }: MyQueueProps) {
           ) : (
             items.map((authorization) => {
               const relayStage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
+              const hasBadges =
+                isContributionStage(relayStage) || authorization.awaitingCorrection || authorization.isReReview;
               return (
-                <li key={authorization.id} data-testid="queue-row">
-                  <span>{authorization.project}</span>
-                  {isContributionStage(relayStage) && (
-                    <span data-testid="claim-status">
-                      {authorization.performingContributorId === null ? "Unclaimed" : "Claimed"}
-                    </span>
+                <li key={authorization.id} className="card queue-card" data-testid="queue-row">
+                  <div className="card-header">
+                    <span className="card-title">{authorization.project}</span>
+                    <button type="button" onClick={() => setOpenId(authorization.id)}>
+                      Open
+                    </button>
+                  </div>
+                  {hasBadges && (
+                    <div className="card-badges">
+                      {isContributionStage(relayStage) && (
+                        <span className="badge" data-testid="claim-status">
+                          {authorization.performingContributorId === null ? "Unclaimed" : "Claimed"}
+                        </span>
+                      )}
+                      {authorization.awaitingCorrection && (
+                        <span className="badge badge-attention" data-testid="awaiting-correction">
+                          Awaiting your correction
+                        </span>
+                      )}
+                      {authorization.isReReview && (
+                        <span className="badge" data-testid="re-review">
+                          Re-review
+                          {authorization.reReviewCause === "configuration-change"
+                            ? " (the rules changed)"
+                            : " (a correction changed this)"}
+                        </span>
+                      )}
+                    </div>
                   )}
-                  {authorization.awaitingCorrection && (
-                    <span data-testid="awaiting-correction">Awaiting your correction</span>
-                  )}
-                  {authorization.isReReview && (
-                    <span data-testid="re-review">
-                      Re-review
-                      {authorization.reReviewCause === "configuration-change"
-                        ? " (the rules changed)"
-                        : " (a correction changed this)"}
-                    </span>
-                  )}
-                  <button type="button" onClick={() => setOpenId(authorization.id)}>
-                    Open
-                  </button>
                 </li>
               );
             })

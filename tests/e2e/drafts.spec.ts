@@ -17,7 +17,7 @@ async function newDraft(page: Page): Promise<void> {
   await page.goto("/");
   // `system` cannot submit a draft (it owns no work); a draft needs a real
   // accountable submitter, so acting as one is the first step every time.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await page.getByTestId("new-draft").click();
   await expect(page.getByTestId("draft-form")).toBeVisible();
 }
@@ -29,13 +29,13 @@ test("a draft is created, saved with its fields, and reopened with the same valu
   await page.getByLabel("Project").fill(project);
 
   const requesting = page.getByTestId("draft-requesting-department");
-  await requesting.getByLabel("Search by name").fill("Rotor Hubs");
-  await requesting.getByRole("button", { name: "Rotor Hubs", exact: true }).click();
+  await requesting.getByLabel("Search by name").fill("Landing Gear Systems");
+  await requesting.getByRole("button", { name: "Landing Gear Systems", exact: true }).click();
   await expect(requesting.getByTestId("draft-requesting-department-selected")).toBeVisible();
 
   const performing = page.getByTestId("draft-performing-department");
-  await performing.getByLabel("Search by name").fill("Thermal Coatings");
-  await performing.getByRole("button", { name: "Thermal Coatings", exact: true }).click();
+  await performing.getByLabel("Search by name").fill("Flight Controls Software");
+  await performing.getByRole("button", { name: "Flight Controls Software", exact: true }).click();
   await expect(performing.getByTestId("draft-performing-department-selected")).toBeVisible();
 
   await page.getByLabel("Funding type").selectOption("company-funded");
@@ -63,14 +63,16 @@ test("a draft is created, saved with its fields, and reopened with the same valu
   // per-request rather than persisted, so acting as the same submitter has
   // to be redone after a reload too.
   await page.reload();
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await draftRow(page, project).getByRole("button", { name: "Open" }).click();
   await expect(page.getByTestId("draft-form")).toBeVisible();
 
   await expect(page.getByLabel("Project")).toHaveValue(project);
-  await expect(requesting.getByTestId("draft-requesting-department-selected")).toContainText("Rotor Hubs");
+  await expect(requesting.getByTestId("draft-requesting-department-selected")).toContainText(
+    "Landing Gear Systems",
+  );
   await expect(performing.getByTestId("draft-performing-department-selected")).toContainText(
-    "Thermal Coatings",
+    "Flight Controls Software",
   );
   await expect(page.getByLabel("Funding type")).toHaveValue("company-funded");
   await expect(page.getByLabel("Requesting location type")).toHaveValue("domestic");
@@ -97,8 +99,8 @@ test("the requesting and performing department may not be the same", async ({ pa
 
   for (const testId of ["draft-requesting-department", "draft-performing-department"]) {
     const picker = page.getByTestId(testId);
-    await picker.getByLabel("Search by name").fill("Rotor Hubs");
-    await picker.getByRole("button", { name: "Rotor Hubs", exact: true }).click();
+    await picker.getByLabel("Search by name").fill("Rotor Assemblies");
+    await picker.getByRole("button", { name: "Rotor Assemblies", exact: true }).click();
   }
 
   await page.getByRole("button", { name: "Save" }).click();
@@ -123,6 +125,6 @@ test("a submitter deletes their own draft, and it disappears from the list", asy
   // which never had it) confirms it is gone from the store, not just from
   // this page's in-memory state.
   await page.reload();
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await expect(draftRow(page, project)).toHaveCount(0);
 });

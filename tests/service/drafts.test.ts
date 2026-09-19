@@ -27,9 +27,14 @@ describe("drafts", () => {
     submitter = people[0]!.id;
     otherPerson = people[1]!.id;
 
-    const departments = service.searchDepartments({ participantId: "system" });
-    requestingDeptId = departments[0]!.id;
-    performingDeptId = departments[1]!.id;
+    // Both domestic, so an unrelated test never trips the one seeded
+    // permissibility rule (a foreign department may not perform work for a
+    // domestic one) by accident.
+    const domestic = service
+      .searchDepartments({ participantId: "system" })
+      .filter((d) => d.attributes.some((a) => a.name === "jurisdiction" && a.value === "domestic"));
+    requestingDeptId = domestic[0]!.id;
+    performingDeptId = domestic[1]!.id;
   });
   after(() => {
     service.close();

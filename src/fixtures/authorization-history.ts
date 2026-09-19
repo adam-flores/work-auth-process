@@ -15,6 +15,17 @@ import type { FundingType, LocationType } from "../shared/constants.ts";
  * (`scripts/reset-store.ts`), the same way a demo operator prepares a
  * walkthrough - "generated at fixture time" without redefining what a plain
  * reset means for everything else that depends on it.
+ *
+ * Every scenario below routes through the same one requesting/performing
+ * department pairing (#92): the demo catalog seeds exactly one Approver per
+ * side and one Contributor, so that pairing - Rotor Assemblies requesting,
+ * Flight Controls Software performing - is the only one anybody in the
+ * roster can carry all the way to completion. The variety across scenarios
+ * is in what happens along the way (a referral, a correction and re-review,
+ * a hold, a revocation), not in which departments are named. Every scenario
+ * is also company-funded with matching location types, so neither gate ever
+ * fires - the roster seeds no Approver for Contracts or Global Trade
+ * (`config/participants.json`).
  */
 
 type Actor = { participantId: string };
@@ -24,12 +35,13 @@ const SYSTEM: Actor = { participantId: "system" };
 /**
  * Every authorization here is submitted by the same person - an
  * Administrator who, per CONTEXT.md, is mocked like everyone else and is
- * free to also need work from another department. One submitter, never a
- * department this fixture also routes an authorization through, is what
- * keeps every seeded authorization's submitter distinct from anyone who acts
- * on it - nobody here approves their own request.
+ * free to also need work from another department. Their own seeded
+ * department (Sensor Integration) is never used as a requesting or
+ * performing department below, which is what keeps every seeded
+ * authorization's submitter distinct from anyone who acts on it - nobody
+ * here approves their own request.
  */
-const SUBMITTER_NAME = "Erez Caldwell";
+const SUBMITTER_NAME = "Teo Brandt";
 
 function department(service: Service, name: string): string {
   const found = service
@@ -125,79 +137,78 @@ function initiate(service: Service, submitter: Actor, clock: Clock, fields: NewA
   return service.initiateDraft(submitter, draft.id, clock.step(0, 3));
 }
 
-/** A full happy path where both gates skip themselves (company funded, both
- *  sides domestic) - the shortest complete story the relay tells. */
-function seedHappyPathBothGatesSkip(service: Service, submitter: Actor): void {
+/** A full happy path, start to finish - the shortest complete story the
+ *  relay tells, and the one #92's demo script is built around. */
+function seedHappyPath(service: Service, submitter: Actor): void {
   const clock = new Clock(daysAgo(165), 1);
   const auth = initiate(service, submitter, clock, {
     project: "Heat Shield Bracket Retrofit",
-    requestingDepartment: "Thermal Cycling Lab",
-    performingDepartment: "Heat Exchange Products",
+    requestingDepartment: "Rotor Assemblies",
+    performingDepartment: "Flight Controls Software",
     fundingType: "company-funded",
     requestingLocationType: "domestic",
     performingLocationType: "domestic",
-    requestingProgramManager: "Jun Abernathy",
-    requestingFinanceApprover: "Jun Abernathy",
-    performingProgramManager: "Cate Marchetti",
-    performingFinanceApprover: "Hugo Strand",
+    requestingProgramManager: "Priya Anand",
+    requestingFinanceApprover: "Priya Anand",
+    performingProgramManager: "Marcus Oduya",
+    performingFinanceApprover: "Marcus Oduya",
     budgetHours: 120,
     laborRate: 85,
   });
 
-  const jun = participant(service, "Jun Abernathy");
-  service.acknowledge(jun, auth.id, clock.step(4, 30)); // requesting-program-manager
-  service.acknowledge(jun, auth.id, clock.step(4, 30)); // requesting-finance
+  const priya = participant(service, "Priya Anand");
+  service.acknowledge(priya, auth.id, clock.step(4, 30)); // requesting-program-manager
+  service.acknowledge(priya, auth.id, clock.step(4, 30)); // requesting-finance
 
-  const avery = participant(service, "Avery Lund");
-  service.claim(avery, auth.id, clock.step(3, 20));
-  service.contribute(avery, auth.id, { performingEmployee: "Priya Solanki", ...clock.step(4, 36) });
+  const jordan = participant(service, "Jordan Hale");
+  service.claim(jordan, auth.id, clock.step(3, 20));
+  service.contribute(jordan, auth.id, { performingEmployee: "Priya Solanki", ...clock.step(4, 36) });
 
-  service.acknowledge(participant(service, "Cate Marchetti"), auth.id, clock.step(4, 30));
-  service.acknowledge(participant(service, "Hugo Strand"), auth.id, clock.step(4, 30));
+  const marcus = participant(service, "Marcus Oduya");
+  service.acknowledge(marcus, auth.id, clock.step(4, 30)); // performing-program-manager
+  service.acknowledge(marcus, auth.id, clock.step(4, 30)); // performing-finance
 
-  service.mintChargeNumber(participant(service, "Sadie Okonkwo"), auth.id, {
+  service.mintChargeNumber(participant(service, "Elin Vasquez"), auth.id, {
     chargeNumber: "CN-10234",
     ...clock.step(6, 48),
   });
 }
 
-/** A full happy path where both gates actually run (a customer contract, and
- *  a requesting/performing location mismatch), with a referral along the
- *  way to a colleague outside the routing (BDR-0011). */
-function seedHappyPathBothGatesRunWithReferral(service: Service, submitter: Actor): void {
+/** A full happy path with a referral along the way (BDR-0011) - shown to a
+ *  colleague outside the routing, who never has to act for the authorization
+ *  to keep moving. */
+function seedHappyPathWithReferral(service: Service, submitter: Actor): void {
   const clock = new Clock(daysAgo(140), 2);
   const auth = initiate(service, submitter, clock, {
     project: "Turbine Duct Liner Program",
-    requestingDepartment: "Heat Exchange Products",
-    performingDepartment: "Rotor Hubs",
-    fundingType: "commercial-contract",
+    requestingDepartment: "Rotor Assemblies",
+    performingDepartment: "Flight Controls Software",
+    fundingType: "company-funded",
     requestingLocationType: "domestic",
-    performingLocationType: "international",
-    requestingProgramManager: "Cate Marchetti",
-    requestingFinanceApprover: "Hugo Strand",
-    performingProgramManager: "Mira Devane",
-    performingFinanceApprover: "Tomas Eiriksen",
+    performingLocationType: "domestic",
+    requestingProgramManager: "Priya Anand",
+    requestingFinanceApprover: "Priya Anand",
+    performingProgramManager: "Marcus Oduya",
+    performingFinanceApprover: "Marcus Oduya",
     performingContact: "Devon Okafor",
     budgetHours: 260,
     laborRate: 95,
   });
 
-  service.acknowledge(participant(service, "Cate Marchetti"), auth.id, clock.step(6, 30));
-  service.acknowledge(participant(service, "Hugo Strand"), auth.id, clock.step(6, 30));
+  const priya = participant(service, "Priya Anand");
+  service.acknowledge(priya, auth.id, clock.step(6, 30));
+  service.acknowledge(priya, auth.id, clock.step(6, 30));
 
-  const nils = participant(service, "Nils Oyelaran");
-  service.claim(nils, auth.id, clock.step(4, 24));
-  service.contribute(nils, auth.id, { performingEmployee: "Devon Okafor", ...clock.step(4, 36) });
+  const jordan = participant(service, "Jordan Hale");
+  service.claim(jordan, auth.id, clock.step(4, 24));
+  service.contribute(jordan, auth.id, { performingEmployee: "Devon Okafor", ...clock.step(4, 36) });
 
-  const mira = participant(service, "Mira Devane");
-  service.refer(mira, auth.id, { colleagueId: participant(service, "Jun Abernathy").participantId, ...clock.step(2, 12) });
-  service.acknowledge(mira, auth.id, clock.step(4, 24));
-  service.acknowledge(participant(service, "Tomas Eiriksen"), auth.id, clock.step(4, 30));
+  const marcus = participant(service, "Marcus Oduya");
+  service.refer(marcus, auth.id, { colleagueId: participant(service, "Elin Vasquez").participantId, ...clock.step(2, 12) });
+  service.acknowledge(marcus, auth.id, clock.step(4, 24));
+  service.acknowledge(marcus, auth.id, clock.step(4, 30));
 
-  service.acknowledge(participant(service, "Farah Quintela"), auth.id, clock.step(6, 40)); // contracts
-  service.acknowledge(participant(service, "Oskar Lindqvist"), auth.id, clock.step(6, 40)); // global-trade
-
-  service.mintChargeNumber(participant(service, "Sadie Okonkwo"), auth.id, {
+  service.mintChargeNumber(participant(service, "Elin Vasquez"), auth.id, {
     chargeNumber: "CN-10391",
     ...clock.step(6, 48),
   });
@@ -211,29 +222,29 @@ function seedCorrectionAndReReview(service: Service, submitter: Actor): void {
   const clock = new Clock(daysAgo(115), 3);
   const auth = initiate(service, submitter, clock, {
     project: "Cabn Bracket Rwork",
-    requestingDepartment: "Rotor Hubs",
-    performingDepartment: "Heat Exchange Products",
-    fundingType: "government-negotiated-contract",
+    requestingDepartment: "Rotor Assemblies",
+    performingDepartment: "Flight Controls Software",
+    fundingType: "company-funded",
     requestingLocationType: "domestic",
     performingLocationType: "domestic",
-    requestingProgramManager: "Mira Devane",
-    requestingFinanceApprover: "Tomas Eiriksen",
-    performingProgramManager: "Cate Marchetti",
-    performingFinanceApprover: "Hugo Strand",
+    requestingProgramManager: "Priya Anand",
+    requestingFinanceApprover: "Priya Anand",
+    performingProgramManager: "Marcus Oduya",
+    performingFinanceApprover: "Marcus Oduya",
     budgetHours: 90,
     laborRate: 78,
   });
 
-  const mira = participant(service, "Mira Devane");
-  service.acknowledge(mira, auth.id, clock.step(6, 30)); // requesting-program-manager
-  service.acknowledge(participant(service, "Tomas Eiriksen"), auth.id, clock.step(6, 30));
+  const priya = participant(service, "Priya Anand");
+  service.acknowledge(priya, auth.id, clock.step(6, 30)); // requesting-program-manager
+  service.acknowledge(priya, auth.id, clock.step(6, 30)); // requesting-finance
 
-  const avery = participant(service, "Avery Lund");
-  service.claim(avery, auth.id, clock.step(4, 24));
-  service.contribute(avery, auth.id, { performingEmployee: "Marcus Tejeda", ...clock.step(4, 30) });
+  const jordan = participant(service, "Jordan Hale");
+  service.claim(jordan, auth.id, clock.step(4, 24));
+  service.contribute(jordan, auth.id, { performingEmployee: "Marcus Tejeda", ...clock.step(4, 30) });
 
-  const cate = participant(service, "Cate Marchetti");
-  service.requestCorrection(cate, auth.id, {
+  const marcus = participant(service, "Marcus Oduya");
+  service.requestCorrection(marcus, auth.id, {
     fields: ["project"],
     comment: "Project name looks misspelled - please confirm and correct it.",
     ...clock.step(4, 24),
@@ -243,13 +254,11 @@ function seedCorrectionAndReReview(service: Service, submitter: Actor): void {
   // The correction reached "project," a dependency of requesting-program-manager
   // (already resolved above) as well as of this stage - resolving it here
   // returns the authorization to that earlier stage for re-review first.
-  service.acknowledge(mira, auth.id, clock.step(6, 30)); // requesting-program-manager, re-review
-  service.acknowledge(cate, auth.id, clock.step(6, 30)); // performing-program-manager, fresh arrival
-  service.acknowledge(participant(service, "Hugo Strand"), auth.id, clock.step(6, 30));
+  service.acknowledge(priya, auth.id, clock.step(6, 30)); // requesting-program-manager, re-review
+  service.acknowledge(marcus, auth.id, clock.step(6, 30)); // performing-program-manager, fresh arrival
+  service.acknowledge(marcus, auth.id, clock.step(6, 30)); // performing-finance
 
-  service.acknowledge(participant(service, "Farah Quintela"), auth.id, clock.step(6, 40)); // contracts
-
-  service.mintChargeNumber(participant(service, "Sadie Okonkwo"), auth.id, {
+  service.mintChargeNumber(participant(service, "Elin Vasquez"), auth.id, {
     chargeNumber: "CN-10412",
     ...clock.step(6, 48),
   });
@@ -262,27 +271,28 @@ function seedHoldReleaseWithdrawn(service: Service, submitter: Actor): void {
   const clock = new Clock(daysAgo(90), 4);
   const auth = initiate(service, submitter, clock, {
     project: "Compressor Housing Line Support",
-    requestingDepartment: "Heat Exchange Products",
-    performingDepartment: "Rotor Hubs",
+    requestingDepartment: "Rotor Assemblies",
+    performingDepartment: "Flight Controls Software",
     fundingType: "company-funded",
     requestingLocationType: "domestic",
     performingLocationType: "domestic",
-    requestingProgramManager: "Cate Marchetti",
-    requestingFinanceApprover: "Hugo Strand",
-    performingProgramManager: "Tomas Eiriksen",
-    performingFinanceApprover: "Mira Devane",
+    requestingProgramManager: "Priya Anand",
+    requestingFinanceApprover: "Priya Anand",
+    performingProgramManager: "Marcus Oduya",
+    performingFinanceApprover: "Marcus Oduya",
     budgetHours: 60,
     laborRate: 72,
   });
 
-  service.acknowledge(participant(service, "Cate Marchetti"), auth.id, clock.step(6, 30));
+  const priya = participant(service, "Priya Anand");
+  service.acknowledge(priya, auth.id, clock.step(6, 30));
   service.hold(submitter, auth.id, clock.step(2, 12));
   service.release(submitter, auth.id, clock.step(48, 96));
-  service.acknowledge(participant(service, "Hugo Strand"), auth.id, clock.step(6, 30));
+  service.acknowledge(priya, auth.id, clock.step(6, 30));
 
-  const nils = participant(service, "Nils Oyelaran");
-  service.claim(nils, auth.id, clock.step(4, 24));
-  service.contribute(nils, auth.id, { performingEmployee: "Ines Marchetti", ...clock.step(4, 30) });
+  const jordan = participant(service, "Jordan Hale");
+  service.claim(jordan, auth.id, clock.step(4, 24));
+  service.contribute(jordan, auth.id, { performingEmployee: "Ines Marchetti", ...clock.step(4, 30) });
 
   service.withdraw(submitter, auth.id, clock.step(24, 72));
 }
@@ -290,27 +300,27 @@ function seedHoldReleaseWithdrawn(service: Service, submitter: Actor): void {
 /**
  * Two authorizations revoked by the same hierarchy change (BDR-0010's
  * fan-out), both naming the one seeded department with no Approver of its
- * own (`config/participants.json`'s "Thermal Coatings") - they can never
- * reach anyone's queue regardless, which is what makes it the one department
- * this fixture can close without touching anything a live demo still needs.
- * `setHierarchyNodeInactive` supplies its own timestamp rather than taking
- * one (`service/index.ts`), so this happens at whatever "now" the generator
- * actually runs at - a recent administrative act against months-old work,
- * which is the more plausible story anyway.
+ * own (`config/participants.json` seeds nobody at "Heat Shielding") - they
+ * can never reach anyone's queue regardless, which is what makes it the one
+ * department this fixture can close without touching anything a live demo
+ * still needs. `setHierarchyNodeInactive` supplies its own timestamp rather
+ * than taking one (`service/index.ts`), so this happens at whatever "now"
+ * the generator actually runs at - a recent administrative act against
+ * months-old work, which is the more plausible story anyway.
  */
 function seedRevokedByHierarchyChange(service: Service, submitter: Actor): void {
   const clockA = new Clock(daysAgo(60), 5);
   initiate(service, submitter, clockA, {
     project: "Coating Line Requalification",
-    requestingDepartment: "Thermal Coatings",
-    performingDepartment: "Heat Exchange Products",
+    requestingDepartment: "Heat Shielding",
+    performingDepartment: "Flight Controls Software",
     fundingType: "company-funded",
     requestingLocationType: "domestic",
     performingLocationType: "domestic",
-    requestingProgramManager: "Rosa Imbert",
-    requestingFinanceApprover: "Rosa Imbert",
-    performingProgramManager: "Cate Marchetti",
-    performingFinanceApprover: "Hugo Strand",
+    requestingProgramManager: "Dana Osei",
+    requestingFinanceApprover: "Dana Osei",
+    performingProgramManager: "Marcus Oduya",
+    performingFinanceApprover: "Marcus Oduya",
     budgetHours: 40,
     laborRate: 66,
   });
@@ -318,20 +328,20 @@ function seedRevokedByHierarchyChange(service: Service, submitter: Actor): void 
   const clockB = new Clock(daysAgo(58), 6);
   initiate(service, submitter, clockB, {
     project: "Coating Supplier Requalification",
-    requestingDepartment: "Thermal Coatings",
-    performingDepartment: "Rotor Hubs",
+    requestingDepartment: "Heat Shielding",
+    performingDepartment: "Flight Controls Software",
     fundingType: "company-funded",
     requestingLocationType: "domestic",
     performingLocationType: "domestic",
-    requestingProgramManager: "Rosa Imbert",
-    requestingFinanceApprover: "Rosa Imbert",
-    performingProgramManager: "Mira Devane",
-    performingFinanceApprover: "Tomas Eiriksen",
+    requestingProgramManager: "Dana Osei",
+    requestingFinanceApprover: "Dana Osei",
+    performingProgramManager: "Marcus Oduya",
+    performingFinanceApprover: "Marcus Oduya",
     budgetHours: 35,
     laborRate: 66,
   });
 
-  service.setHierarchyNodeInactive(submitter, "department", department(service, "Thermal Coatings"));
+  service.setHierarchyNodeInactive(submitter, "department", department(service, "Heat Shielding"));
 }
 
 /** Left on hold, open - a "click me" so a live walkthrough has something to
@@ -340,20 +350,20 @@ function seedOpenOnHold(service: Service, submitter: Actor): void {
   const clock = new Clock(daysAgo(20), 7);
   const auth = initiate(service, submitter, clock, {
     project: "Rotor Balance Fixture Loan",
-    requestingDepartment: "Rotor Hubs",
-    performingDepartment: "Heat Exchange Products",
-    fundingType: "government-commercial-item-contract",
+    requestingDepartment: "Rotor Assemblies",
+    performingDepartment: "Flight Controls Software",
+    fundingType: "company-funded",
     requestingLocationType: "domestic",
     performingLocationType: "domestic",
-    requestingProgramManager: "Mira Devane",
-    requestingFinanceApprover: "Tomas Eiriksen",
-    performingProgramManager: "Cate Marchetti",
-    performingFinanceApprover: "Hugo Strand",
+    requestingProgramManager: "Priya Anand",
+    requestingFinanceApprover: "Priya Anand",
+    performingProgramManager: "Marcus Oduya",
+    performingFinanceApprover: "Marcus Oduya",
     budgetHours: 50,
     laborRate: 80,
   });
 
-  service.acknowledge(participant(service, "Mira Devane"), auth.id, clock.step(6, 30));
+  service.acknowledge(participant(service, "Priya Anand"), auth.id, clock.step(6, 30));
   service.hold(submitter, auth.id, clock.step(4, 24));
 }
 
@@ -363,27 +373,28 @@ function seedOpenAwaitingCorrection(service: Service, submitter: Actor): void {
   const clock = new Clock(daysAgo(10), 8);
   const auth = initiate(service, submitter, clock, {
     project: "Duct Seal Kit Update",
-    requestingDepartment: "Heat Exchange Products",
-    performingDepartment: "Rotor Hubs",
-    fundingType: "commercial-contract",
+    requestingDepartment: "Rotor Assemblies",
+    performingDepartment: "Flight Controls Software",
+    fundingType: "company-funded",
     requestingLocationType: "domestic",
     performingLocationType: "domestic",
-    requestingProgramManager: "Cate Marchetti",
-    requestingFinanceApprover: "Hugo Strand",
-    performingProgramManager: "Mira Devane",
-    performingFinanceApprover: "Tomas Eiriksen",
+    requestingProgramManager: "Priya Anand",
+    requestingFinanceApprover: "Priya Anand",
+    performingProgramManager: "Marcus Oduya",
+    performingFinanceApprover: "Marcus Oduya",
     budgetHours: 70,
     laborRate: 74,
   });
 
-  service.acknowledge(participant(service, "Cate Marchetti"), auth.id, clock.step(6, 30));
-  service.acknowledge(participant(service, "Hugo Strand"), auth.id, clock.step(6, 30));
+  const priya = participant(service, "Priya Anand");
+  service.acknowledge(priya, auth.id, clock.step(6, 30));
+  service.acknowledge(priya, auth.id, clock.step(6, 30));
 
-  const lena = participant(service, "Lena Birch");
-  service.claim(lena, auth.id, clock.step(4, 24));
-  service.contribute(lena, auth.id, { performingEmployee: "Tariq Byrne", ...clock.step(4, 30) });
+  const jordan = participant(service, "Jordan Hale");
+  service.claim(jordan, auth.id, clock.step(4, 24));
+  service.contribute(jordan, auth.id, { performingEmployee: "Tariq Byrne", ...clock.step(4, 30) });
 
-  service.requestCorrection(participant(service, "Mira Devane"), auth.id, {
+  service.requestCorrection(participant(service, "Marcus Oduya"), auth.id, {
     fields: ["resources"],
     comment: "Budget hours look understated for the scope described - please revise.",
     ...clock.step(6, 30),
@@ -395,15 +406,15 @@ function seedFreshlyInitiated(service: Service, submitter: Actor): void {
   const clock = new Clock(daysAgo(2), 9);
   initiate(service, submitter, clock, {
     project: "Hub Assembly Line Extension",
-    requestingDepartment: "Thermal Cycling Lab",
-    performingDepartment: "Rotor Hubs",
-    fundingType: "government-negotiated-contract",
+    requestingDepartment: "Rotor Assemblies",
+    performingDepartment: "Flight Controls Software",
+    fundingType: "company-funded",
     requestingLocationType: "domestic",
-    performingLocationType: "international",
-    requestingProgramManager: "Jun Abernathy",
-    requestingFinanceApprover: "Jun Abernathy",
-    performingProgramManager: "Mira Devane",
-    performingFinanceApprover: "Tomas Eiriksen",
+    performingLocationType: "domestic",
+    requestingProgramManager: "Priya Anand",
+    requestingFinanceApprover: "Priya Anand",
+    performingProgramManager: "Marcus Oduya",
+    performingFinanceApprover: "Marcus Oduya",
     budgetHours: 150,
     laborRate: 90,
   });
@@ -419,8 +430,8 @@ function seedFreshlyInitiated(service: Service, submitter: Actor): void {
 export function seedAuthorizationHistory(service: Service): void {
   const submitter = participant(service, SUBMITTER_NAME);
 
-  seedHappyPathBothGatesSkip(service, submitter);
-  seedHappyPathBothGatesRunWithReferral(service, submitter);
+  seedHappyPath(service, submitter);
+  seedHappyPathWithReferral(service, submitter);
   seedCorrectionAndReReview(service, submitter);
   seedHoldReleaseWithdrawn(service, submitter);
   seedRevokedByHierarchyChange(service, submitter);

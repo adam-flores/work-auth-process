@@ -2,7 +2,7 @@ import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createService } from "../../src/service/index.ts";
 import { DomainError } from "../../src/service/errors.ts";
-import { withTempStore } from "../helpers/temp-store.ts";
+import { withTempStore, addTestParticipant } from "../helpers/temp-store.ts";
 
 /**
  * Correction request and correction in place (#59, BDR-0005): an Approver
@@ -18,11 +18,14 @@ import { withTempStore } from "../helpers/temp-store.ts";
  * value for every field the request named, and no others; the moment it is
  * appended, the same approver resumes exactly where they left it.
  *
- * The seeded roster and fixture departments are the same ones
- * `queues.test.ts` and `performing-claim.test.ts` already use: two
- * Approvers at "Heat Exchange Products" (requesting) and "Rotor Hubs"
- * (performing), two Contributors at "Rotor Hubs", one Contributor at
- * "Thermal Coatings" (a different department entirely).
+ * The fixture departments are the same ones `queues.test.ts` and
+ * `performing-claim.test.ts` already use: "Rotor Assemblies" (requesting)
+ * and "Flight Controls Software" (performing). The demo roster (#92) seeds
+ * only one Approver at the requesting department and one Contributor at the
+ * performing department, so a second requesting-side Approver, a second
+ * Contributor at the performing department, and a Contributor at a third,
+ * unrelated department ("Sensor Integration") are all added directly to
+ * this test's own store (`addTestParticipant`).
  */
 
 describe("correction request and correction in place", () => {
@@ -42,19 +45,37 @@ describe("correction request and correction in place", () => {
   before(() => {
     store = withTempStore();
     service = createService({ storePath: store.path });
+    addTestParticipant(store.path, {
+      id: "p-test-second-requesting-approver",
+      name: "Test Second Requesting Approver",
+      role: "Approver",
+      department: "Rotor Assemblies",
+    });
+    addTestParticipant(store.path, {
+      id: "p-test-another-contributor",
+      name: "Test Another Contributor",
+      role: "Contributor",
+      department: "Flight Controls Software",
+    });
+    addTestParticipant(store.path, {
+      id: "p-test-other-dept-contributor",
+      name: "Test Other-Department Contributor",
+      role: "Contributor",
+      department: "Sensor Integration",
+    });
 
     const people = service.listParticipants({ participantId: "system" });
-    submitter = people.find((p) => p.id === "p-avery-lund")!.id;
-    requestingApproverA = people.find((p) => p.id === "p-cate-marchetti")!.id;
-    requestingApproverB = people.find((p) => p.id === "p-hugo-strand")!.id;
-    performingApproverA = people.find((p) => p.id === "p-mira-devane")!.id;
-    contributorAtPerformingDept = people.find((p) => p.id === "p-nils-oyelaran")!.id;
-    anotherContributorAtPerformingDept = people.find((p) => p.id === "p-lena-birch")!.id;
-    contributorAtOtherDept = people.find((p) => p.id === "p-rosa-imbert")!.id;
+    submitter = people.find((p) => p.id === "p-teo-brandt")!.id;
+    requestingApproverA = people.find((p) => p.id === "p-priya-anand")!.id;
+    requestingApproverB = people.find((p) => p.id === "p-test-second-requesting-approver")!.id;
+    performingApproverA = people.find((p) => p.id === "p-marcus-oduya")!.id;
+    contributorAtPerformingDept = people.find((p) => p.id === "p-jordan-hale")!.id;
+    anotherContributorAtPerformingDept = people.find((p) => p.id === "p-test-another-contributor")!.id;
+    contributorAtOtherDept = people.find((p) => p.id === "p-test-other-dept-contributor")!.id;
 
     const departments = service.searchDepartments({ participantId: "system" });
-    requestingDeptId = departments.find((d) => d.name === "Heat Exchange Products")!.id;
-    performingDeptId = departments.find((d) => d.name === "Rotor Hubs")!.id;
+    requestingDeptId = departments.find((d) => d.name === "Rotor Assemblies")!.id;
+    performingDeptId = departments.find((d) => d.name === "Flight Controls Software")!.id;
 
     const domestic = service.searchDepartments(
       { participantId: "system" },

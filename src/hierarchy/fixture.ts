@@ -4,15 +4,19 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
- * The shape of `docs/reference/organization-hierarchy.json`, as it actually is
- * rather than as it ought to be.
+ * The shape a hierarchy fixture must have to seed the store, general enough to
+ * cover both fixtures this repository has used.
  *
- * The fixture's three legal entities differ in **shape**, not only in values:
- * CSG and STD departments carry `costAccountingCode`, `costCentres`, `heritage`
- * and `disclosureStatement`, while CAL departments carry a single conflated
- * `code` and none of the rest. CAL divisions carry only a name. That is faithful
- * to the source — three charts sharing no layout and no code scheme — so the
- * parser accepts all three and the transformation is what reconciles them.
+ * `docs/reference/organization-hierarchy.json` — the transcribed 58-department
+ * fixture ADR-0012 was written against — is the demanding case: its three
+ * legal entities differ in **shape**, not only in values (CAL departments
+ * carry a single conflated `code` and none of the cost-accounting fields the
+ * other two spell out, and CAL divisions carry only a name), which is why
+ * every field below but `legalName` is optional. `docs/reference/demo-hierarchy.json`
+ * — what actually seeds the store since #92 — is the simple case: freshly
+ * authored, not transcribed, and uses only `foreign` and `icons`/`footnotes`.
+ * See ADR-0013 for why the seed changed and ADR-0012 for why the schema is
+ * shaped the way it is.
  *
  * Unlisted keys are dropped by parsing, which is deliberate: the fields that
  * carry an encoding rather than a value (`fill`, `textColour`, the source's
@@ -68,8 +72,13 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
  * The fixture is read from `docs/` rather than copied into `config/`, so there
  * is one artifact and no second copy to drift from it — the same reasoning
  * ADR-0011 applies to the relay configuration.
+ *
+ * Points at the small demo catalog (ADR-0013), not the original 58-department
+ * `organization-hierarchy.json` — that file stays in the repository as the
+ * historical record ADR-0012 describes, but it is no longer what seeds a
+ * running store.
  */
-export const FIXTURE_PATH = resolve(repoRoot, "docs/reference/organization-hierarchy.json");
+export const FIXTURE_PATH = resolve(repoRoot, "docs/reference/demo-hierarchy.json");
 
 export function readFixture(): Fixture {
   return Fixture.parse(JSON.parse(readFileSync(FIXTURE_PATH, "utf8")) as unknown);

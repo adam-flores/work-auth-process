@@ -1,7 +1,7 @@
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createService } from "../../src/service/index.ts";
-import { withTempStore } from "../helpers/temp-store.ts";
+import { withTempStore, addTestParticipant } from "../helpers/temp-store.ts";
 
 /**
  * The insights dashboard's measures (#66, BDR-0006, ADR-0006): M1-M3 and the
@@ -12,12 +12,15 @@ import { withTempStore } from "../helpers/temp-store.ts";
  * `occurredAt` timestamps, an hour apart from a fixed base instant, so the
  * expected figures are exact rather than merely plausible.
  *
- * The seeded roster and fixture departments are the same ones
- * `correction.test.ts` and `re-review.test.ts` already use: two Approvers at
- * "Heat Exchange Products" (requesting) and one at "Rotor Hubs" (performing),
- * who - like those suites - stands in for both performing-side approval
- * stages, since a stage routes to a role at a department rather than to a
- * named person (BDR-0013).
+ * The fixture departments are the same ones `correction.test.ts` and
+ * `re-review.test.ts` already use: "Rotor Assemblies" (requesting) and
+ * "Flight Controls Software" (performing). The demo roster (#92) seeds only
+ * one Approver at the requesting department, but this suite's authorization
+ * 4 refers from one requesting-side Approver to another - a real second
+ * requesting Approver is added directly to this test's own store
+ * (`addTestParticipant`), the same pattern `correction.test.ts` and
+ * `queues.test.ts` use, since a self-referral is refused (`referral.test.ts`)
+ * and the seeded roster has no second holder to refer to.
  */
 
 const SYSTEM = { participantId: "system" };
@@ -42,17 +45,23 @@ describe("the insights dashboard's measures", () => {
   before(() => {
     store = withTempStore();
     service = createService({ storePath: store.path });
+    addTestParticipant(store.path, {
+      id: "p-test-second-requesting-approver",
+      name: "Test Second Requesting Approver",
+      role: "Approver",
+      department: "Rotor Assemblies",
+    });
 
     const people = service.listParticipants(SYSTEM);
-    submitter = people.find((p) => p.id === "p-avery-lund")!.id;
-    requestingApproverA = people.find((p) => p.id === "p-cate-marchetti")!.id;
-    requestingApproverB = people.find((p) => p.id === "p-hugo-strand")!.id;
-    performingApproverA = people.find((p) => p.id === "p-mira-devane")!.id;
-    contributorAtPerformingDept = people.find((p) => p.id === "p-nils-oyelaran")!.id;
+    submitter = people.find((p) => p.id === "p-teo-brandt")!.id;
+    requestingApproverA = people.find((p) => p.id === "p-priya-anand")!.id;
+    requestingApproverB = people.find((p) => p.id === "p-test-second-requesting-approver")!.id;
+    performingApproverA = people.find((p) => p.id === "p-marcus-oduya")!.id;
+    contributorAtPerformingDept = people.find((p) => p.id === "p-jordan-hale")!.id;
 
     const departments = service.searchDepartments(SYSTEM);
-    requestingDeptId = departments.find((d) => d.name === "Heat Exchange Products")!.id;
-    performingDeptId = departments.find((d) => d.name === "Rotor Hubs")!.id;
+    requestingDeptId = departments.find((d) => d.name === "Rotor Assemblies")!.id;
+    performingDeptId = departments.find((d) => d.name === "Flight Controls Software")!.id;
 
     function initiateAuthorization(project: string) {
       const draft = service.createDraft(
@@ -88,7 +97,7 @@ describe("the insights dashboard's measures", () => {
     );
     service.acknowledge({ participantId: performingApproverA }, auth1.id, at(4));
     service.acknowledge({ participantId: performingApproverA }, auth1.id, at(5));
-    service.mintChargeNumber({ participantId: "p-sadie-okonkwo" }, auth1.id, { chargeNumber: "CN-1", ...at(8) });
+    service.mintChargeNumber({ participantId: "p-elin-vasquez" }, auth1.id, { chargeNumber: "CN-1", ...at(8) });
 
     // Authorization 2: a correction that intersects nothing beyond its own
     // stage (`performing-finance` depends only on `resources`), plus a hold
@@ -117,7 +126,7 @@ describe("the insights dashboard's measures", () => {
     service.hold({ participantId: submitter }, auth2.id, at(6.2));
     service.release({ participantId: submitter }, auth2.id, at(7));
     service.acknowledge({ participantId: performingApproverA }, auth2.id, at(8));
-    service.mintChargeNumber({ participantId: "p-sadie-okonkwo" }, auth2.id, { chargeNumber: "CN-2", ...at(11) });
+    service.mintChargeNumber({ participantId: "p-elin-vasquez" }, auth2.id, { chargeNumber: "CN-2", ...at(11) });
 
     // Authorization 3: a correction raised at performing-program-manager
     // naming "project," which is also requesting-program-manager's own
@@ -146,7 +155,7 @@ describe("the insights dashboard's measures", () => {
     service.acknowledge({ participantId: requestingApproverA }, auth3.id, at(6)); // requesting-program-manager, re-review
     service.acknowledge({ participantId: performingApproverA }, auth3.id, at(7)); // performing-program-manager, fresh arrival
     service.acknowledge({ participantId: performingApproverA }, auth3.id, at(8));
-    service.mintChargeNumber({ participantId: "p-sadie-okonkwo" }, auth3.id, { chargeNumber: "CN-3", ...at(10) });
+    service.mintChargeNumber({ participantId: "p-elin-vasquez" }, auth3.id, { chargeNumber: "CN-3", ...at(10) });
 
     // Authorization 4: withdrawn before completion, with a referral along
     // the way - never counted anywhere (BDR-0011), and never completed, so

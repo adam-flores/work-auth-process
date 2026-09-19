@@ -1,6 +1,17 @@
 # The store holds a decoded hierarchy, not a transcribed one
 
-**Status:** accepted
+**Status:** accepted, superseded in part
+**Superseded in part by:** [ADR-0013](0013-the-demo-catalog-is-the-seed.md)
+
+> **Read this first.** [ADR-0013](0013-the-demo-catalog-is-the-seed.md) replaced what actually
+> seeds a running store — a small, freshly-authored demo catalog now stands in for
+> `docs/reference/organization-hierarchy.json`. The seeding **mechanism** this record decides
+> (deterministic ids, the attribute/detail split, inactive-for-unclassifiable data) is unaffected
+> and remains the contract for any hierarchy seed, demo catalog included. What no longer holds is
+> the **content** below that is specific to the transcribed 58-department fixture — the cost-centre
+> collision, the two departments sharing disclosure treatments, the CAL-specific transcription
+> traps. That content stays accurate as a record of the fixture, which remains in the repository
+> for exactly that reason (ADR-0013); it is simply no longer what the running store contains.
 
 [ADR-0011](0011-reference-data-in-the-store-configuration-in-the-repo.md) settled that the
 hierarchy lives in the store, seeded from `docs/reference/organization-hierarchy.json`, and that

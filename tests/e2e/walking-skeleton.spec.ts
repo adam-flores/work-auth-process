@@ -27,9 +27,9 @@ test("the switcher chooses who is acting", async ({ page }) => {
   await expect(detail).toContainText("the product itself");
 
   const select = page.getByLabel("Participant", { exact: true });
-  await select.selectOption("p-erez-caldwell");
+  await select.selectOption("p-teo-brandt");
 
-  await expect(detail).toContainText("Erez Caldwell");
+  await expect(detail).toContainText("Teo Brandt");
   await expect(detail).toContainText("Administrator");
 });
 
@@ -82,7 +82,7 @@ test("a request that names nobody is refused rather than treated as the system",
   expect((await unknown.json()).code).toBe("UNKNOWN_PARTICIPANT");
 
   const known = await request.post("/api/store/reset", {
-    headers: { "x-acting-participant": "p-erez-caldwell" },
+    headers: { "x-acting-participant": "p-teo-brandt" },
   });
   expect(known.status()).toBe(200);
 });

@@ -14,19 +14,19 @@ import type { Page } from "@playwright/test";
 
 async function initiateCompleteAuthorization(page: Page, project: string): Promise<void> {
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await page.getByTestId("new-draft").click();
   await expect(page.getByTestId("draft-form")).toBeVisible();
 
   await page.getByLabel("Project").fill(project);
 
   const requesting = page.getByTestId("draft-requesting-department");
-  await requesting.getByLabel("Search by name").fill("Heat Exchange Products");
-  await requesting.getByRole("button", { name: "Heat Exchange Products", exact: true }).click();
+  await requesting.getByLabel("Search by name").fill("Rotor Assemblies");
+  await requesting.getByRole("button", { name: "Rotor Assemblies", exact: true }).click();
 
   const performing = page.getByTestId("draft-performing-department");
-  await performing.getByLabel("Search by name").fill("Rotor Hubs");
-  await performing.getByRole("button", { name: "Rotor Hubs", exact: true }).click();
+  await performing.getByLabel("Search by name").fill("Flight Controls Software");
+  await performing.getByRole("button", { name: "Flight Controls Software", exact: true }).click();
 
   await page.getByLabel("Funding type").selectOption("company-funded");
   await page.getByLabel("Requesting location type").selectOption("domestic");
@@ -61,7 +61,7 @@ test("the whole mandatory relay is walkable end to end", async ({ page }) => {
 
   // Requesting program manager, then requesting finance - both route to the
   // same department, so the same Approver acts on each in turn.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-priya-anand");
   await page.getByRole("tab", { name: "My Queue" }).click();
   await acknowledgeAsCurrentParticipant(page, project);
   await acknowledgeAsCurrentParticipant(page, project);
@@ -73,7 +73,7 @@ test("the whole mandatory relay is walkable end to end", async ({ page }) => {
   ).toHaveCount(0);
 
   // A Contributor in the performing department sees it, unclaimed.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-nils-oyelaran");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-jordan-hale");
   const contributorQueue = page.getByTestId("my-queue");
   const unclaimedRow = contributorQueue.getByTestId("queue-row").filter({ hasText: project });
   await expect(unclaimedRow).toBeVisible();
@@ -104,7 +104,7 @@ test("the whole mandatory relay is walkable end to end", async ({ page }) => {
 
   // Performing program manager, then performing finance - the last two of
   // the four mandatory acknowledgements, at the performing department.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-mira-devane");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-marcus-oduya");
   const approverQueue = page.getByTestId("my-queue");
   const performingRow = approverQueue.getByTestId("queue-row").filter({ hasText: project });
   await expect(performingRow).toBeVisible();

@@ -33,12 +33,12 @@ describe("hierarchy maintenance", () => {
 
     const people = service.listParticipants(SYSTEM);
     administrator = { participantId: people.find((p) => p.role === "Administrator")!.id };
-    submitter = people.find((p) => p.id === "p-avery-lund")!.id;
-    anotherSubmitter = people.find((p) => p.id === "p-rosa-imbert")!.id;
+    submitter = people.find((p) => p.id === "p-marcus-oduya")!.id;
+    anotherSubmitter = people.find((p) => p.id === "p-elin-vasquez")!.id;
     contributor = { participantId: people.find((p) => p.role === "Contributor")!.id };
-    requestingApprover = people.find((p) => p.id === "p-cate-marchetti")!.id;
+    requestingApprover = people.find((p) => p.id === "p-priya-anand")!.id;
 
-    requestingDeptId = service.searchDepartments(SYSTEM, {}).find((d) => d.name === "Heat Exchange Products")!.id;
+    requestingDeptId = service.searchDepartments(SYSTEM, {}).find((d) => d.name === "Rotor Assemblies")!.id;
   });
   after(() => {
     service.close();

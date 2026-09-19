@@ -14,15 +14,19 @@ import { withTempStore } from "../helpers/temp-store.ts";
  * own, by design (BDR-0010 names add and rename as the only edits, not a
  * reactivation), so a reseed is what undoes it for the tests below.
  *
- * The fixture these run against is `docs/reference/organization-hierarchy.json`,
- * which is deliberately awkward. Each irregularity has a test below, because
- * #49 requires them resolved explicitly rather than carried.
+ * The fixture these run against is `docs/reference/demo-hierarchy.json`
+ * (ADR-0013), the small catalog sized for a live demo. `transform()`'s
+ * handling of the original 58-department fixture's irregularities - a shared
+ * cost centre, a conflated code column, near-identical sibling names - has no
+ * equivalent here by design (#92) and is covered instead, directly against
+ * `docs/reference/organization-hierarchy.json`, by
+ * `tests/service/legacy-fixture-transform.test.ts`.
  */
 
 const SYSTEM = { participantId: "system" };
 
-/** The fixture's own counts, from `docs/reference/organization-hierarchy.md`. */
-const FIXTURE = { legalEntities: 3, divisions: 12, departments: 58, foreign: 17 };
+/** The demo catalog's own counts (docs/reference/demo-hierarchy.json). */
+const FIXTURE = { legalEntities: 1, divisions: 2, departments: 5, foreign: 2 };
 
 describe("the seeded hierarchy", () => {
   let store: ReturnType<typeof withTempStore>;
@@ -77,9 +81,9 @@ describe("the seeded hierarchy", () => {
     test("the two levels above a department are derived, never keyed", () => {
       // The point of BDR-0008: the picker resolves a department and the levels
       // above it come with it.
-      const rotorHubs = byName("Rotor Hubs");
-      assert.equal(rotorHubs.division.name, "Rotor Assemblies");
-      assert.match(rotorHubs.legalEntity.name, /Calderis Structures Group/);
+      const rotorAssemblies = byName("Rotor Assemblies");
+      assert.equal(rotorAssemblies.division.name, "Structures");
+      assert.equal(rotorAssemblies.legalEntity.name, "Calderis Aerospace");
     });
 
     test("an unknown department id is refused rather than guessed at", () => {
@@ -90,33 +94,28 @@ describe("the seeded hierarchy", () => {
   });
 
   describe("attributes and inheritance", () => {
-    test("an attribute is held at the level it belongs to", () => {
-      // The same attribute hangs at two different levels in this fixture, which
-      // is what BDR-0008 means by attributes not being tied to a level.
-      const heatExchange = byName("Heat Exchange Products");
-      const homeOffice = heatExchange.attributes.find(
-        (a) => a.name === "home-office-disclosure",
-      );
-      assert.ok(homeOffice, "Heat Exchange Products should carry home-office-disclosure");
-      assert.deepEqual(homeOffice.heldAt, ["division", "department"]);
+    test("a department reads its own attributes plus every attribute above it", () => {
+      // Own (department-level), plus its legal entity's - the full three-level
+      // chain the schema supports, even with only one legal entity in this
+      // catalog.
+      const heatShielding = byName("Heat Shielding");
+      const names = heatShielding.attributes.map((a) => a.name);
+      assert.ok(names.includes("jurisdiction"));
+      assert.ok(names.includes("offshore-shared-service"));
 
-      const rotorHubs = byName("Rotor Hubs");
-      const inherited = rotorHubs.attributes.find((a) => a.name === "home-office-disclosure");
-      assert.ok(inherited, "Rotor Hubs should inherit home-office-disclosure from its division");
-      assert.deepEqual(inherited.heldAt, ["division"]);
+      const affiliation = heatShielding.attributes.find((a) => a.name === "affiliation");
+      assert.ok(affiliation, "every department should inherit the legal entity's affiliation");
+      assert.deepEqual(affiliation.heldAt, ["legal-entity"]);
     });
 
-    test("a department reads its own attributes plus every attribute above it", () => {
-      const deutschland = byName("Calderis Deutschland GmbH");
-      const names = deutschland.attributes.map((a) => a.name);
-
-      // Its own.
-      assert.ok(names.includes("jurisdiction"));
-      assert.ok(names.includes("contracting-exception"));
-      // Its legal entity's.
-      const affiliation = deutschland.attributes.find((a) => a.name === "affiliation");
-      assert.ok(affiliation);
-      assert.deepEqual(affiliation.heldAt, ["legal-entity"]);
+    test("an attribute held at the division is inherited by a department that carries nothing of its own for it", () => {
+      // Flight Controls Software carries no home-office-disclosure of its
+      // own; it is reachable by it only because Avionics, its division,
+      // holds it - the inheritance case ADR-0012's consequences call out.
+      const flightControls = byName("Flight Controls Software");
+      const homeOffice = flightControls.attributes.find((a) => a.name === "home-office-disclosure");
+      assert.ok(homeOffice, "Flight Controls Software should inherit home-office-disclosure from its division");
+      assert.deepEqual(homeOffice.heldAt, ["division"]);
     });
 
     test("no attribute is listed twice, however many levels hold it", () => {
@@ -127,11 +126,13 @@ describe("the seeded hierarchy", () => {
     });
 
     test("filtering finds a department by an attribute its division holds", () => {
-      // Rotor Hubs holds nothing itself; it matches only through inheritance.
+      // Sensor Integration holds nothing of its own for this attribute; it
+      // matches only through inheritance from Avionics.
       const found = service.searchDepartments(SYSTEM, {
         attributes: [{ name: "home-office-disclosure", value: "included" }],
       });
-      assert.ok(found.some((d) => d.name === "Rotor Hubs"));
+      assert.ok(found.some((d) => d.name === "Sensor Integration"));
+      assert.ok(found.some((d) => d.name === "Flight Controls Software"));
     });
   });
 
@@ -139,17 +140,14 @@ describe("the seeded hierarchy", () => {
     test("it survives as an attribute rather than a position in the hierarchy", () => {
       const foreign = service.searchDepartments(SYSTEM, {
         attributes: [{ name: "jurisdiction", value: "foreign" }],
-        includeInactive: true,
       });
       assert.equal(foreign.length, FIXTURE.foreign);
 
-      // Scattered, not grouped: more than one legal entity, and siblings of
-      // domestic departments in the same division.
-      assert.ok(new Set(foreign.map((d) => d.legalEntity.id)).size > 1);
-
-      const rotorAssemblies = all().filter((d) => d.division.name === "Rotor Assemblies");
+      // Scattered, not grouped: a foreign and a domestic department sit
+      // side by side in the same division.
+      const structures = all().filter((d) => d.division.name === "Structures");
       const jurisdictions = new Set(
-        rotorAssemblies.flatMap((d) =>
+        structures.flatMap((d) =>
           d.attributes.filter((a) => a.name === "jurisdiction").map((a) => a.value),
         ),
       );
@@ -157,8 +155,8 @@ describe("the seeded hierarchy", () => {
     });
 
     test("no department carries a country: the source encodes jurisdiction and nothing finer", () => {
-      // BDR-0008: the specific countries in the fixture are invented enrichment
-      // the real hierarchy cannot supply, so the store does not carry them.
+      // BDR-0008: countries are invented enrichment the real hierarchy cannot
+      // supply, so the store does not carry them.
       for (const d of all()) {
         assert.ok(
           !d.attributes.some((a) => a.name === "country"),
@@ -178,24 +176,19 @@ describe("the seeded hierarchy", () => {
       }
     });
 
-    test("a department whose jurisdiction cannot be determined is seeded inactive", () => {
-      // The fixture leaves one department with no jurisdiction at all. Seeding
-      // it active would mean inventing a compliance attribute; the
-      // permissibility rule is evaluated against exactly this attribute.
-      const undetermined = all().filter(
-        (d) => !d.attributes.some((a) => a.name === "jurisdiction"),
-      );
-      assert.equal(undetermined.length, 1);
-      assert.equal(undetermined[0]?.active, false);
-    });
-
-    test("nothing else is seeded inactive", () => {
-      const inactive = all().filter((d) => !d.selectable);
-      assert.equal(inactive.length, 1);
+    test("every seeded department has a determinable jurisdiction, so nothing is seeded inactive", () => {
+      // Unlike the original 58-department fixture, every department in this
+      // catalog declares `foreign` explicitly (#92) - there is no
+      // unclassifiable case to seed closed. transform()'s handling of that
+      // case is still covered directly against the old fixture
+      // (legacy-fixture-transform.test.ts); this just confirms the demo
+      // catalog itself never triggers it.
+      assert.ok(all().every((d) => d.attributes.some((a) => a.name === "jurisdiction")));
+      assert.ok(all().every((d) => d.active));
     });
 
     test("an inactive department is excluded from the picker but resolvable for ever", (t) => {
-      const closed = byName("Signal Analytics Corp");
+      const closed = byName("Sensor Integration");
       // Restored however this test ends: the store is shared with every test
       // below, and a failed assertion must not leave one closed. Set-inactive
       // (#64) has no reverse of its own, so a full reseed is what undoes it.
@@ -205,16 +198,16 @@ describe("the seeded hierarchy", () => {
       assert.ok(!service.searchDepartments(SYSTEM, {}).some((d) => d.id === closed.id));
       const resolved = service.getDepartment(SYSTEM, closed.id);
       assert.equal(resolved.active, false);
-      assert.equal(resolved.name, "Signal Analytics Corp");
+      assert.equal(resolved.name, "Sensor Integration");
       // Closed, not removed: nothing left the hierarchy.
       assert.equal(service.getStoreInfo(SYSTEM).departmentCount, FIXTURE.departments);
     });
 
     test("a department under an inactive division is closed too, and says which level closed it", (t) => {
-      const dept = byName("Vibration Lab");
-      const labs = all().find((d) => d.division.name === "Labs")!.division;
+      const dept = byName("Heat Shielding");
+      const structures = all().find((d) => d.division.name === "Structures")!.division;
       t.after(() => service.resetStore(SYSTEM));
-      service.setHierarchyNodeInactive(administrator, "division", labs.id);
+      service.setHierarchyNodeInactive(administrator, "division", structures.id);
 
       assert.ok(!service.searchDepartments(SYSTEM, {}).some((d) => d.id === dept.id));
       const resolved = service.getDepartment(SYSTEM, dept.id);
@@ -222,116 +215,51 @@ describe("the seeded hierarchy", () => {
       assert.equal(resolved.selectable, false);
       assert.equal(resolved.division.active, false);
     });
-
-  });
-
-  describe("the fixture's irregularities", () => {
-    test("a cost centre shared by four departments identifies none of them", () => {
-      const sharing = all().filter((d) => d.codes.some((c) => c.code === "20514"));
-      assert.equal(sharing.length, 4);
-      assert.equal(new Set(sharing.map((d) => d.id)).size, 4);
-      // Each of the four carries it, each is marked as not holding it alone, and
-      // none of them is reached by it. The source marked every one of the four
-      // as sole, which is the marking the transformation refuses to carry.
-      for (const d of sharing) {
-        const code = d.codes.find((c) => c.kind === "cost-center" && c.code === "20514");
-        assert.ok(code, `${d.name} should carry cost center 20514`);
-        assert.equal(code.shared, true, `${d.name} should not claim 20514 alone`);
-      }
-    });
-
-    test("two departments with an identical code set keep their different disclosure treatments", () => {
-      const defense = byName("Thermal Defense Products");
-      const commercial = byName("Thermal Commercial Ent.");
-      const codes = (d: ResolvedDepartment) =>
-        d.codes
-          .filter((c) => c.kind === "cost-center")
-          .map((c) => c.code)
-          .sort();
-
-      assert.deepEqual(codes(defense), codes(commercial));
-      assert.notEqual(defense.disclosureTreatment, commercial.disclosureTreatment);
-    });
-
-    test("a department with no code at all is seeded and usable", () => {
-      const noCodes = byName("Cabin Equipment - Central Engineering");
-      assert.deepEqual(noCodes.codes, []);
-      assert.equal(noCodes.disclosureTreatment, null);
-      assert.equal(noCodes.selectable, true);
-    });
-
-    test("the literal code 'various cost centers' is not carried as a code", () => {
-      const allocated = byName("Allocated Function");
-      assert.deepEqual(allocated.codes, []);
-
-      for (const d of all()) {
-        for (const c of d.codes) {
-          assert.ok(!/various/i.test(c.code), `${d.name} carries the code "${c.code}"`);
-        }
-      }
-    });
-
-    test("three codes crammed into one field become three codes", () => {
-      const vantara = byName("Vantara Design Center (Vantara, Selkirk)");
-      assert.deepEqual(
-        vantara.codes.map((c) => c.code).sort(),
-        ["D204", "D209", "D216"],
-      );
-    });
-
-    test("a cost centre shared with another division is marked as shared", () => {
-      const inertial = byName("Inertial Reference Systems");
-      assert.equal(inertial.codes.length, 7, "six cost centres and one cost-accounting code");
-      assert.equal(inertial.codes.filter((c) => c.shared).length, 1);
-    });
-
-    test("near-identical sibling names stay distinct departments", () => {
-      const hubs = all().filter((d) => d.name.startsWith("Rotor Hubs"));
-      assert.equal(hubs.length, 3);
-      assert.equal(new Set(hubs.map((d) => d.id)).size, 3);
-    });
   });
 
   describe("searching", () => {
     test("no filter is required: searching cold returns everything selectable", () => {
-      assert.equal(service.searchDepartments(SYSTEM, {}).length, FIXTURE.departments - 1);
+      assert.equal(service.searchDepartments(SYSTEM, {}).length, FIXTURE.departments);
     });
 
     test("search matches on name, case-insensitively, anywhere in it", () => {
-      const found = service.searchDepartments(SYSTEM, { text: "rotor shaft" });
-      assert.equal(found.length, 4);
-      for (const d of found) assert.match(d.name, /Rotor Shaft/i);
+      const found = service.searchDepartments(SYSTEM, { text: "flight" });
+      assert.equal(found.length, 1);
+      assert.match(found[0]!.name, /Flight Controls Software/i);
     });
 
     test("filters combine, and narrow rather than widen", () => {
       const foreign = service.searchDepartments(SYSTEM, {
         attributes: [{ name: "jurisdiction", value: "foreign" }],
       });
-      const foreignWithException = service.searchDepartments(SYSTEM, {
+      const foreignWithOffshore = service.searchDepartments(SYSTEM, {
         attributes: [
           { name: "jurisdiction", value: "foreign" },
-          { name: "contracting-exception", value: "outside-own-division" },
+          { name: "offshore-shared-service", value: "allocated" },
         ],
       });
-      assert.equal(foreignWithException.length, 4);
-      assert.ok(foreignWithException.length < foreign.length);
-      for (const d of foreignWithException) assert.ok(foreign.some((f) => f.id === d.id));
+      assert.equal(foreignWithOffshore.length, 1);
+      assert.ok(foreignWithOffshore.length < foreign.length);
+      for (const d of foreignWithOffshore) assert.ok(foreign.some((f) => f.id === d.id));
     });
 
     test("filters and text combine", () => {
       const found = service.searchDepartments(SYSTEM, {
-        text: "rotor",
+        text: "shield",
         attributes: [{ name: "jurisdiction", value: "foreign" }],
       });
-      assert.equal(found.length, 4);
+      assert.equal(found.length, 1);
+      assert.equal(found[0]!.name, "Heat Shielding");
     });
 
     test("narrowing to a legal entity or a division is structure, not an attribute", () => {
-      const std = service.searchDepartments(SYSTEM, { legalEntityId: "std" });
-      assert.equal(std.length, 8);
+      const entity = all()[0]!.legalEntity;
+      const allInEntity = service.searchDepartments(SYSTEM, { legalEntityId: entity.id });
+      assert.equal(allInEntity.length, FIXTURE.departments);
 
-      const labs = service.searchDepartments(SYSTEM, { divisionId: "cal-labs" });
-      assert.equal(labs.length, 3);
+      const avionics = all().find((d) => d.division.name === "Avionics")!.division;
+      const inAvionics = service.searchDepartments(SYSTEM, { divisionId: avionics.id });
+      assert.equal(inAvionics.length, 2);
     });
 
     test("an attribute nothing carries returns nothing rather than everything", () => {
