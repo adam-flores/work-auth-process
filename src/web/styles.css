@@ -291,6 +291,28 @@ input[type="number"] {
   gap: 0.75rem;
   margin-top: 1rem;
 }
+
+/* A queue item's own action row - Acknowledge, Claim, the employee-name
+   field and Complete, the charge-number field and Mint - had no spacing
+   rules of its own, so a label, a full-width input, and a button all
+   landed flush against each other. Laid out as a wrapping row with
+   consistent gaps instead, the same pattern `.draft-form-actions` already
+   uses. */
+.queue-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.queue-item-actions label {
+  margin: 0;
+}
+.queue-item-actions input[type="text"] {
+  margin: 0;
+  width: auto;
+  flex: 1 1 12rem;
+}
 .draft-form-actions [data-testid="delete-draft"] {
   background: transparent;
   color: var(--error);
