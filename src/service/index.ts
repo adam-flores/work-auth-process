@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { openStore, DEFAULT_STORE_PATH } from "../store/index.ts";
+import type { ReseedOptions } from "../store/index.ts";
 import {
   ActingParticipant,
   AddHierarchyNodeInput,
@@ -383,10 +384,14 @@ export function createService(options: ServiceOptions = {}) {
     },
 
     /** Return the store to its seeded state. ADR-0008 makes the store
-     *  disposable rather than migrated, which is what lets a demo be replayed. */
-    resetStore(ctx: ActingParticipant): StoreInfo {
+     *  disposable rather than migrated, which is what lets a demo be replayed.
+     *  `options.wipeProcessData` also clears drafts and the transition log -
+     *  off by default, since an ordinary reset deliberately leaves domain
+     *  data alone (`src/store/index.ts`); the scripted demo player (#94) is
+     *  the one caller that turns it on. */
+    resetStore(ctx: ActingParticipant, options?: ReseedOptions): StoreInfo {
       requireParticipant(ctx);
-      store.reseed();
+      store.reseed(options);
       return readStoreInfo();
     },
 

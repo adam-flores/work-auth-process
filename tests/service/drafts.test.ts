@@ -280,7 +280,7 @@ describe("drafts", () => {
   });
 
   test("resetting the store succeeds even while a draft names a real participant and a department", () => {
-    service.createDraft(
+    const draft = service.createDraft(
       { participantId: submitter },
       { project: "Still here when the store reseeds", requestingDepartmentId: requestingDeptId },
     );
@@ -289,6 +289,22 @@ describe("drafts", () => {
     // foreign keys a draft holds on either.
     const info = service.resetStore({ participantId: "system" });
     assert.ok(info.participantCount > 0);
+    // An ordinary reset deliberately leaves domain data alone - only
+    // `{ wipeProcessData: true }` (below, and #94's scripted demo player)
+    // clears it.
+    assert.equal(service.getDraft({ participantId: submitter }, draft.id).id, draft.id);
+  });
+
+  test("resetStore({ wipeProcessData: true }) also clears drafts, for a demo that needs to start empty", () => {
+    const draft = service.createDraft(
+      { participantId: submitter },
+      { project: "Gone once wiped", requestingDepartmentId: requestingDeptId },
+    );
+    service.resetStore({ participantId: "system" }, { wipeProcessData: true });
+    assert.throws(
+      () => service.getDraft({ participantId: submitter }, draft.id),
+      (err: unknown) => err instanceof DomainError && err.code === "UNKNOWN_DRAFT",
+    );
   });
 
   test("a draft touched recently survives", () => {
