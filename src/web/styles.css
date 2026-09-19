@@ -99,7 +99,8 @@ select {
   border-radius: 6px;
   background: var(--ground);
   color: var(--ink);
-  min-width: min(100%, 22rem);
+  width: 100%;
+  max-width: 22rem;
 }
 
 button {
