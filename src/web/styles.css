@@ -506,8 +506,18 @@ input[type="number"] {
   gap: 0.4rem;
 }
 
+/* A fixed two-line slot, not however tall each label happens to wrap -
+   "Requesting program manager" wraps, "Performing finance" doesn't, and
+   without this every tile in a row starts at a different height depending
+   on whether its own neighbor's label happened to wrap. `flex-end` lets a
+   one-line label sit flush against its tile either way, the same distance
+   from it as a two-line label's second line. */
 .stage-chart-label {
+  display: flex;
+  align-items: flex-end;
+  min-height: 2.1rem;
   font-size: 0.8rem;
+  line-height: 1.3;
   font-weight: 600;
   color: var(--muted);
 }
