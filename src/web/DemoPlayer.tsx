@@ -99,37 +99,62 @@ export function DemoPlayer({ onActingIdChange, onTabChange, onReset }: DemoPlaye
     return () => clearInterval(interval);
   }, [state?.status, onActingIdChange, onTabChange]);
 
-  const startPauseOrResume = async (call: (actor: string) => Promise<DemoState>) => {
+  // Every button funnels through here: it owns `busy`/`error` and the
+  // sequence guard uniformly, so `perform` only has to decide what to fetch
+  // and when a still-current response is worth setting state from
+  // (`isCurrent`). One shared place for this, rather than each button
+  // hand-rolling it, is what keeps a future button (or a future extra call
+  // inside an existing one) from quietly missing the guard.
+  const runAction = async (perform: (isCurrent: () => boolean) => Promise<void>) => {
     setBusy(true);
     setError(null);
     const seq = ++latestCall.current;
+    const isCurrent = () => seq === latestCall.current;
     try {
-      const next = await call(SYSTEM_PARTICIPANT_ID);
-      if (seq === latestCall.current) setState(next);
+      await perform(isCurrent);
     } catch (err) {
-      if (seq === latestCall.current) setError(err instanceof ApiError ? err.message : String(err));
+      if (isCurrent()) setError(err instanceof ApiError ? err.message : String(err));
     } finally {
-      if (seq === latestCall.current) setBusy(false);
+      if (isCurrent()) setBusy(false);
     }
   };
 
-  const reset = async () => {
-    setBusy(true);
-    setError(null);
-    const seq = ++latestCall.current;
-    try {
+  const pauseOrResume = (call: (actor: string) => Promise<DemoState>) =>
+    runAction(async (isCurrent) => {
+      const next = await call(SYSTEM_PARTICIPANT_ID);
+      if (isCurrent()) setState(next);
+    });
+
+  // Runs the first step immediately rather than waiting for the interval's
+  // first tick (#94 follow-up: a presenter who clicks Start needs something
+  // on screen right away, not an empty tab for one whole pacing interval).
+  // The interval effect above takes over from step 2 onward, the instant
+  // `state.status` becomes "running". `state` is set as soon as `startDemo`
+  // itself resolves, before the immediate `advanceDemo` call - if that
+  // second call fails, the UI still reflects the server's true "running"
+  // status (Pause and Reset enabled, Start disabled) instead of getting
+  // stuck showing a stale "idle" that a retried Start would only have the
+  // server refuse.
+  const start = () =>
+    runAction(async (isCurrent) => {
+      const started = await api.startDemo(SYSTEM_PARTICIPANT_ID);
+      if (!isCurrent()) return;
+      setState(started);
+      const next = await api.advanceDemo(SYSTEM_PARTICIPANT_ID);
+      if (!isCurrent()) return;
+      setState(next);
+      applyStep(next, onActingIdChange, onTabChange);
+    });
+
+  const reset = () =>
+    runAction(async (isCurrent) => {
       const next = await api.resetDemo(SYSTEM_PARTICIPANT_ID);
-      if (seq !== latestCall.current) return;
+      if (!isCurrent()) return;
       setState(next);
       onActingIdChange(SYSTEM_PARTICIPANT_ID);
       onTabChange("submit");
       onReset();
-    } catch (err) {
-      if (seq === latestCall.current) setError(err instanceof ApiError ? err.message : String(err));
-    } finally {
-      if (seq === latestCall.current) setBusy(false);
-    }
-  };
+    });
 
   const status = state?.status ?? "idle";
 
@@ -142,17 +167,12 @@ export function DemoPlayer({ onActingIdChange, onTabChange, onReset }: DemoPlaye
         </p>
       )}
       <div className="demo-player-controls">
-        <button
-          type="button"
-          onClick={() => void startPauseOrResume(api.startDemo)}
-          disabled={busy || status !== "idle"}
-          data-testid="demo-start"
-        >
+        <button type="button" onClick={() => void start()} disabled={busy || status !== "idle"} data-testid="demo-start">
           Start
         </button>
         <button
           type="button"
-          onClick={() => void startPauseOrResume(api.pauseDemo)}
+          onClick={() => void pauseOrResume(api.pauseDemo)}
           disabled={busy || status !== "running"}
           data-testid="demo-pause"
         >
@@ -160,7 +180,7 @@ export function DemoPlayer({ onActingIdChange, onTabChange, onReset }: DemoPlaye
         </button>
         <button
           type="button"
-          onClick={() => void startPauseOrResume(api.resumeDemo)}
+          onClick={() => void pauseOrResume(api.resumeDemo)}
           disabled={busy || status !== "paused"}
           data-testid="demo-continue"
         >
@@ -174,9 +194,20 @@ export function DemoPlayer({ onActingIdChange, onTabChange, onReset }: DemoPlaye
           {state ? ` (${Math.min(state.stepIndex, state.totalSteps)}/${state.totalSteps})` : ""}
         </span>
       </div>
-      {state?.current && (
-        <p className="hint" data-testid="demo-narration">
+      {/* The one thing this whole component exists to show: what the step
+          that just ran means, right beside the tab content it changed
+          (`App.tsx`'s sidebar), not scrolled away above it. Styled apart
+          from `.hint`'s muted, secondary text - this is the story, not a
+          footnote. */}
+      {state?.current ? (
+        <p className="demo-narration" data-testid="demo-narration">
           {state.current.narration}
+        </p>
+      ) : (
+        <p className="hint" data-testid="demo-narration-placeholder">
+          {status === "idle"
+            ? "Click Start to play a scripted authorization through the relay."
+            : "Reading…"}
         </p>
       )}
     </section>

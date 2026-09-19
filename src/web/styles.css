@@ -31,9 +31,50 @@ body {
 }
 
 main {
-  max-width: 56rem;
+  max-width: 78rem;
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
+}
+
+/* Two columns (#94 follow-up): setup material in a narrow sidebar, tabbed
+   content - the main event - taking the rest of the width, side by side
+   rather than stacked, so the demo player's narration sits beside the
+   content it describes instead of scrolled away above it. */
+.app-layout {
+  display: grid;
+  grid-template-columns: 19rem minmax(0, 1fr);
+  align-items: start;
+  gap: 1.75rem;
+}
+
+.app-sidebar {
+  position: sticky;
+  top: 1rem;
+  min-width: 0;
+}
+
+.app-content {
+  min-width: 0;
+}
+
+/* The roster table's three columns are tight in a 19rem sidebar - smaller
+   type and padding than the rest of the page rather than letting the
+   sidebar grow wider than the setup material deserves. */
+.app-sidebar table {
+  font-size: 0.78rem;
+}
+.app-sidebar th,
+.app-sidebar td {
+  padding: 0.3rem 0.4rem;
+}
+
+@media (max-width: 60rem) {
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+  .app-sidebar {
+    position: static;
+  }
 }
 
 h1 { font-size: 1.6rem; margin: 0 0 0.25rem; letter-spacing: -0.01em; }
@@ -79,6 +120,16 @@ button:disabled { opacity: 0.6; cursor: progress; }
   flex-wrap: wrap;
   align-items: center;
   gap: 0.6rem;
+}
+
+.demo-narration {
+  margin: 0.9rem 0 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--ground);
+  font-size: 0.95rem;
+  line-height: 1.45;
 }
 .hint { margin: 0.75rem 0 0; font-size: 0.85rem; color: var(--muted); max-width: 44rem; }
 .error { color: var(--error); font-weight: 600; }

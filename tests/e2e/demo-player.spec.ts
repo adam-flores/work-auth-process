@@ -24,9 +24,11 @@ test("Start, Pause, Continue and Reset each produce visible change", async ({ pa
   await page.getByTestId("demo-start").click();
   await expect(status).toContainText("running");
 
-  // The first step lands within one pacing interval and switches the
-  // presenter's screen to the tab the story's first beat names.
-  await expect(page.getByTestId("demo-narration")).toBeVisible({ timeout: 8000 });
+  // Start runs the first step immediately rather than waiting for the
+  // first pacing interval (#94 follow-up: a presenter clicking Start needs
+  // something on screen right away), and it switches the presenter's
+  // screen to the tab the story's first beat names.
+  await expect(page.getByTestId("demo-narration")).toBeVisible({ timeout: 2000 });
   await expect(page.getByRole("tab", { name: "Submit", selected: true })).toBeVisible();
 
   await page.getByTestId("demo-pause").click();
