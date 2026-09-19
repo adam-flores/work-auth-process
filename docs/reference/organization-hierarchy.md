@@ -4,17 +4,19 @@ A fictional stand-in for the classification chart that the work authorization fo
 manual-lookup fields are read from. It exists so that *"how does a user arrive at the correct
 classification"* can be argued against something concrete.
 
-**Historical record, not the running seed.** [`organization-hierarchy.json`](organization-hierarchy.json)
-is what this document explains. Where the two disagree, the JSON wins.
+**Historical record, not the running seed.**
+[`organization-hierarchy.json`](organization-hierarchy.json) is what this document explains.
+Where the two disagree, the JSON wins.
 
 > **This file no longer seeds a running store.**
 > [ADR-0013](../adr/0013-the-demo-catalog-is-the-seed.md) points a running store's seed at the
 > small, freshly-authored `docs/reference/demo-hierarchy.json` instead, sized for a live demo
-> rather than for realism. This file and this document stay in the repository as the record of the
-> transcription and decoding work [ADR-0012](../adr/0012-the-store-holds-a-decoded-hierarchy-not-a-transcribed-one.md)
-> describes — nothing below changed, and it is still accurate about *this* fixture. It is simply an
-> input nothing reads at seed time any more, the same way ADR-0011 already made it an input rather
-> than canonical data the moment the store held its own copy.
+> rather than for realism. This file and this document stay in the repository as the record of
+> the transcription and decoding work
+> [ADR-0012](../adr/0012-the-store-holds-a-decoded-hierarchy-not-a-transcribed-one.md) describes
+> — nothing below changed, and it is still accurate about *this* fixture. It is simply an input
+> nothing reads at seed time any more, the same way ADR-0011 already made it an input rather than
+> canonical data the moment the store held its own copy.
 
 > **Everything here is invented.** Calderis Aerospace does not exist. No entity name,
 > cost-center code, CAS code, site, or disclosure classification in this dataset is copied

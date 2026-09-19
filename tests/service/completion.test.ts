@@ -41,6 +41,9 @@ describe("charge number, completion, and the classification freeze", () => {
 
     const people = service.listParticipants({ participantId: "system" });
     submitter = people.find((p) => p.id === "p-teo-brandt")!.id;
+    // Deliberately the same person: the demo roster (#92) seeds one Approver
+    // per department, and nothing here needs the two requesting-side stages
+    // acknowledged by different people.
     requestingApproverA = people.find((p) => p.id === "p-priya-anand")!.id;
     requestingApproverB = people.find((p) => p.id === "p-priya-anand")!.id;
     performingApproverA = people.find((p) => p.id === "p-marcus-oduya")!.id;

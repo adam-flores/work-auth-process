@@ -936,6 +936,8 @@ export function MyQueue({ actingId }: MyQueueProps) {
           ) : (
             items.map((authorization) => {
               const relayStage = RELAY_CONFIG.find((s) => s.id === authorization.currentStageId)!;
+              const hasBadges =
+                isContributionStage(relayStage) || authorization.awaitingCorrection || authorization.isReReview;
               return (
                 <li key={authorization.id} className="card queue-card" data-testid="queue-row">
                   <div className="card-header">
@@ -944,26 +946,28 @@ export function MyQueue({ actingId }: MyQueueProps) {
                       Open
                     </button>
                   </div>
-                  <div className="card-badges">
-                    {isContributionStage(relayStage) && (
-                      <span className="badge" data-testid="claim-status">
-                        {authorization.performingContributorId === null ? "Unclaimed" : "Claimed"}
-                      </span>
-                    )}
-                    {authorization.awaitingCorrection && (
-                      <span className="badge badge-attention" data-testid="awaiting-correction">
-                        Awaiting your correction
-                      </span>
-                    )}
-                    {authorization.isReReview && (
-                      <span className="badge" data-testid="re-review">
-                        Re-review
-                        {authorization.reReviewCause === "configuration-change"
-                          ? " (the rules changed)"
-                          : " (a correction changed this)"}
-                      </span>
-                    )}
-                  </div>
+                  {hasBadges && (
+                    <div className="card-badges">
+                      {isContributionStage(relayStage) && (
+                        <span className="badge" data-testid="claim-status">
+                          {authorization.performingContributorId === null ? "Unclaimed" : "Claimed"}
+                        </span>
+                      )}
+                      {authorization.awaitingCorrection && (
+                        <span className="badge badge-attention" data-testid="awaiting-correction">
+                          Awaiting your correction
+                        </span>
+                      )}
+                      {authorization.isReReview && (
+                        <span className="badge" data-testid="re-review">
+                          Re-review
+                          {authorization.reReviewCause === "configuration-change"
+                            ? " (the rules changed)"
+                            : " (a correction changed this)"}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </li>
               );
             })
