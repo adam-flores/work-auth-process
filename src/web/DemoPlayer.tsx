@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api.ts";
-import type { DemoState } from "./api.ts";
+import type { DemoState, DemoStatus } from "./api.ts";
 import { SYSTEM_PARTICIPANT_ID } from "../shared/constants.ts";
 
 /**
@@ -35,6 +35,17 @@ function applyStep(state: DemoState, onActingIdChange: (id: string) => void, onT
   if (!state.current) return;
   onActingIdChange(state.current.actingId);
   onTabChange(state.current.tabId);
+}
+
+/** "Running" and "finished" are both good news, but rendering them the same
+ *  color would leave a presenter unable to tell a glance at the badge apart
+ *  from a glance at the buttons - finished takes the info hue instead of
+ *  status-good so it never reads as "still going." */
+function statusBadgeClass(status: DemoStatus): string {
+  if (status === "running") return "badge badge-good";
+  if (status === "paused") return "badge badge-warning";
+  if (status === "finished") return "badge badge-info";
+  return "badge";
 }
 
 export function DemoPlayer({ onActingIdChange, onTabChange }: DemoPlayerProps) {
@@ -190,7 +201,7 @@ export function DemoPlayer({ onActingIdChange, onTabChange }: DemoPlayerProps) {
         <button type="button" onClick={() => void reset()} disabled={busy} data-testid="demo-reset">
           Reset
         </button>
-        <span className="badge" data-testid="demo-status">
+        <span className={statusBadgeClass(status)} data-testid="demo-status">
           {status}
           {state ? ` (${Math.min(state.stepIndex, state.totalSteps)}/${state.totalSteps})` : ""}
         </span>

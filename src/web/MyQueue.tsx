@@ -949,17 +949,22 @@ export function MyQueue({ actingId }: MyQueueProps) {
                   {hasBadges && (
                     <div className="card-badges">
                       {isContributionStage(relayStage) && (
-                        <span className="badge" data-testid="claim-status">
+                        <span
+                          className={
+                            authorization.performingContributorId === null ? "badge" : "badge badge-good"
+                          }
+                          data-testid="claim-status"
+                        >
                           {authorization.performingContributorId === null ? "Unclaimed" : "Claimed"}
                         </span>
                       )}
                       {authorization.awaitingCorrection && (
-                        <span className="badge badge-attention" data-testid="awaiting-correction">
+                        <span className="badge badge-warning" data-testid="awaiting-correction">
                           Awaiting your correction
                         </span>
                       )}
                       {authorization.isReReview && (
-                        <span className="badge" data-testid="re-review">
+                        <span className="badge badge-info" data-testid="re-review">
                           Re-review
                           {authorization.reReviewCause === "configuration-change"
                             ? " (the rules changed)"
