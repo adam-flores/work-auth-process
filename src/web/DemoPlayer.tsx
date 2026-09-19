@@ -29,12 +29,6 @@ const DEMO_STEP_MS = 4000;
 export type DemoPlayerProps = {
   onActingIdChange: (id: string) => void;
   onTabChange: (tabId: string) => void;
-  /** Called after a successful reset, so `App.tsx` can reload the store info
-   *  and participant roster its own header shows - the demo's reset and the
-   *  header's own "Reset the store" button return the store to the same
-   *  seeded state (`src/demo/index.ts`: reset calls the same store-reset
-   *  mechanism). */
-  onReset: () => void;
 };
 
 function applyStep(state: DemoState, onActingIdChange: (id: string) => void, onTabChange: (id: string) => void) {
@@ -43,7 +37,7 @@ function applyStep(state: DemoState, onActingIdChange: (id: string) => void, onT
   onTabChange(state.current.tabId);
 }
 
-export function DemoPlayer({ onActingIdChange, onTabChange, onReset }: DemoPlayerProps) {
+export function DemoPlayer({ onActingIdChange, onTabChange }: DemoPlayerProps) {
   const [state, setState] = useState<DemoState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -146,6 +140,14 @@ export function DemoPlayer({ onActingIdChange, onTabChange, onReset }: DemoPlaye
       applyStep(next, onActingIdChange, onTabChange);
     });
 
+  // `onActingIdChange` is enough to refresh `App.tsx`'s own store-info and
+  // participant-roster panel on its own - that effect is keyed on
+  // `actingId`, and Reset is virtually always clicked with some non-system
+  // participant already acting (every script step past the first names
+  // one). A second, explicit reload call here would only double that same
+  // fetch in the common case, for a store-info panel whose figures barely
+  // move reset to reset (the roster is fixed; only the seeded-at timestamp
+  // changes) - not worth a dedicated callback prop.
   const reset = () =>
     runAction(async (isCurrent) => {
       const next = await api.resetDemo(SYSTEM_PARTICIPANT_ID);
@@ -153,7 +155,6 @@ export function DemoPlayer({ onActingIdChange, onTabChange, onReset }: DemoPlaye
       setState(next);
       onActingIdChange(SYSTEM_PARTICIPANT_ID);
       onTabChange("submit");
-      onReset();
     });
 
   const status = state?.status ?? "idle";

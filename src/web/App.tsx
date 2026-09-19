@@ -116,11 +116,7 @@ export function App() {
             </p>
           </header>
 
-          <DemoPlayer
-            onActingIdChange={setActingId}
-            onTabChange={setActiveTabId}
-            onReset={() => void load(SYSTEM_PARTICIPANT_ID)}
-          />
+          <DemoPlayer onActingIdChange={setActingId} onTabChange={setActiveTabId} />
 
           <section aria-labelledby="acting-heading">
             <h2 id="acting-heading">Acting as</h2>

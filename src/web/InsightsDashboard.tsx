@@ -27,6 +27,10 @@ import { RELAY_CONFIG } from "../relay/config.ts";
 
 export type InsightsDashboardProps = { actingId: string };
 
+/** How often this tab refetches in the background, matching `MyQueue.tsx`'s
+ *  `QUEUE_POLL_MS` - there is no push to stand in for here either. */
+const INSIGHTS_POLL_MS = 3000;
+
 const STAGE_LABELS: Record<StageId, string> = {
   "requesting-program-manager": "Requesting program manager",
   "requesting-finance": "Requesting finance",
@@ -140,6 +144,18 @@ export function InsightsDashboard({ actingId }: InsightsDashboardProps) {
 
   useEffect(() => {
     void load(actingId);
+  }, [load, actingId]);
+
+  // Polls in the background, the same pattern `MyQueue.tsx`'s arrival
+  // notifications and `RevocationNotices.tsx` already use - without it,
+  // this tab only ever refetches when `actingId` changes, so a measure this
+  // same participant's own further clicking moves (or a demo Reset
+  // reseeding the store entirely, #94 follow-up) never appears here until
+  // something incidentally changes who is acting. The scripted demo's own
+  // closing narration - "Insights updates live" - depends on this.
+  useEffect(() => {
+    const interval = setInterval(() => void load(actingId), INSIGHTS_POLL_MS);
+    return () => clearInterval(interval);
   }, [load, actingId]);
 
   const stageChartRows = measures === null ? [] : stageTotals(measures.stageOccurrences);
