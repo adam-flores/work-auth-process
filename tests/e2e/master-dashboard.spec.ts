@@ -62,24 +62,24 @@ test("the master dashboard shows every authorization and draft, filterable by su
   const distinctiveApprover = `Uniquely Named Approver ${ts}`;
 
   await initiateAuthorization(page, {
-    submitter: "p-avery-lund",
+    submitter: "p-priya-anand",
     project: projectAlpha,
-    requestingDepartment: "Heat Exchange Products",
-    performingDepartment: "Rotor Hubs",
+    requestingDepartment: "Landing Gear Systems",
+    performingDepartment: "Flight Controls Software",
     performingFinanceApprover: distinctiveApprover,
   });
 
   await initiateAuthorization(page, {
-    submitter: "p-rosa-imbert",
+    submitter: "p-jordan-hale",
     project: projectBeta,
-    requestingDepartment: "Rotor Hubs",
-    performingDepartment: "Thermal Coatings",
+    requestingDepartment: "Flight Controls Software",
+    performingDepartment: "Landing Gear Systems",
   });
 
   // Advances Beta to "requesting-finance" so it sits at a different stage
   // from Alpha, which is what makes the stage filter's assertion mean
   // something rather than passing by coincidence.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-mira-devane");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-marcus-oduya");
   await page.getByRole("tab", { name: "My Queue" }).click();
   await page
     .getByTestId("my-queue")
@@ -92,7 +92,7 @@ test("the master dashboard shows every authorization and draft, filterable by su
 
   // A draft, left unsubmitted - visible on the dashboard like anything else
   // (BDR-0003).
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-priya-anand");
   await page.getByRole("tab", { name: "Submit" }).click();
   await page.getByTestId("new-draft").click();
   await page.getByLabel("Project").fill(projectDraft);
@@ -101,7 +101,7 @@ test("the master dashboard shows every authorization and draft, filterable by su
 
   // Viewed as an unrelated Administrator - the master dashboard is open to
   // anyone with access, not only a party to the record (BDR-0002).
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-erez-caldwell");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await page.getByRole("tab", { name: "All Authorizations" }).click();
   const dashboard = page.getByTestId("master-dashboard");
   await expect(dashboard.getByTestId("dashboard-row").filter({ hasText: projectAlpha })).toBeVisible();
@@ -111,7 +111,7 @@ test("the master dashboard shows every authorization and draft, filterable by su
   // Filter by identifier: Alpha's own id, read back from its row, narrows
   // to Alpha alone.
   const alphaRow = dashboard.getByTestId("dashboard-row").filter({ hasText: projectAlpha });
-  const alphaId = (await alphaRow.locator("td").first().textContent())!.trim();
+  const alphaId = (await alphaRow.getByTestId("dashboard-row-identifier").textContent())!.trim();
   await dashboard.getByTestId("dashboard-filter-identifier").fill(alphaId);
   await expect(dashboard.getByTestId("dashboard-row")).toHaveCount(1);
   await expect(dashboard.getByTestId("dashboard-row")).toContainText(projectAlpha);
@@ -135,7 +135,7 @@ test("the master dashboard shows every authorization and draft, filterable by su
   await dashboard.getByTestId("dashboard-filter-stage").selectOption("");
 
   // Filter by submitter: Alpha and the draft share a submitter Beta does not.
-  await dashboard.getByTestId("dashboard-filter-submitter").fill("Avery Lund");
+  await dashboard.getByTestId("dashboard-filter-submitter").fill("Priya Anand");
   await expect(dashboard.getByTestId("dashboard-row").filter({ hasText: projectAlpha })).toBeVisible();
   await expect(dashboard.getByTestId("dashboard-row").filter({ hasText: projectDraft })).toBeVisible();
   await expect(dashboard.getByTestId("dashboard-row").filter({ hasText: projectBeta })).toHaveCount(0);
@@ -160,14 +160,14 @@ test("the participant filter matches a draft's own named fields, not only its su
   const distinctiveManager = `Uniquely Named Manager ${Date.now()}`;
 
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-jordan-hale");
   await page.getByTestId("new-draft").click();
   await page.getByLabel("Project").fill(projectDraft);
   await page.getByLabel("Performing program manager").fill(distinctiveManager);
   await page.getByTestId("draft-form").getByRole("button", { name: "Save" }).click();
   await page.getByTestId("draft-form").getByRole("button", { name: "Close" }).click();
 
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-erez-caldwell");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await page.getByRole("tab", { name: "All Authorizations" }).click();
   const dashboard = page.getByTestId("master-dashboard");
   await dashboard.getByTestId("dashboard-filter-participant").fill(distinctiveManager);
@@ -180,7 +180,7 @@ test("a notification fires when an authorization arrives in a role's queue", asy
   // An Approver at the requesting department, already looking at their
   // queue when the authorization arrives.
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-priya-anand");
   await page.getByRole("tab", { name: "My Queue" }).click();
   await expect(page.getByTestId("my-queue")).toBeVisible();
   await expect(page.getByTestId("notification-list")).toHaveCount(0);
@@ -190,10 +190,10 @@ test("a notification fires when an authorization arrives in a role's queue", asy
   // open and polling.
   const submitterPage = await context.newPage();
   await initiateAuthorization(submitterPage, {
-    submitter: "p-avery-lund",
+    submitter: "p-teo-brandt",
     project,
-    requestingDepartment: "Heat Exchange Products",
-    performingDepartment: "Rotor Hubs",
+    requestingDepartment: "Rotor Assemblies",
+    performingDepartment: "Landing Gear Systems",
   });
   await submitterPage.close();
 

@@ -11,7 +11,7 @@ import type { Page } from "@playwright/test";
 
 async function newDraft(page: Page): Promise<void> {
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-jordan-hale");
   await page.getByTestId("new-draft").click();
   await expect(page.getByTestId("draft-form")).toBeVisible();
 }
@@ -26,8 +26,8 @@ async function pickDepartment(page: Page, testId: string, name: string): Promise
 test("a refused pairing: a foreign department may not perform work for a domestic one", async ({ page }) => {
   await newDraft(page);
 
-  await pickDepartment(page, "draft-requesting-department", "Thermal Coatings");
-  await pickDepartment(page, "draft-performing-department", "Rotor Hubs - Pacific");
+  await pickDepartment(page, "draft-requesting-department", "Landing Gear Systems");
+  await pickDepartment(page, "draft-performing-department", "Sensor Integration");
 
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("alert")).toContainText("not a permitted pairing");
@@ -39,8 +39,8 @@ test("a permitted pairing: a domestic department performing for a foreign one sa
   await newDraft(page);
 
   // The reverse of the refused pairing above - direction matters to the rule.
-  await pickDepartment(page, "draft-requesting-department", "Rotor Hubs - Pacific");
-  await pickDepartment(page, "draft-performing-department", "Thermal Coatings");
+  await pickDepartment(page, "draft-requesting-department", "Sensor Integration");
+  await pickDepartment(page, "draft-performing-department", "Landing Gear Systems");
 
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("alert")).toHaveCount(0);
@@ -48,7 +48,7 @@ test("a permitted pairing: a domestic department performing for a foreign one sa
 
 test("only an Administrator sees the surface to add or remove a pairing", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund"); // a Contributor
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-jordan-hale"); // a Contributor
   await page.getByRole("tab", { name: "Reference Data" }).click();
 
   const rules = page.getByTestId("permissibility-rules");
@@ -63,7 +63,7 @@ test("an Administrator adds a pairing, it refuses immediately, and removing it r
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-erez-caldwell"); // the Administrator
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt"); // the Administrator
   await page.getByRole("tab", { name: "Reference Data" }).click();
 
   const rules = page.getByTestId("permissibility-rules");
@@ -80,8 +80,8 @@ test("an Administrator adds a pairing, it refuses immediately, and removing it r
 
   await page.getByRole("tab", { name: "Submit" }).click();
   await page.getByTestId("new-draft").click();
-  await pickDepartment(page, "draft-requesting-department", "Rotor Hubs - Pacific");
-  await pickDepartment(page, "draft-performing-department", "Thermal Coatings");
+  await pickDepartment(page, "draft-requesting-department", "Sensor Integration");
+  await pickDepartment(page, "draft-performing-department", "Landing Gear Systems");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("alert")).toContainText("not a permitted pairing");
 

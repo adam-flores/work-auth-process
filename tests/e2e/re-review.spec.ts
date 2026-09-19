@@ -16,19 +16,19 @@ import type { Page } from "@playwright/test";
 
 async function initiateAuthorization(page: Page, project: string): Promise<void> {
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await page.getByTestId("new-draft").click();
   await expect(page.getByTestId("draft-form")).toBeVisible();
 
   await page.getByLabel("Project").fill(project);
 
   const requesting = page.getByTestId("draft-requesting-department");
-  await requesting.getByLabel("Search by name").fill("Heat Exchange Products");
-  await requesting.getByRole("button", { name: "Heat Exchange Products", exact: true }).click();
+  await requesting.getByLabel("Search by name").fill("Rotor Assemblies");
+  await requesting.getByRole("button", { name: "Rotor Assemblies", exact: true }).click();
 
   const performing = page.getByTestId("draft-performing-department");
-  await performing.getByLabel("Search by name").fill("Rotor Hubs");
-  await performing.getByRole("button", { name: "Rotor Hubs", exact: true }).click();
+  await performing.getByLabel("Search by name").fill("Flight Controls Software");
+  await performing.getByRole("button", { name: "Flight Controls Software", exact: true }).click();
 
   await page.getByLabel("Funding type").selectOption("company-funded");
   await page.getByLabel("Requesting location type").selectOption("domestic");
@@ -66,12 +66,12 @@ test("a correction reaching an already-resolved stage returns it there as a re-r
   // Walk to performing-finance: requesting program manager, requesting
   // finance, the performing department claims and contributes, performing
   // program manager.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-priya-anand");
   await page.getByRole("tab", { name: "My Queue" }).click();
   await acknowledgeAsCurrentParticipant(page, project);
   await acknowledgeAsCurrentParticipant(page, project);
 
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-nils-oyelaran");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-jordan-hale");
   const claimRow = page.getByTestId("my-queue").getByTestId("queue-row").filter({ hasText: project });
   await claimRow.getByRole("button", { name: "Open" }).click();
   const claimDetail = page.getByTestId("queue-item-detail");
@@ -80,7 +80,7 @@ test("a correction reaching an already-resolved stage returns it there as a re-r
   await claimDetail.getByTestId("contribute").click();
   await expect(page.getByTestId("queue-item-detail")).toHaveCount(0);
 
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-mira-devane");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-marcus-oduya");
   await acknowledgeAsCurrentParticipant(page, project);
 
   // Now at performing-finance. Raise a correction against "project" - a
@@ -95,7 +95,7 @@ test("a correction reaching an already-resolved stage returns it there as a re-r
   await expect(page.getByTestId("queue-item-detail")).toHaveCount(0);
 
   // The submitter supplies the fix.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   const submitterQueue = page.getByTestId("my-queue");
   const correctionRow = submitterQueue.getByTestId("queue-row").filter({ hasText: project });
   await expect(correctionRow).toBeVisible();
@@ -110,7 +110,7 @@ test("a correction reaching an already-resolved stage returns it there as a re-r
   // (relay/config.ts), so both it and requesting-program-manager - the two
   // already-resolved stages that depend on it - return as re-reviews, in
   // relay order. Requesting-program-manager first.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-priya-anand");
   const reviewerQueue = page.getByTestId("my-queue");
   const reReviewRow = reviewerQueue.getByTestId("queue-row").filter({ hasText: correctedProject });
   await expect(reReviewRow).toBeVisible();
@@ -127,7 +127,7 @@ test("a correction reaching an already-resolved stage returns it there as a re-r
   // Then performing-program-manager, also as a re-review - the performing
   // Approver who already signed off is asked again rather than the
   // authorization silently skipping past them.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-mira-devane");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-marcus-oduya");
   const performingQueue = page.getByTestId("my-queue");
   const secondReReviewRow = performingQueue.getByTestId("queue-row").filter({ hasText: correctedProject });
   await expect(secondReReviewRow).toBeVisible();

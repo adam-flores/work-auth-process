@@ -12,8 +12,8 @@ import type { Page } from "@playwright/test";
  * master-dashboard.spec.ts.
  */
 
-const ADMINISTRATOR = "p-erez-caldwell";
-const SUBMITTER = "p-avery-lund";
+const ADMINISTRATOR = "p-teo-brandt";
+const SUBMITTER = "p-jordan-hale";
 
 async function actAs(page: Page, participantId: string): Promise<void> {
   await page.goto("/");
@@ -79,8 +79,8 @@ test("add, rename, and set-inactive with its revocation fan-out", async ({ page,
   await page.getByLabel("Project").fill(projectName);
 
   const requesting = page.getByTestId("draft-requesting-department");
-  await requesting.getByLabel("Search by name").fill("Heat Exchange Products");
-  await requesting.getByRole("button", { name: "Heat Exchange Products", exact: true }).click();
+  await requesting.getByLabel("Search by name").fill("Rotor Assemblies");
+  await requesting.getByRole("button", { name: "Rotor Assemblies", exact: true }).click();
 
   const performing = page.getByTestId("draft-performing-department");
   await performing.getByLabel("Search by name").fill(renamedDepartmentName);

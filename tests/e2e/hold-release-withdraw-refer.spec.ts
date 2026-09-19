@@ -57,18 +57,18 @@ test("a submitter can hold, release, and withdraw their own authorization from t
   const project = `Hold Release Withdraw ${Date.now()}`;
 
   await initiateAuthorization(page, {
-    submitter: "p-avery-lund",
+    submitter: "p-teo-brandt",
     project,
-    requestingDepartment: "Heat Exchange Products",
-    performingDepartment: "Rotor Hubs",
+    requestingDepartment: "Rotor Assemblies",
+    performingDepartment: "Flight Controls Software",
   });
 
   // The master dashboard loads once, on mount or on switching who is acting
   // (`MasterDashboard.tsx` has no poll) - switching away and back to the
   // same participant forces a fresh read that now includes what was just
   // initiated.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-erez-caldwell");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-marcus-oduya");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await page.getByRole("tab", { name: "All Authorizations" }).click();
 
   // The submitter's own view of it: the master dashboard, open to anyone,
@@ -96,10 +96,10 @@ test("a submitter can hold, release, and withdraw their own authorization from t
   // this at the first stage does not, while it is held. Switching actor
   // reloads the dashboard from scratch (`MasterDashboard.tsx` has no poll)
   // and closes whatever was open, so the detail view is reopened afterward.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-priya-anand");
   await page.getByRole("tab", { name: "My Queue" }).click();
   await expect(page.getByTestId("my-queue").getByTestId("queue-row").filter({ hasText: project })).toHaveCount(0);
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await page.getByRole("tab", { name: "All Authorizations" }).click();
   await dashboard
     .getByTestId("dashboard-row")
@@ -121,14 +121,19 @@ test("whoever holds an authorization at its stage can refer it to a colleague", 
   const project = `Referral ${Date.now()}`;
 
   await initiateAuthorization(page, {
-    submitter: "p-rosa-imbert",
+    submitter: "p-teo-brandt",
     project,
-    requestingDepartment: "Heat Exchange Products",
-    performingDepartment: "Rotor Hubs",
+    requestingDepartment: "Rotor Assemblies",
+    performingDepartment: "Flight Controls Software",
   });
 
-  // The first stage's queue: an Approver at the requesting department.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  // The first stage's queue: an Approver at the requesting department. A
+  // colleague to refer to is any other real participant, not necessarily one
+  // at the same department (`MyQueue.tsx`'s `colleagues` filter only
+  // excludes the referrer and the system identity) - the 5-person roster
+  // (#92) has no second Approver at Rotor Assemblies to refer to, so this
+  // refers to the performing department's own Approver instead.
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-priya-anand");
   await page.getByRole("tab", { name: "My Queue" }).click();
   await page
     .getByTestId("my-queue")
@@ -138,7 +143,7 @@ test("whoever holds an authorization at its stage can refer it to a colleague", 
     .click();
 
   await page.getByTestId("open-refer").click();
-  await page.getByTestId("refer-colleague").selectOption({ label: "Hugo Strand" });
+  await page.getByTestId("refer-colleague").selectOption({ label: "Marcus Oduya" });
   await page.getByTestId("submit-refer").click();
 
   // A referral resolves nothing and moves nothing - the stage's own action
@@ -152,7 +157,7 @@ test("whoever holds an authorization at its stage can refer it to a colleague", 
 
   // Recorded on the authorization's history, readable from the master
   // dashboard - never counted anywhere else (BDR-0011).
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-erez-caldwell");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await page.getByRole("tab", { name: "All Authorizations" }).click();
   const dashboard = page.getByTestId("master-dashboard");
   await dashboard
@@ -160,5 +165,5 @@ test("whoever holds an authorization at its stage can refer it to a colleague", 
     .filter({ hasText: project })
     .getByTestId("dashboard-view-history")
     .click();
-  await expect(page.getByTestId("dashboard-referrals")).toContainText("Cate Marchetti showed this to Hugo Strand");
+  await expect(page.getByTestId("dashboard-referrals")).toContainText("Priya Anand showed this to Marcus Oduya");
 });

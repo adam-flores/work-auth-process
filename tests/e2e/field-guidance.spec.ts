@@ -9,7 +9,7 @@ import type { Page } from "@playwright/test";
 
 async function newDraft(page: Page): Promise<void> {
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await page.getByTestId("new-draft").click();
   await expect(page.getByTestId("draft-form")).toBeVisible();
 }
@@ -56,8 +56,8 @@ test("validation fires before submission, without a round trip to the service", 
   // The same department on both sides is refused by the shared rule module
   // (DraftFields) - picking it is enough to make the draft invalid, before
   // "Save" is ever clicked.
-  await selectDepartment(page, "draft-requesting-department", "Rotor Hubs");
-  await selectDepartment(page, "draft-performing-department", "Rotor Hubs");
+  await selectDepartment(page, "draft-requesting-department", "Rotor Assemblies");
+  await selectDepartment(page, "draft-performing-department", "Rotor Assemblies");
 
   let saveRequestFired = false;
   await page.route("**/api/drafts/**", async (route) => {

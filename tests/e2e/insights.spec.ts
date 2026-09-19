@@ -56,7 +56,7 @@ test("the insights dashboard renders every headline measure, and a live correcti
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-erez-caldwell");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await page.getByRole("tab", { name: "Insights" }).click();
 
   const insights = page.getByTestId("insights-dashboard");
@@ -72,22 +72,22 @@ test("the insights dashboard renders every headline measure, and a live correcti
 
   // A submitter and pairing this spec does not share with any other e2e
   // file's exact-emptiness assertion (`queues.spec.ts` checks that
-  // "p-avery-lund" - the submitter every other spec defaults to - has
-  // nothing waiting at all): this authorization is deliberately left with
-  // an outstanding, submitter-addressed correction request, which stays in
-  // its submitter's queue for the rest of the run.
+  // "p-jordan-hale" - the Contributor every other spec defaults to for a
+  // clean queue - has nothing waiting at all): this authorization is
+  // deliberately left with an outstanding, submitter-addressed correction
+  // request, which stays in its submitter's queue for the rest of the run.
   const project = `Insights E2E ${Date.now()}`;
   await initiateAuthorization(page, {
-    submitter: "p-rosa-imbert",
+    submitter: "p-teo-brandt",
     project,
-    requestingDepartment: "Rotor Hubs",
-    performingDepartment: "Thermal Coatings",
+    requestingDepartment: "Rotor Assemblies",
+    performingDepartment: "Landing Gear Systems",
   });
 
-  // The requesting-program-manager approver at Rotor Hubs raises a
+  // The requesting-program-manager approver at Rotor Assemblies raises a
   // correction against the authorization that just arrived, rather than
   // acknowledging it.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-mira-devane");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-priya-anand");
   await page.getByRole("tab", { name: "My Queue" }).click();
   await page
     .getByTestId("my-queue")
@@ -102,7 +102,7 @@ test("the insights dashboard renders every headline measure, and a live correcti
   await detail.getByTestId("submit-request-correction").click();
   await expect(page.getByTestId("queue-item-detail")).toHaveCount(0);
 
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-erez-caldwell");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await page.getByRole("tab", { name: "Insights" }).click();
   await expect(insights.getByTestId("insights-m3-total-correction-requests")).toHaveText(String(totalBefore + 1));
   await expect(insights.getByTestId("insights-m3-authorization-count")).toHaveText(String(countBefore + 1));

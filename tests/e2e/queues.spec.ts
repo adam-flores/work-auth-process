@@ -13,19 +13,19 @@ import type { Page } from "@playwright/test";
 
 async function initiateCompleteAuthorization(page: Page, project: string): Promise<void> {
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await page.getByTestId("new-draft").click();
   await expect(page.getByTestId("draft-form")).toBeVisible();
 
   await page.getByLabel("Project").fill(project);
 
   const requesting = page.getByTestId("draft-requesting-department");
-  await requesting.getByLabel("Search by name").fill("Heat Exchange Products");
-  await requesting.getByRole("button", { name: "Heat Exchange Products", exact: true }).click();
+  await requesting.getByLabel("Search by name").fill("Rotor Assemblies");
+  await requesting.getByRole("button", { name: "Rotor Assemblies", exact: true }).click();
 
   const performing = page.getByTestId("draft-performing-department");
-  await performing.getByLabel("Search by name").fill("Rotor Hubs");
-  await performing.getByRole("button", { name: "Rotor Hubs", exact: true }).click();
+  await performing.getByLabel("Search by name").fill("Flight Controls Software");
+  await performing.getByRole("button", { name: "Flight Controls Software", exact: true }).click();
 
   await page.getByLabel("Funding type").selectOption("company-funded");
   await page.getByLabel("Requesting location type").selectOption("domestic");
@@ -55,7 +55,7 @@ test("a queue renders what has arrived, and acknowledging it advances the record
 
   // An Approver at the requesting department - the stage's queue, not a
   // named person (BDR-0013).
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-priya-anand");
   await page.getByRole("tab", { name: "My Queue" }).click();
 
   const queue = page.getByTestId("my-queue");
@@ -66,8 +66,8 @@ test("a queue renders what has arrived, and acknowledging it advances the record
   const detail = page.getByTestId("queue-item-detail");
   await expect(detail).toBeVisible();
   await expect(detail.getByTestId("queue-item-stage")).toContainText("scope");
-  await expect(detail).toContainText("Heat Exchange Products");
-  await expect(detail).toContainText("Rotor Hubs");
+  await expect(detail).toContainText("Rotor Assemblies");
+  await expect(detail).toContainText("Flight Controls Software");
 
   await detail.getByTestId("acknowledge").click();
   await expect(page.getByTestId("queue-item-detail")).toHaveCount(0);
@@ -83,29 +83,34 @@ test("a queue renders what has arrived, and acknowledging it advances the record
   );
 });
 
-test("a stage routes to every holder of the role at the department, not to a named person", async ({ page }) => {
+test("a queue is scoped by role and department, not by who submitted it or a named person", async ({ page }) => {
+  // The demo roster (#92) is deliberately sized to exactly one Approver per
+  // department - "no duplicates to choose between mid-demo" - so unlike the
+  // old fixture, there is no second Approver at the same department left to
+  // prove "every holder of the role sees the same queue" against, live, in
+  // the browser. That half of the property is still proven at the service
+  // level (tests/service/queues.test.ts: "every holder of the role at that
+  // department sees the same item - not a named person"). What remains
+  // checkable here, and is checked below: the queue is scoped by role and by
+  // department - an Approver elsewhere does not see it, and a role that
+  // holds no queue at all sees nothing.
   const project = `E2E Shared Queue ${Date.now()}`;
   await initiateCompleteAuthorization(page, project);
 
-  // Two different Approvers at Heat Exchange Products both see it.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  // The Approver at the requesting department sees it.
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-priya-anand");
   await page.getByRole("tab", { name: "My Queue" }).click();
   await expect(
     page.getByTestId("my-queue").getByTestId("queue-row").filter({ hasText: project }),
   ).toBeVisible();
 
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-hugo-strand");
-  await expect(
-    page.getByTestId("my-queue").getByTestId("queue-row").filter({ hasText: project }),
-  ).toBeVisible();
-
   // An Approver at a different department does not.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-mira-devane");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-marcus-oduya");
   await expect(
     page.getByTestId("my-queue").getByTestId("queue-row").filter({ hasText: project }),
   ).toHaveCount(0);
 
   // A Contributor holds no queue at all.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-jordan-hale");
   await expect(page.getByTestId("my-queue")).toContainText("Nothing is waiting on you.");
 });

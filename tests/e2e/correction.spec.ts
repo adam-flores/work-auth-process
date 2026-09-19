@@ -12,19 +12,19 @@ import type { Page } from "@playwright/test";
 
 async function initiateAuthorization(page: Page, project: string): Promise<void> {
   await page.goto("/");
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   await page.getByTestId("new-draft").click();
   await expect(page.getByTestId("draft-form")).toBeVisible();
 
   await page.getByLabel("Project").fill(project);
 
   const requesting = page.getByTestId("draft-requesting-department");
-  await requesting.getByLabel("Search by name").fill("Heat Exchange Products");
-  await requesting.getByRole("button", { name: "Heat Exchange Products", exact: true }).click();
+  await requesting.getByLabel("Search by name").fill("Rotor Assemblies");
+  await requesting.getByRole("button", { name: "Rotor Assemblies", exact: true }).click();
 
   const performing = page.getByTestId("draft-performing-department");
-  await performing.getByLabel("Search by name").fill("Rotor Hubs");
-  await performing.getByRole("button", { name: "Rotor Hubs", exact: true }).click();
+  await performing.getByLabel("Search by name").fill("Flight Controls Software");
+  await performing.getByRole("button", { name: "Flight Controls Software", exact: true }).click();
 
   await page.getByLabel("Funding type").selectOption("company-funded");
   await page.getByLabel("Requesting location type").selectOption("domestic");
@@ -52,7 +52,7 @@ test("an approver reports a problem, the submitter corrects it, and the approver
 
   // The requesting program manager approver finds the project name wrong
   // and raises a correction request instead of acknowledging it.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-priya-anand");
   await page.getByRole("tab", { name: "My Queue" }).click();
   const approverQueue = page.getByTestId("my-queue");
   const row = approverQueue.getByTestId("queue-row").filter({ hasText: project });
@@ -69,7 +69,7 @@ test("an approver reports a problem, the submitter corrects it, and the approver
   await expect(approverQueue.getByTestId("queue-row").filter({ hasText: project })).toHaveCount(0);
 
   // It sits in the submitter's queue, marked as awaiting correction.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-avery-lund");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-teo-brandt");
   const submitterQueue = page.getByTestId("my-queue");
   const correctionRow = submitterQueue.getByTestId("queue-row").filter({ hasText: project });
   await expect(correctionRow).toBeVisible();
@@ -90,7 +90,7 @@ test("an approver reports a problem, the submitter corrects it, and the approver
 
   // The same approver resumes at exactly the stage they left it, and can
   // now acknowledge it normally.
-  await page.getByLabel("Participant", { exact: true }).selectOption("p-cate-marchetti");
+  await page.getByLabel("Participant", { exact: true }).selectOption("p-priya-anand");
   const resumedRow = approverQueue.getByTestId("queue-row").filter({ hasText: correctedProject });
   await expect(resumedRow).toBeVisible();
   await resumedRow.getByRole("button", { name: "Open" }).click();
