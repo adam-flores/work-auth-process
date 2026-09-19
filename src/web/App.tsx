@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api.ts";
 import type { StoreInfo } from "./api.ts";
+import { DemoPlayer } from "./DemoPlayer.tsx";
 import { HierarchyAdmin } from "./HierarchyAdmin.tsx";
 import { InsightsDashboard } from "./InsightsDashboard.tsx";
 import { MasterDashboard } from "./MasterDashboard.tsx";
@@ -14,12 +15,14 @@ import { SYSTEM_PARTICIPANT_ID } from "../shared/constants.ts";
 import type { Participant } from "../shared/rules.ts";
 
 /**
- * The app's one page (#91): a persistent header - the participant switcher,
- * the store-info panel and reset control, the participant roster, and
- * revocation notices - above tabbed content, so a presenter can jump
- * straight to a screen instead of scrolling past everything else. The
- * switcher itself is the concrete form mocked identity takes (ADR-0010: the
- * caller says who is acting).
+ * The app's one page (#91): a persistent header - the scripted demo
+ * player's control bar (#94), the participant switcher, the store-info
+ * panel and reset control, the participant roster, and revocation notices -
+ * above tabbed content, so a presenter can jump straight to a screen
+ * instead of scrolling past everything else. The switcher itself is the
+ * concrete form mocked identity takes (ADR-0010: the caller says who is
+ * acting) - the same switcher the demo player drives by calling
+ * `setActingId` itself, exactly as a presenter's own click would.
  */
 export function App() {
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -27,6 +30,10 @@ export function App() {
   const [store, setStore] = useState<StoreInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Owned here, not by `Tabs.tsx` (#94): the scripted demo player switches
+  // tabs itself as its story requires, which only works if something
+  // outside the tab shell can set the active tab.
+  const [activeTabId, setActiveTabId] = useState("submit");
 
   // Switching actor twice quickly leaves two reads in flight. Only the newest
   // may paint - otherwise a slow failure from the actor you just left lands on
@@ -103,6 +110,12 @@ export function App() {
           Every participant is mocked.
         </p>
       </header>
+
+      <DemoPlayer
+        onActingIdChange={setActingId}
+        onTabChange={setActiveTabId}
+        onReset={() => void load(SYSTEM_PARTICIPANT_ID)}
+      />
 
       <section aria-labelledby="acting-heading">
         <h2 id="acting-heading">Acting as</h2>
@@ -184,7 +197,7 @@ export function App() {
 
       <RevocationNotices actingId={actingId} />
 
-      <Tabs tabs={tabs} defaultTabId="submit" />
+      <Tabs tabs={tabs} activeTabId={activeTabId} onActiveTabIdChange={setActiveTabId} />
     </main>
   );
 }

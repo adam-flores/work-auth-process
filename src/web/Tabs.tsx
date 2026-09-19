@@ -1,12 +1,18 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 
 /**
  * The tab shell (#91). Deliberately ignorant of what a tab holds - a label
  * and content, nothing else - so the pipeline views, the insights redesign,
  * and the demo player can each land inside a tab without this changing.
- * Local state, not a router (ADR-0001 settles plain React with no router
- * opinion to disturb, and this is a layout change, not a routing concern).
+ * Not a router (ADR-0001 settles plain React with no router opinion to
+ * disturb, and this is a layout change, not a routing concern).
+ *
+ * Controlled by its caller (#94) rather than holding its own state: the
+ * scripted demo player switches tabs itself as the story requires, which
+ * only works if something outside this component can set the active tab.
+ * `App.tsx` is Tabs' one caller and owns `activeTabId` for exactly this
+ * reason.
  *
  * Every tab's content is mounted up front and stays mounted - switching only
  * toggles the native `hidden` attribute. Before this shell, every section
@@ -36,17 +42,17 @@ export type TabDefinition = {
 
 export type TabsProps = {
   tabs: [TabDefinition, ...TabDefinition[]];
-  defaultTabId: string;
+  activeTabId: string;
+  onActiveTabIdChange: (id: string) => void;
 };
 
-export function Tabs({ tabs, defaultTabId }: TabsProps) {
-  const [activeId, setActiveId] = useState(defaultTabId);
+export function Tabs({ tabs, activeTabId, onActiveTabIdChange }: TabsProps) {
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const activateIndex = (index: number) => {
     const tab = tabs[index];
     if (!tab) return;
-    setActiveId(tab.id);
+    onActiveTabIdChange(tab.id);
     buttonRefs.current[index]?.focus();
   };
 
@@ -78,10 +84,10 @@ export function Tabs({ tabs, defaultTabId }: TabsProps) {
             type="button"
             role="tab"
             id={`tab-${tab.id}`}
-            aria-selected={tab.id === activeId}
+            aria-selected={tab.id === activeTabId}
             aria-controls={`tabpanel-${tab.id}`}
-            tabIndex={tab.id === activeId ? 0 : -1}
-            className={tab.id === activeId ? "tab active" : "tab"}
+            tabIndex={tab.id === activeTabId ? 0 : -1}
+            className={tab.id === activeTabId ? "tab active" : "tab"}
             onClick={() => activateIndex(index)}
             onKeyDown={(e) => onKeyDown(e, index)}
           >
@@ -95,7 +101,7 @@ export function Tabs({ tabs, defaultTabId }: TabsProps) {
           role="tabpanel"
           id={`tabpanel-${tab.id}`}
           aria-labelledby={`tab-${tab.id}`}
-          hidden={tab.id !== activeId}
+          hidden={tab.id !== activeTabId}
         >
           {tab.content}
         </div>
