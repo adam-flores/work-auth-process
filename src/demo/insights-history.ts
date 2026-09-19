@@ -52,10 +52,11 @@ function daysAgo(n: number): Date {
 }
 
 /** `count` timestamps, evenly spaced across `totalDays` starting from
- *  `startAt` - the seven transitions after initiation (two requesting
- *  acknowledgements, a claim, a contribution, two performing
- *  acknowledgements, and a mint) each land `totalDays / count` apart, so
- *  the last one - completion - falls exactly `totalDays` after `startAt`. */
+ *  `startAt` - the six stage-resolving transitions after initiation (two
+ *  requesting acknowledgements, a contribution, two performing
+ *  acknowledgements, and a mint - `claim` is deliberately not one of these;
+ *  see its own call site) each land `totalDays / count` apart, so the last
+ *  one - completion - falls exactly `totalDays` after `startAt`. */
 function evenSteps(startAt: Date, totalDays: number, count: number): string[] {
   const stepMs = (totalDays * 24 * 60 * 60 * 1000) / count;
   const timestamps: string[] = [];
@@ -156,8 +157,15 @@ const SCENARIOS: Scenario[] = [
 
 function seedScenario(service: Service, requestingDeptId: string, performingDeptId: string, scenario: Scenario): void {
   const startAt = daysAgo(scenario.completedDaysAgo + scenario.totalDays);
-  const [ack1, ack2, claimAt, contributeAt, ack3, ack4, mintAt] = evenSteps(startAt, scenario.totalDays, 7) as [
-    string,
+  // Six even slices, not seven: `claim` doesn't resolve a stage (only
+  // `contribute` does - `RESOLVING_KINDS` in `authorizations/index.ts`), so
+  // giving it its own slice would silently fold that slice into
+  // "performing-department"'s attributed time, doubling it relative to
+  // every other stage. `claimAt` instead lands at the midpoint of the
+  // ack2 -> contribute window it needs to fall inside, without consuming a
+  // slice of its own - every one of the six real stage-resolving
+  // boundaries stays an equal totalDays/6 apart.
+  const [ack1, ack2, contributeAt, ack3, ack4, mintAt] = evenSteps(startAt, scenario.totalDays, 6) as [
     string,
     string,
     string,
@@ -165,6 +173,7 @@ function seedScenario(service: Service, requestingDeptId: string, performingDept
     string,
     string,
   ];
+  const claimAt = new Date((new Date(ack2).getTime() + new Date(contributeAt).getTime()) / 2).toISOString();
 
   const draft = service.createDraft(
     { participantId: SUBMITTER_ID },

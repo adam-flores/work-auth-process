@@ -93,6 +93,25 @@ function stageTotals(rows: StageOccurrenceMeasure[]): StageTotal[] {
   });
 }
 
+/** A stage's `totalMs` is a sum across every completed visit in the seeded
+ *  or live history, not one authorization's own time there
+ *  (`computeMeasures`'s documented contract, `measures/index.ts`: "total
+ *  elapsed time"). Rendering that sum as if it were a single typical
+ *  duration is what made the tile misread as "this stage alone takes over
+ *  a week" and made the eight tiles look like they summed to a whole
+ *  authorization's journey, rather than to the history behind several -
+ *  dividing by `visitCount` is what turns it back into "how long does this
+ *  stage typically take." `null`, not a fallback to the raw total, when
+ *  `visitCount` is 0 - the same convention M2's own `averageMs` already
+ *  uses for "nothing to average yet" (`Measures.m2CycleTime`) - since a
+ *  total attached to zero *resolved* visits (a still-open visit that has
+ *  already accrued closed awaiting-correction time, `stageTotals`'s own
+ *  comment below) isn't an average of anything and saying so would be
+ *  self-contradicting. */
+function perVisitMs(totalMs: number, visitCount: number): number | null {
+  return visitCount > 0 ? totalMs / visitCount : null;
+}
+
 /** Five fixed levels, not a continuous scale - `--seq-0..4` in `styles.css`
  *  are the only hexes this ever renders (the dataviz skill's "documented
  *  palette only" rule), so magnitude is quantized into whichever of those
@@ -121,22 +140,41 @@ function StageChartRow({ total, maxMs }: { total: StageTotal; maxMs: number }) {
   // columns avoided.
   const hasAnyTime = total.visitCount > 0 || total.totalMs > 0;
   const hasReReviewTime = total.reReview.visitCount > 0 || total.reReview.totalMs > 0;
-  const level = stageChartLevel(total.totalMs, maxMs);
+  const averageMs = perVisitMs(total.totalMs, total.visitCount);
+  // The rare edge case (`perVisitMs`'s own comment) still needs some value
+  // to pick a tile color - the raw total is the only one available, and a
+  // pre-resolution total is closer to the eventual per-visit figure than
+  // treating it as zero would be.
+  const level = stageChartLevel(averageMs ?? total.totalMs, maxMs);
+  const reReviewAverageMs = perVisitMs(total.reReview.totalMs, total.reReview.visitCount);
   return (
     <li className="stage-chart-row" data-testid="insights-stage-chart-row" data-stage-id={total.stageId}>
       <span className="stage-chart-label">{STAGE_LABELS[total.stageId]}</span>
       <span className="stage-chart-cell" data-level={level}>
         <span className="stage-chart-value" data-testid="insights-stage-chart-value">
-          {hasAnyTime ? formatDuration(total.totalMs) : "—"}
+          {hasAnyTime ? formatDuration(averageMs ?? total.totalMs) : "—"}
         </span>
         <span className="stage-chart-meta">
-          {hasAnyTime ? `${total.visitCount} visit${total.visitCount === 1 ? "" : "s"}` : "No visits yet"}
+          {averageMs !== null
+            ? `avg. of ${total.visitCount} visit${total.visitCount === 1 ? "" : "s"}`
+            : hasAnyTime
+              ? "no resolved visits yet"
+              : "No visits yet"}
         </span>
       </span>
       {hasReReviewTime && (
         <span className="stage-chart-detail" data-testid="insights-stage-chart-re-review">
-          Includes {OCCURRENCE_LABELS["re-review"].toLowerCase()}: {total.reReview.visitCount} visit
-          {total.reReview.visitCount === 1 ? "" : "s"}, {formatDuration(total.reReview.totalMs)}
+          {reReviewAverageMs !== null ? (
+            <>
+              Includes {OCCURRENCE_LABELS["re-review"].toLowerCase()}: avg. {formatDuration(reReviewAverageMs)}{" "}
+              across {total.reReview.visitCount} visit{total.reReview.visitCount === 1 ? "" : "s"}
+            </>
+          ) : (
+            <>
+              Includes {OCCURRENCE_LABELS["re-review"].toLowerCase()}: {formatDuration(total.reReview.totalMs)}{" "}
+              (no resolved visits yet)
+            </>
+          )}
         </span>
       )}
     </li>
@@ -176,7 +214,10 @@ export function InsightsDashboard({ actingId }: InsightsDashboardProps) {
   }, [load, actingId]);
 
   const stageChartRows = measures === null ? [] : stageTotals(measures.stageOccurrences);
-  const maxStageMs = Math.max(0, ...stageChartRows.map((total) => total.totalMs));
+  const maxStageMs = Math.max(
+    0,
+    ...stageChartRows.map((total) => perVisitMs(total.totalMs, total.visitCount) ?? total.totalMs),
+  );
 
   return (
     <section aria-labelledby="insights-heading" data-testid="insights-dashboard">
@@ -254,11 +295,13 @@ export function InsightsDashboard({ actingId }: InsightsDashboardProps) {
           <h3>Time in each stage</h3>
           <p className="hint">
             One tile per relay stage, in the relay's own sequence rather than sorted by value, so
-            the chart reads as where time goes in the process (#93, ADR-0006) - darker means more
-            time, on a fixed five-step scale. First-pass and re-review time are folded into one
-            tile per stage; a stage with any re-review time still gets a visible line for it, so
-            nobody is charged for the rules or the data moving beneath them (#60, BDR-0006). Held
-            time is excluded throughout.
+            the chart reads as where time goes in the process (#93, ADR-0006) - each tile is that
+            stage's average time per visit, not a total across every visit behind it, so the tiles
+            read as one typical authorization's journey rather than the whole history's accumulated
+            hours. Darker means more time, on a fixed five-step scale. First-pass and re-review time
+            are folded into one tile per stage; a stage with any re-review time still gets a visible
+            line for it, so nobody is charged for the rules or the data moving beneath them (#60,
+            BDR-0006). Held time is excluded throughout.
           </p>
           <ul className="stage-chart" data-testid="insights-stage-chart">
             {stageChartRows.map((total) => (

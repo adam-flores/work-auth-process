@@ -51,7 +51,7 @@ describe("the demo's Insights history fixture", () => {
       return (new Date(completedAt).getTime() - new Date(a.initiatedAt).getTime()) / dayMs;
     });
     // A small epsilon, not a stricter bound: `evenSteps` accumulates a
-    // floating-point step size, so the last of seven additions can land a
+    // floating-point step size, so the last of its six additions can land a
     // fraction of a millisecond short of the exact target.
     for (const days of cycleDays) {
       assert.ok(days >= 3 - 0.001 && days <= 8 + 0.001, `expected a 3-8 day cycle, got ${days}`);
