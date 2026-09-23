@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/service/*.test.ts tests/shared/*.test.ts tests/demo/*.test.ts",
     "test:e2e": "playwright test",
+    "test:lite": "playwright test --config playwright.lite.config.ts",
     "security-scan": "node scripts/security-scan.ts"
   },
   "dependencies": {
