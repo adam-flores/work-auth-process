@@ -1,0 +1,1940 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Work Authorization — Prototype Lite</title>
+<!--
+  ============================================================================
+  WORK AUTHORIZATION — PROTOTYPE LITE
+  ============================================================================
+
+  A standalone, single-file prototype of an internal work authorization
+  process. No framework, no build step, no network requests. Open it by
+  double-clicking; it works offline and survives being an email attachment.
+
+  This file is deliberately written to be READ. If you are evaluating what it
+  would cost to build this for real, the whole thing is here in four parts:
+
+     1. SEED     the fictional world: org hierarchy, rules, authorizations
+     2. RULES    classification, permissibility, gate routing, validation
+     3. STATE    what changes as you use it, and where it is kept
+     4. RENDER   everything you see
+
+  Rules read state and never touch the page. That is the only architectural
+  boundary in the file, and it is here for readability rather than ceremony.
+
+  A larger prototype of the same concept exists — React over Node services
+  over SQLite. This one shares no code with it. What crosses between them is
+  fictional names and a set of colour values.
+
+  Every organisation, person, number and figure below is invented.
+  ============================================================================
+-->
+<style>
+/* ---------------------------------------------------------------------------
+   Palette. These hex values are copied from the larger prototype, where each
+   was contrast-checked by computation rather than chosen by eye. Status colour
+   always ships as a filled chip carrying a text label — never colour alone.
+   Light mode only: this file is an attachment, not an application.
+--------------------------------------------------------------------------- */
+:root {
+  --ink: #1b1f23;
+  --muted: #5c6670;
+  --line: #dfe3e8;
+  --ground: #ffffff;
+  --raised: #f7f8fa;
+  --accent: #1f5c8b;
+  --error: #9b1c1c;
+
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+  --accent-info: #4a3aa7;
+
+  /* Ordinal ramp, five steps. Used only on the insights heat tiles. */
+  --seq-0: #86b6ef;
+  --seq-1: #5598e7;
+  --seq-2: #2a78d6;
+  --seq-3: #1c5cab;
+  --seq-4: #104281;
+
+  --radius: 8px;
+  --shadow: 0 1px 2px rgba(27, 31, 35, .06), 0 4px 16px rgba(27, 31, 35, .05);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--raised);
+  color: var(--ink);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { line-height: 1.25; margin: 0; font-weight: 640; letter-spacing: -0.01em; }
+h1 { font-size: 1.05rem; }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 0.95rem; }
+p { margin: 0; }
+a { color: var(--accent); }
+
+/* --- Disclosure band: permanently visible, never dismissible ------------- */
+.disclosure {
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.8rem;
+  padding: 0.5rem 1.25rem;
+  text-align: center;
+}
+.disclosure strong { font-weight: 640; }
+.disclosure .short { display: none; }
+@media (max-width: 700px) {
+  .disclosure .long { display: none; }
+  .disclosure .short { display: inline; }
+}
+
+/* --- Header: identity, acting role, tabs -------------------------------- */
+.top { position: sticky; top: 0; z-index: 10; }
+header {
+  background: var(--ground);
+  border-bottom: 1px solid var(--line);
+  padding: 0.85rem 1.25rem 0;
+}
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.brand { display: flex; align-items: baseline; gap: .6rem; margin-right: auto; }
+.brand .mark {
+  width: 1.4rem; height: 1.4rem; border-radius: 5px;
+  background: var(--accent); display: inline-block; position: relative; top: .25rem;
+}
+.brand .sub { color: var(--muted); font-size: .8rem; }
+
+.acting {
+  display: flex; align-items: center; gap: .5rem;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: .3rem .3rem .3rem .7rem;
+}
+.acting label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.acting select {
+  font: inherit; font-size: .85rem; font-weight: 600;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--ground); color: var(--ink); padding: .3rem .5rem;
+}
+
+.tabs { display: flex; gap: .25rem; max-width: 1120px; margin: .85rem auto 0; overflow-x: auto; }
+.tabs button {
+  white-space: nowrap;
+  font: inherit; font-size: .9rem; font-weight: 560;
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--muted); padding: .5rem .85rem; cursor: pointer;
+}
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.tabs .count {
+  font-size: .72rem; background: var(--accent); color: #fff;
+  border-radius: 999px; padding: .05rem .4rem; margin-left: .35rem;
+}
+
+main { max-width: 1120px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+
+/* --- Cards, panels ------------------------------------------------------ */
+.card {
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.card-head { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: .9rem; }
+.card-head .grow { margin-right: auto; }
+.section-label {
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--muted); font-weight: 640; margin-bottom: .5rem;
+}
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+.tiny { font-size: .78rem; }
+
+/* --- The authorization list --------------------------------------------- */
+.list-controls { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.toggle {
+  font: inherit; font-size: .85rem; font-weight: 560;
+  border: 1px solid var(--line); background: var(--ground); color: var(--ink);
+  border-radius: 999px; padding: .35rem .85rem; cursor: pointer;
+}
+.toggle[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.row {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr 13rem 9rem;
+  gap: 1rem;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: .8rem 1rem;
+  margin-bottom: .5rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.row:hover { border-color: var(--accent); }
+.row .id { font-variant-numeric: tabular-nums; font-weight: 640; font-size: .85rem; }
+.row .project { font-weight: 560; }
+.row .pair { font-size: .8rem; color: var(--muted); }
+@media (max-width: 760px) {
+  .row { grid-template-columns: 1fr; gap: .35rem; }
+}
+
+/* --- Badges ------------------------------------------------------------- */
+.badge {
+  display: inline-block; font-size: .72rem; font-weight: 640;
+  padding: .15rem .5rem; border-radius: 999px; white-space: nowrap;
+}
+.badge-stage { background: var(--raised); border: 1px solid var(--line); color: var(--muted); }
+.badge-good { background: var(--status-good); color: #10240f; }
+.badge-warning { background: var(--status-warning); color: #3a2a00; }
+.badge-critical { background: var(--status-critical); color: #fff; }
+.badge-info { color: var(--accent-info); border: 1px solid var(--accent-info); background: transparent; }
+.badge-mine { background: var(--accent); color: #fff; }
+
+/* --- The route strip ---------------------------------------------------- */
+.route { display: flex; flex-wrap: wrap; gap: .35rem; }
+.route-step {
+  font-size: .75rem; padding: .3rem .6rem; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--raised); color: var(--muted);
+}
+.route-step.done { background: var(--ground); color: var(--ink); }
+.route-step.done::before { content: "✓ "; color: var(--status-good); font-weight: 700; }
+.route-step.here { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 640; }
+.route-step.skipped { text-decoration: line-through; opacity: .55; }
+
+/* --- Forms -------------------------------------------------------------- */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+
+.field { margin-bottom: .85rem; }
+.field > label {
+  display: block; font-size: .78rem; font-weight: 600;
+  color: var(--muted); margin-bottom: .25rem;
+}
+.field input, .field select, .field textarea {
+  width: 100%; font: inherit; font-size: .9rem;
+  border: 1px solid var(--line); border-radius: 6px;
+  padding: .45rem .6rem; background: var(--ground); color: var(--ink);
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent);
+}
+.guidance { font-size: .78rem; color: var(--muted); margin: .2rem 0 .3rem; }
+.field.invalid input, .field.invalid select { border-color: var(--error); }
+.field-error { font-size: .78rem; color: var(--error); font-weight: 600; margin-top: .2rem; }
+
+button.primary, button.ghost, button.danger {
+  font: inherit; font-size: .88rem; font-weight: 600;
+  border-radius: 6px; padding: .5rem .95rem; cursor: pointer;
+}
+button.primary { background: var(--accent); border: 1px solid var(--accent); color: #fff; }
+button.ghost { background: var(--ground); border: 1px solid var(--line); color: var(--ink); }
+button.danger { background: var(--ground); border: 1px solid var(--error); color: var(--error); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.actions { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: 1rem; }
+
+/* --- The department picker ---------------------------------------------- */
+.picker { border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); padding: .85rem; }
+.picker-filters { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin-bottom: .5rem; }
+@media (max-width: 600px) { .picker-filters { grid-template-columns: 1fr; } }
+.picker-filters select, .picker-search input {
+  width: 100%; font: inherit; font-size: .85rem;
+  border: 1px solid var(--line); border-radius: 6px; padding: .4rem .55rem;
+  background: var(--ground); color: var(--ink);
+}
+.picker-count { font-size: .78rem; color: var(--muted); margin: .45rem 0 .3rem; }
+.picker-results { max-height: 15rem; overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--ground); }
+.picker-results button {
+  display: block; width: 100%; text-align: left; font: inherit;
+  background: none; border: none; border-bottom: 1px solid var(--line);
+  padding: .5rem .7rem; cursor: pointer; color: var(--ink);
+}
+.picker-results button:last-child { border-bottom: none; }
+.picker-results button:hover { background: var(--raised); }
+.picker-results .dept-name { font-size: .88rem; font-weight: 560; }
+.picker-results .dept-where { display: block; font-size: .75rem; color: var(--muted); }
+.picker-empty { padding: .8rem .7rem; font-size: .85rem; color: var(--muted); }
+
+/* --- Derived (auto-filled) panel ---------------------------------------- */
+.derived {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: #f2f7fb;
+  padding: .85rem;
+}
+.derived-head {
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
+  font-weight: 640; color: var(--accent); margin-bottom: .5rem;
+}
+.derived dl { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem 1rem; margin: 0; }
+@media (max-width: 600px) { .derived dl { grid-template-columns: 1fr; } }
+.derived dt { font-size: .72rem; color: var(--muted); }
+.derived dd { margin: 0; font-size: .85rem; font-weight: 560; }
+
+/* --- Read-only detail lists --------------------------------------------- */
+dl.facts { display: grid; grid-template-columns: minmax(10rem, max-content) 1fr; gap: .35rem 1.5rem; margin: 0; align-items: baseline; }
+@media (max-width: 600px) { dl.facts { grid-template-columns: 1fr; gap: .1rem; } }
+dl.facts dt { font-size: .72rem; color: var(--muted); }
+dl.facts dd { margin: 0 0 .3rem; font-size: .88rem; }
+
+/* --- Notices ------------------------------------------------------------ */
+.notice { border-radius: var(--radius); padding: .8rem 1rem; margin-bottom: 1rem; font-size: .88rem; }
+.notice-warning { background: #fff8e6; border: 1px solid var(--status-warning); }
+.notice-error { background: #fdf0f0; border: 1px solid var(--error); color: var(--error); font-weight: 560; }
+.notice-good { background: #f0f8f0; border: 1px solid var(--status-good); }
+.notice-info { background: #f3f1fc; border: 1px solid var(--accent-info); }
+.notice h3 { margin-bottom: .25rem; }
+
+/* --- History ------------------------------------------------------------ */
+ol.history { list-style: none; margin: 0; padding: 0; }
+ol.history li {
+  display: grid; grid-template-columns: 6.5rem 1fr; gap: .8rem;
+  padding: .45rem 0; border-bottom: 1px solid var(--line); font-size: .85rem;
+}
+ol.history li:last-child { border-bottom: none; }
+ol.history .when { color: var(--muted); font-size: .78rem; font-variant-numeric: tabular-nums; }
+ol.history .who { color: var(--muted); font-size: .78rem; }
+
+/* --- Insights ----------------------------------------------------------- */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .75rem; margin-bottom: 1rem; }
+.tile { background: var(--ground); border: 1px solid var(--line); border-radius: var(--radius); padding: .85rem 1rem; }
+.tile-label { font-size: .75rem; color: var(--muted); }
+.tile-value { font-size: 1.7rem; font-weight: 650; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.tile-detail { font-size: .75rem; color: var(--muted); }
+
+.heat { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+@media (max-width: 700px) { .heat { grid-template-columns: repeat(2, 1fr); } }
+.heat-cell { border-radius: 6px; padding: .7rem .75rem; }
+.heat-stage { font-size: .72rem; font-weight: 600; opacity: .95; }
+.heat-days { font-size: 1.15rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.heat-0 { background: var(--seq-0); color: #10243f; }
+.heat-1 { background: var(--seq-1); color: #0c1d33; }
+.heat-2 { background: var(--seq-2); color: #ffffff; }
+.heat-3 { background: var(--seq-3); color: #ffffff; }
+.heat-4 { background: var(--seq-4); color: #ffffff; }
+
+.bar-row { display: grid; grid-template-columns: 15rem 1fr 3rem; gap: .6rem; align-items: center; margin-bottom: .5rem; font-size: .85rem; }
+@media (max-width: 600px) { .bar-row { grid-template-columns: 1fr 2.5rem; } .bar-row .bar-track { grid-column: 1 / -1; grid-row: 2; } }
+.bar-track { display: block; background: var(--line); border-radius: 999px; height: .65rem; overflow: hidden; }
+.bar-fill { display: block; background: var(--accent); height: 100%; border-radius: 999px; }
+.bar-num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); font-size: .8rem; }
+
+footer { max-width: 1120px; margin: 0 auto; padding: 0 1.25rem 3rem; color: var(--muted); font-size: .78rem; }
+</style>
+</head>
+<body>
+
+<div class="top">
+<div class="disclosure" data-testid="disclosure">
+  <span class="long">A prototype of an internal work authorization process at <strong>a large
+  aerospace manufacturer</strong>. Every organisation, person, number and figure in it is
+  <strong>fictional</strong>. Nothing here is a measurement.</span>
+  <span class="short">Prototype · every name and figure is <strong>fictional</strong></span>
+</div>
+
+<header>
+  <div class="header-row">
+    <div class="brand">
+      <span class="mark"></span>
+      <h1>Work Authorization</h1>
+      <span class="sub">prototype&nbsp;lite</span>
+    </div>
+    <div class="acting">
+      <label for="role-select">Acting as</label>
+      <select id="role-select"></select>
+    </div>
+  </div>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+</header>
+</div>
+
+<main id="view"></main>
+
+<footer id="footer"></footer>
+
+<script>
+"use strict";
+
+/* ===========================================================================
+   1. SEED — the fictional world
+   ===========================================================================
+   Everything in this section is invented. The organisation is "Calderis", a
+   fictional aerospace manufacturer. No real company, contract, program,
+   person or cost figure appears anywhere in this file.
+=========================================================================== */
+
+/* All seeded dates are measured back from a fixed day, so the file reads the
+   same whenever it is opened. Only authorizations you create yourself use the
+   real clock. */
+const SEED_TODAY = "2026-09-22T09:00:00Z";
+
+function seedDate(daysAgo) {
+  const d = new Date(SEED_TODAY);
+  d.setUTCDate(d.getUTCDate() - daysAgo);
+  return d.toISOString();
+}
+
+/* ---------------------------------------------------------------------------
+   The organisational hierarchy: three levels — legal entity, division,
+   department. A department is the level work is requested from and performed
+   by; the two levels above it exist to tell similar departments apart.
+
+   `foreign` is an ATTRIBUTE: it helps narrow the list. Notice that foreign
+   departments are scattered through the hierarchy rather than grouped into one
+   part of it — which is exactly why you cannot find a department by position
+   alone.
+
+   Everything else on a department is DETAIL: it helps a person recognise the
+   department in front of them, and is never a filter. One cost centre code is
+   carried by several departments at once, so a code identifies nothing.
+--------------------------------------------------------------------------- */
+const HIERARCHY = [
+  {
+    id: "csg", name: "Calderis Structures Group",
+    divisions: [
+      {
+        id: "csg-thermal", name: "Thermal Systems",
+        departments: [
+          { id: "d01", name: "Heat Exchange Products",        foreign: false, cac: "CSG-4110", cc: ["41021", "41044"], disclosure: "Type II",  heritage: "Calderis",   tp: "TP-41100", erp: "ERP-CSG-41" },
+          { id: "d02", name: "Thermal Coatings",              foreign: false, cac: "CSG-4112", cc: ["41021"],          disclosure: "Type II",  heritage: "Calderis",   tp: "TP-41120", erp: "ERP-CSG-41" },
+          { id: "d03", name: "Cryogenic Handling",            foreign: false, cac: "CSG-4118", cc: ["41077"],          disclosure: "Type I",   heritage: "Burnwell",   tp: "TP-41180", erp: "ERP-CSG-41" },
+          { id: "d04", name: "Thermal Defense Products",      foreign: false, cac: "CSG-4131", cc: ["41077", "41090"], disclosure: "Type I",   heritage: "Calderis",   tp: "TP-41310", erp: "ERP-CSG-41" }
+        ]
+      },
+      {
+        id: "csg-rotor", name: "Rotor Assemblies",
+        departments: [
+          { id: "d05", name: "Rotor Hubs",                    foreign: false, cac: "CSG-4220", cc: ["42010"],          disclosure: "Type II",  heritage: "Calderis",   tp: "TP-42200", erp: "ERP-CSG-42" },
+          { id: "d06", name: "Rotor Hubs — Pacific",          foreign: true,  cac: "CSG-4224", cc: ["42010", "42033"], disclosure: "Type III", heritage: "Calderis",   tp: "TP-42240", erp: "ERP-CSG-42" },
+          { id: "d07", name: "Rotor Shafts Aldenmoor",        foreign: true,  cac: "CSG-4231", cc: ["42055"],          disclosure: "Type III", heritage: "Aldenmoor",  tp: "TP-42310", erp: "ERP-CSG-42" },
+          { id: "d08", name: "Rotor Shaft Corp",              foreign: false, cac: "CSG-4235", cc: ["42055", "42061"], disclosure: "Type II",  heritage: "Northline",  tp: "TP-42350", erp: "ERP-CSG-42" }
+        ]
+      },
+      {
+        id: "csg-cabin", name: "Cabin Equipment",
+        departments: [
+          { id: "d09", name: "Seat Track Assemblies",         foreign: false, cac: "CSG-4340", cc: ["43012"],          disclosure: "Type II",  heritage: "Calderis",   tp: "TP-43400", erp: "ERP-CSG-43" },
+          { id: "d10", name: "Service Module Products",       foreign: false, cac: "CSG-4344", cc: ["43012", "43025"], disclosure: "Type II",  heritage: "Calderis",   tp: "TP-43440", erp: "ERP-CSG-43" },
+          { id: "d11", name: "Cabin Lighting Products",       foreign: false, cac: "CSG-4351", cc: ["43088"],          disclosure: "Type II",  heritage: "Harrowgate", tp: "TP-43510", erp: "ERP-CSG-43" },
+          { id: "d12", name: "Cabin Lighting Systems — Military", foreign: false, cac: "CSG-4355", cc: ["43088", "43090"], disclosure: "Type I", heritage: "Harrowgate", tp: "TP-43550", erp: "ERP-CSG-43" }
+        ]
+      },
+      {
+        id: "csg-nav", name: "Navigation Products",
+        departments: [
+          { id: "d13", name: "Inertial Reference Systems",    foreign: false, cac: "CSG-4460", cc: ["44001"],          disclosure: "Type I",   heritage: "Calderis",   tp: "TP-44600", erp: "ERP-CSG-44" },
+          { id: "d14", name: "Harrowgate Navigation Ltd",     foreign: true,  cac: "CSG-4468", cc: ["44001", "44019"], disclosure: "Type III", heritage: "Harrowgate", tp: "TP-44680", erp: "ERP-CSG-44" },
+          { id: "d15", name: "Beacon Switching Products Ltd", foreign: true,  cac: "CSG-4472", cc: ["44019"],          disclosure: "Type III", heritage: "Harrowgate", tp: "TP-44720", erp: "ERP-CSG-44" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "cal", name: "Calderis Avionics Ltd",
+    divisions: [
+      {
+        id: "cal-labs", name: "Labs",
+        departments: [
+          { id: "d16", name: "Thermal Cycling Lab",           foreign: false, cac: "CAL-5110", cc: ["51004"],          disclosure: "Type II",  heritage: "Calderis",   tp: "TP-51100", erp: "ERP-CAL-51" },
+          { id: "d17", name: "Vibration Lab",                 foreign: false, cac: "CAL-5112", cc: ["51004", "51009"], disclosure: "Type II",  heritage: "Calderis",   tp: "TP-51120", erp: "ERP-CAL-51" },
+          { id: "d18", name: "Emissions Lab",                 foreign: false, cac: "CAL-5115", cc: ["51009"],          disclosure: "Type II",  heritage: "Calderis",   tp: "TP-51150", erp: "ERP-CAL-51" }
+        ]
+      },
+      {
+        id: "cal-service", name: "Repair Service Centers",
+        departments: [
+          { id: "d19", name: "Northline Service Center",      foreign: false, cac: "CAL-5220", cc: ["52030"],          disclosure: "Type II",  heritage: "Northline",  tp: "TP-52200", erp: "ERP-CAL-52" },
+          { id: "d20", name: "Calder Point Service Center",   foreign: false, cac: "CAL-5224", cc: ["52030", "52041"], disclosure: "Type II",  heritage: "Calderis",   tp: "TP-52240", erp: "ERP-CAL-52" }
+        ]
+      },
+      {
+        id: "cal-other", name: "Other Services & Products",
+        departments: [
+          { id: "d21", name: "Technical Documentation & CAD Services", foreign: false, cac: "CAL-5330", cc: ["53011"], disclosure: "Type II", heritage: "Calderis",  tp: "TP-53300", erp: "ERP-CAL-53" },
+          { id: "d22", name: "Aldenmoor Operations",          foreign: true,  cac: "CAL-5338", cc: ["53011", "53026"], disclosure: "Type III", heritage: "Aldenmoor",  tp: "TP-53380", erp: "ERP-CAL-53" },
+          { id: "d23", name: "Engineering & Technology",      foreign: false, cac: "CAL-5342", cc: ["53055"],          disclosure: "Type II",  heritage: "Calderis",   tp: "TP-53420", erp: "ERP-CAL-53" },
+          { id: "d24", name: "Quality",                       foreign: false, cac: "CAL-5350", cc: ["53055", "53060"], disclosure: "Type II",  heritage: "Calderis",   tp: "TP-53500", erp: "ERP-CAL-53" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "cae", name: "Calderis Aerospace",
+    divisions: [
+      {
+        id: "cae-standalone", name: "Standalone Divisions",
+        departments: [
+          { id: "d25", name: "Surface Treatment Technologies", foreign: false, cac: "CAE-6110", cc: ["61002"],         disclosure: "Type II",  heritage: "Calderis",   tp: "TP-61100", erp: "ERP-CAE-61" },
+          { id: "d26", name: "Signal Analytics Corp",         foreign: false, cac: "CAE-6118", cc: ["61002", "61014"], disclosure: "Type I",   heritage: "Ridgeway",   tp: "TP-61180", erp: "ERP-CAE-61" },
+          { id: "d27", name: "Secure Software & Services",    foreign: false, cac: "CAE-6125", cc: ["61030"],          disclosure: "Type I",   heritage: "Calderis",   tp: "TP-61250", erp: "ERP-CAE-61" },
+          { id: "d28", name: "Mission Assurance Solutions",   foreign: false, cac: "CAE-6131", cc: ["61030", "61047"], disclosure: "Type I",   heritage: "Calderis",   tp: "TP-61310", erp: "ERP-CAE-61" }
+        ]
+      },
+      {
+        id: "cae-intl", name: "International Subsidiaries",
+        departments: [
+          { id: "d29", name: "Calderis Deutschland GmbH",     foreign: true,  cac: "CAE-6240", cc: ["62011"],          disclosure: "Type III", heritage: "Calderis",   tp: "TP-62400", erp: "ERP-CAE-62" },
+          { id: "d30", name: "Calderis Australia Pty Ltd",    foreign: true,  cac: "CAE-6246", cc: ["62011", "62028"], disclosure: "Type III", heritage: "Calderis",   tp: "TP-62460", erp: "ERP-CAE-62" },
+          { id: "d31", name: "Calderis Canada, Inc.",         foreign: true,  cac: "CAE-6252", cc: ["62028"],          disclosure: "Type III", heritage: "Calderis",   tp: "TP-62520", erp: "ERP-CAE-62" },
+          { id: "d32", name: "Calderis UK Limited",           foreign: true,  cac: "CAE-6258", cc: ["62035"],          disclosure: "Type III", heritage: "Harrowgate", tp: "TP-62580", erp: "ERP-CAE-62" }
+        ]
+      }
+    ]
+  }
+];
+
+/* ---------------------------------------------------------------------------
+   Permissibility rules. A configured pair of departments that may not work
+   together — a property of the PAIRING, not of either department. Held as
+   data so the list can change without a rebuild.
+--------------------------------------------------------------------------- */
+const PERMISSIBILITY_RULES = [
+  { a: "d27", b: "d29", note: "Controlled software scope may not be performed by this subsidiary." },
+  { a: "d28", b: "d30", note: "Mission assurance scope is restricted from this subsidiary." },
+  { a: "d04", b: "d32", note: "Defense thermal scope is restricted from this subsidiary." }
+];
+
+/* ---------------------------------------------------------------------------
+   Funding type. Stated by the submitter when the authorization is raised;
+   it is what the Contracts gate reads its condition from.
+
+   The first three are customer contracts and reach the gate. Company funded
+   is the gate's negative case — the one place where a funding type changes
+   the ROUTE rather than only the review.
+--------------------------------------------------------------------------- */
+const FUNDING_TYPES = [
+  { id: "commercial",   label: "Commercial contract",                 customerContract: true  },
+  { id: "gov-item",     label: "Government commercial-item contract", customerContract: true  },
+  { id: "gov-negot",    label: "Government negotiated contract",      customerContract: true  },
+  { id: "company",      label: "Company funded",                      customerContract: false }
+];
+
+/* ---------------------------------------------------------------------------
+   The relay: the ordered sequence of stages an authorization passes through.
+   No stage begins before the previous one closes.
+
+   A stage routes to a ROLE, never to a named person. Two stages are GATES:
+   they occur only when their condition holds.
+--------------------------------------------------------------------------- */
+const RELAY = [
+  { id: "requesting-pm",         label: "Requesting program manager", side: "requesting", concern: "Scope and inputs are what this department intends to ask for" },
+  { id: "requesting-finance",    label: "Requesting finance",         side: "requesting", concern: "Funds are available on the requesting side" },
+  { id: "performing-contributor",label: "Performing contributor",     side: "performing", concern: "Supplies the performing section — who does the work, and at what cost", contributes: true },
+  { id: "performing-pm",         label: "Performing program manager", side: "performing", concern: "This department can absorb the work described" },
+  { id: "performing-finance",    label: "Performing finance",         side: "performing", concern: "The cost estimate is sound" },
+  { id: "contracts",             label: "Contracts",                  side: "neutral",    concern: "The authorization is consistent with the funding contract's terms", gate: "contracts" },
+  { id: "global-trade",          label: "Global Trade",               side: "neutral",    concern: "Scope matches the declared export jurisdiction and classification", gate: "global-trade" },
+  { id: "charge-number",         label: "Charge Number Admin",        side: "performing", concern: "Mints the charge number, which completes the authorization", mints: true }
+];
+
+/* The conditions the two gates read. Each is a pure function of the record. */
+const GATE_CONDITIONS = {
+  "contracts": {
+    describe: "Runs when the funding type is a customer contract. Company-funded work skips it.",
+    holds: (a) => fundingType(a.fundingType).customerContract
+  },
+  "global-trade": {
+    describe: "Runs when the two sides' location types differ.",
+    holds: (a) => !!a.requesting.locationType && !!a.performing.locationType &&
+                  a.requesting.locationType !== a.performing.locationType
+  }
+};
+
+/* Roles you can act as. Every relay stage is a role; the submitter is the one
+   role that holds no stage. */
+const ROLES = [
+  { id: "submitter", label: "Submitter" },
+  ...RELAY.map(s => ({ id: s.id, label: s.label }))
+];
+
+/* ---------------------------------------------------------------------------
+   Field guidance — the written explanation attached to a field, stating what
+   is needed and why. In the larger prototype the role that judges a field
+   owns its guidance and can edit it. Here it is fixed text.
+--------------------------------------------------------------------------- */
+const GUIDANCE = {
+  project:      "One authorization is one project. A second project, or work from a second department, is a second authorization.",
+  fundingType:  "What kind of funding the work supports. Company-funded work has no customer contract behind it, so it skips the Contracts stage entirely.",
+  department:   "Narrow by what you are certain of, then search what remains. Choosing a department fills in everything below it — you never transcribe a code by hand.",
+  locationType: "Domestic or international, for this side. When the two sides differ, the authorization routes through Global Trade.",
+  location:     "The site the work is administered from.",
+  billing:      "Who receives billing correspondence for this side.",
+  pm:           "The program manager who owns this work on this side. Naming them gives the work an owner; it is not how the authorization is routed.",
+  finance:      "The finance approver on this side. Named for the same reason, and routed the same way.",
+  employee:     "The person who will perform the work. A name on the record, not a participant in the process.",
+  hours:        "Budget hours for this resource.",
+  rate:         "An average labour rate, never an individual's actual compensation. That is what lets every authorization be readable by anyone.",
+  ga:           "General and administrative percentage, where it applies.",
+  cna:          "Who mints the charge number once every stage has acknowledged.",
+  chargeNumber: "The code the performing team books time against. Until it exists, no work can be booked."
+};
+
+/* ---------------------------------------------------------------------------
+   Seeded authorizations. Ten, arranged so that whichever role you switch to
+   has something waiting on it — switching roles IS the tour — and so that
+   every routing case is represented:
+
+     IWA-2041  at Requesting program manager    Contracts only
+     IWA-2042  at Requesting finance            Global Trade only
+     IWA-2043  at Performing contributor        both gates skipped
+     IWA-2044  at Performing program manager    Contracts only
+     IWA-2045  at Performing finance            both gates fire
+     IWA-2046  at Contracts                     both gates fire
+     IWA-2047  at Global Trade                  both gates fire
+     IWA-2048  at Charge Number Admin           Global Trade only
+     IWA-2049  completed                        Contracts only
+     IWA-2050  parked at a correction           waiting on the submitter
+
+   `advanced` is how many stages have closed. The position in the relay is
+   never stored — it is read back from the transition log.
+--------------------------------------------------------------------------- */
+const SEED_AUTHORIZATIONS = [
+  {
+    id: "IWA-2041", project: "Heat exchanger fatigue test campaign",
+    fundingType: "commercial",
+    requesting: { dept: "d01", locationType: "domestic", location: "Calder Point", billing: "M. Ferreira", pm: "A. Okonjo", finance: "R. Vance" },
+    performing: { dept: "d16", locationType: "domestic", location: "Northline",    billing: "T. Brandt",   pm: "S. Iyer",   finance: "D. Whitlock" },
+    work: null, advanced: 0, correction: null, chargeNumber: null, openedDaysAgo: 2
+  },
+  {
+    id: "IWA-2042", project: "Rotor shaft balancing support",
+    fundingType: "company",
+    requesting: { dept: "d08", locationType: "domestic",      location: "Northline", billing: "C. Mbeki",  pm: "A. Okonjo",   finance: "D. Whitlock" },
+    performing: { dept: "d07", locationType: "international", location: "Aldenmoor", billing: "N. Halvor", pm: "E. Sorensen", finance: "M. Castellan" },
+    work: null, advanced: 1, correction: null, chargeNumber: null, openedDaysAgo: 5
+  },
+  {
+    id: "IWA-2043", project: "Seat track corrosion study",
+    fundingType: "company",
+    requesting: { dept: "d09", locationType: "domestic", location: "Calder Point", billing: "L. Duarte",  pm: "P. Nakamura", finance: "R. Vance" },
+    performing: { dept: "d25", locationType: "domestic", location: "Ridgeway",     billing: "J. Almeida", pm: "K. Osei",     finance: "H. Lindqvist" },
+    work: null, advanced: 2, correction: null, chargeNumber: null, openedDaysAgo: 6
+  },
+  {
+    id: "IWA-2044", project: "Service module harness rework",
+    fundingType: "gov-item",
+    requesting: { dept: "d10", locationType: "domestic", location: "Calder Point", billing: "L. Duarte", pm: "P. Nakamura", finance: "R. Vance" },
+    performing: { dept: "d20", locationType: "domestic", location: "Calder Point", billing: "W. Osei",   pm: "S. Iyer",     finance: "D. Whitlock" },
+    work: { employee: "J. Kowalczyk", hours: 120, rate: 127, ga: 9.0, cna: "F. Okafor" },
+    advanced: 3, correction: null, chargeNumber: null, openedDaysAgo: 10
+  },
+  {
+    id: "IWA-2045", project: "Inertial reference thermal soak",
+    fundingType: "commercial",
+    requesting: { dept: "d13", locationType: "domestic",      location: "Westmoor",     billing: "S. Petrov",   pm: "P. Nakamura", finance: "R. Vance" },
+    performing: { dept: "d14", locationType: "international", location: "Harrow Creek", billing: "G. Aldridge", pm: "E. Sorensen", finance: "M. Castellan" },
+    work: { employee: "I. Brennan", hours: 240, rate: 151, ga: 11.5, cna: "F. Okafor" },
+    advanced: 4, correction: null, chargeNumber: null, openedDaysAgo: 15
+  },
+  {
+    id: "IWA-2046", project: "Rotor hub vibration characterisation",
+    fundingType: "gov-negot",
+    requesting: { dept: "d05", locationType: "domestic",      location: "Northline", billing: "C. Mbeki",  pm: "A. Okonjo",   finance: "D. Whitlock" },
+    performing: { dept: "d22", locationType: "international", location: "Aldenmoor", billing: "N. Halvor", pm: "E. Sorensen", finance: "M. Castellan" },
+    work: { employee: "V. Rasmussen", hours: 320, rate: 148, ga: 11.5, cna: "F. Okafor" },
+    advanced: 5, correction: null, chargeNumber: null, openedDaysAgo: 21
+  },
+  {
+    id: "IWA-2047", project: "Navigation beacon emissions sweep",
+    fundingType: "gov-item",
+    requesting: { dept: "d26", locationType: "domestic",      location: "Ridgeway",     billing: "K. Adeyemi",  pm: "P. Nakamura", finance: "H. Lindqvist" },
+    performing: { dept: "d15", locationType: "international", location: "Harrow Creek", billing: "G. Aldridge", pm: "E. Sorensen", finance: "M. Castellan" },
+    work: { employee: "B. Tillman", hours: 180, rate: 162, ga: 11.5, cna: "F. Okafor" },
+    advanced: 6, correction: null, chargeNumber: null, openedDaysAgo: 26
+  },
+  {
+    id: "IWA-2048", project: "Cryogenic line insulation review",
+    fundingType: "company",
+    requesting: { dept: "d03", locationType: "domestic",      location: "Calder Point", billing: "M. Ferreira", pm: "A. Okonjo",   finance: "R. Vance" },
+    performing: { dept: "d31", locationType: "international", location: "Selkirk",      billing: "Y. Tremblay", pm: "E. Sorensen", finance: "M. Castellan" },
+    work: { employee: "O. Lindgren", hours: 96, rate: 139, ga: 9.0, cna: "F. Okafor" },
+    advanced: 6, correction: null, chargeNumber: null, openedDaysAgo: 18
+  },
+  {
+    id: "IWA-2049", project: "Cabin lighting photometric validation",
+    fundingType: "commercial",
+    requesting: { dept: "d11", locationType: "domestic", location: "Calder Point", billing: "L. Duarte", pm: "P. Nakamura", finance: "R. Vance" },
+    performing: { dept: "d18", locationType: "domestic", location: "Northline",    billing: "T. Brandt", pm: "S. Iyer",     finance: "D. Whitlock" },
+    work: { employee: "R. Achebe", hours: 140, rate: 131, ga: 9.0, cna: "F. Okafor" },
+    advanced: 7, correction: null, chargeNumber: "CN-88421-0031", openedDaysAgo: 34
+  },
+  {
+    id: "IWA-2050", project: "Thermal coating adhesion trials",
+    fundingType: "gov-negot",
+    requesting: { dept: "d02", locationType: "domestic", location: "Calder Point", billing: "M. Ferreira", pm: "A. Okonjo", finance: "R. Vance" },
+    performing: { dept: "d17", locationType: "domestic", location: "Northline",    billing: "T. Brandt",   pm: "S. Iyer",   finance: "D. Whitlock" },
+    work: { employee: "H. Nakagawa", hours: 210, rate: 144, ga: 11.5, cna: "F. Okafor" },
+    advanced: 3,
+    correction: {
+      fields: ["performing.billing", "work.hours"],
+      comment: "Budget hours look like the figure from the previous campaign, and the billing contact has moved teams. Please confirm both before I acknowledge.",
+      raisedAtStage: "performing-pm", raisedBy: "S. Iyer", daysAgo: 4
+    },
+    chargeNumber: null, openedDaysAgo: 13
+  }
+];
+
+
+/* ===========================================================================
+   2. RULES — classification, permissibility, routing, validation
+   ===========================================================================
+   Pure functions over the record. Nothing here touches the page.
+=========================================================================== */
+
+/* --- Classification ------------------------------------------------------
+   The record holds the department alone. Its division and legal entity are
+   resolved by looking upward, never keyed in and never copied onto the record.
+   (The larger prototype freezes these into the record once an authorization
+   reaches a terminal state, so a later restructure cannot rewrite history.
+   This file has no hierarchy editing, so there is no restructure to defend
+   against and resolution simply stays live.)
+------------------------------------------------------------------------- */
+const DEPARTMENT_INDEX = (() => {
+  const index = new Map();
+  for (const entity of HIERARCHY) {
+    for (const division of entity.divisions) {
+      for (const department of division.departments) {
+        index.set(department.id, { ...department, division, entity });
+      }
+    }
+  }
+  return index;
+})();
+
+const ALL_DEPARTMENTS = [...DEPARTMENT_INDEX.values()];
+
+function classify(deptId) {
+  return DEPARTMENT_INDEX.get(deptId) || null;
+}
+
+/* The nine fields a submitter would otherwise read off a picture of an org
+   chart and type by hand. Choosing a department supplies every one of them. */
+function derivedFields(deptId) {
+  const d = classify(deptId);
+  if (!d) return null;
+  return [
+    ["Legal entity",           d.entity.name],
+    ["Division",               d.division.name],
+    ["Cost accounting code",   d.cac],
+    ["Cost centers",           d.cc.join(", ")],
+    ["Disclosure statement",   d.disclosure],
+    ["Heritage",               d.heritage],
+    ["Jurisdiction",           d.foreign ? "Foreign" : "Domestic"],
+    ["Trading partner number", d.tp],
+    ["Finance / ERP code",     d.erp]
+  ];
+}
+
+function fundingType(id) {
+  return FUNDING_TYPES.find(f => f.id === id) || { label: "—", customerContract: false };
+}
+
+/* --- Permissibility ------------------------------------------------------
+   Checked when an authorization is entered, rather than days later at a gate.
+------------------------------------------------------------------------- */
+function permissibilityFailure(requestingDept, performingDept) {
+  if (!requestingDept || !performingDept) return null;
+  return PERMISSIBILITY_RULES.find(r =>
+    (r.a === requestingDept && r.b === performingDept) ||
+    (r.b === requestingDept && r.a === performingDept)
+  ) || null;
+}
+
+/* --- Routing -------------------------------------------------------------
+   The route is derived from the record, never stored. A gate that does not
+   hold is dropped from the route entirely — which is what lets the page show
+   a skipped stage as visibly skipped rather than silently absent.
+------------------------------------------------------------------------- */
+function route(auth) {
+  return RELAY.filter(stage => !stage.gate || GATE_CONDITIONS[stage.gate].holds(auth));
+}
+
+function skippedStages(auth) {
+  return RELAY.filter(stage => stage.gate && !GATE_CONDITIONS[stage.gate].holds(auth));
+}
+
+/* How many stages have closed — read back from the transition log. */
+function closedCount(auth) {
+  return auth.transitions.filter(t => t.kind === "advanced").length;
+}
+
+/* Where the authorization is sitting. Null when it is a draft or completed.
+   This is DERIVED. There is no status field anywhere in the record. */
+function currentStage(auth) {
+  if (auth.state !== "initiated") return null;
+  const r = route(auth);
+  const n = closedCount(auth);
+  return n < r.length ? r[n] : null;
+}
+
+/* Is this authorization waiting on the role currently being acted as? */
+function isWaitingOn(auth, roleId) {
+  if (roleId === "submitter") {
+    return auth.state === "draft" || !!auth.correction;
+  }
+  if (auth.correction) return false;  // out for correction: it waits on the submitter only
+  const stage = currentStage(auth);
+  return !!stage && stage.id === roleId;
+}
+
+/* --- Validation ----------------------------------------------------------
+   Every field on the authorization is required. Validation runs at entry so
+   errors are caught before anything reaches an approver.
+------------------------------------------------------------------------- */
+const INTAKE_FIELDS = [
+  ["project",               "Project"],
+  ["fundingType",           "Funding type"],
+  ["requesting.dept",       "Requesting department"],
+  ["requesting.locationType","Requesting location type"],
+  ["requesting.location",   "Requesting location"],
+  ["requesting.billing",    "Requesting billing contact"],
+  ["requesting.pm",         "Requesting program manager"],
+  ["requesting.finance",    "Requesting finance approver"],
+  ["performing.dept",       "Performing department"],
+  ["performing.locationType","Performing location type"],
+  ["performing.location",   "Performing location"],
+  ["performing.billing",    "Performing billing contact"],
+  ["performing.pm",         "Performing program manager"],
+  ["performing.finance",    "Performing finance approver"]
+];
+
+const WORK_FIELDS = [
+  ["work.employee", "Employee performing the work"],
+  ["work.hours",    "Budget hours"],
+  ["work.rate",     "Labor rate"],
+  ["work.ga",       "G&A %"],
+  ["work.cna",      "Charge Number Admin"]
+];
+
+function readPath(obj, path) {
+  return path.split(".").reduce((acc, key) => (acc == null ? acc : acc[key]), obj);
+}
+
+function writePath(obj, path, value) {
+  const keys = path.split(".");
+  const last = keys.pop();
+  let target = obj;
+  for (const key of keys) {
+    if (target[key] == null) target[key] = {};
+    target = target[key];
+  }
+  target[last] = value;
+}
+
+function missingFields(auth, fieldList) {
+  return fieldList.filter(([path]) => {
+    const v = readPath(auth, path);
+    return v === undefined || v === null || String(v).trim() === "";
+  });
+}
+
+/* Everything that stops an authorization being initiated. */
+function intakeProblems(auth) {
+  const problems = missingFields(auth, INTAKE_FIELDS)
+    .map(([path, label]) => ({ path, message: label + " is required" }));
+  const rule = permissibilityFailure(auth.requesting.dept, auth.performing.dept);
+  if (rule) {
+    const a = classify(auth.requesting.dept), b = classify(auth.performing.dept);
+    problems.push({
+      path: "performing.dept",
+      permissibility: true,
+      message: "This pairing is not permitted: " + a.name + " with " + b.name +
+               ". " + rule.note + " Neither department is at fault — the combination is not allowed."
+    });
+  }
+  return problems;
+}
+
+
+/* ===========================================================================
+   3. STATE — what changes as you use it, and where it is kept
+   ===========================================================================
+   Kept in localStorage where the browser allows it, so a refresh does not cost
+   you a half-filled form. Opened straight from disk some browsers refuse
+   storage access entirely, so every read and write is guarded and the file
+   falls back to memory for the session. Nothing here is ever sent anywhere.
+=========================================================================== */
+
+const STORAGE_KEY = "work-auth-lite/v1";
+
+const state = {
+  tab: "list",
+  actingRole: "submitter",
+  onlyMine: false,
+  openId: null,
+  authorizations: [],
+  draft: null,
+  correctionDraft: null,
+  pendingCharge: "",   /* typed but not yet minted — never written to the record */
+  flash: null
+};
+
+function buildSeed() {
+  return SEED_AUTHORIZATIONS.map(spec => {
+    const auth = {
+      id: spec.id,
+      project: spec.project,
+      fundingType: spec.fundingType,
+      requesting: { ...spec.requesting },
+      performing: { ...spec.performing },
+      work: spec.work ? { ...spec.work } : null,
+      chargeNumber: spec.chargeNumber,
+      correction: null,
+      state: "initiated",
+      transitions: []
+    };
+
+    const opened = spec.openedDaysAgo;
+    auth.transitions.push({ at: seedDate(opened), kind: "created",   who: "Submitter", text: "Draft created" });
+    auth.transitions.push({ at: seedDate(opened), kind: "initiated", who: "Submitter", text: "Initiated into the relay" });
+
+    /* Spread the closed stages evenly across the elapsed days, so the insights
+       mockup has something shaped like real timing to read. */
+    const stages = route(auth);
+    const step = spec.advanced > 0 ? Math.max(1, Math.floor(opened / (spec.advanced + 1))) : 0;
+    for (let i = 0; i < spec.advanced; i++) {
+      const stage = stages[i];
+      auth.transitions.push({
+        at: seedDate(Math.max(0, opened - step * (i + 1))),
+        kind: "advanced",
+        stage: stage.id,
+        who: stage.label,
+        text: stage.contributes ? "Performing section supplied, passed forward"
+            : stage.mints ? "Charge number minted"
+            : "Acknowledged at " + stage.label
+      });
+    }
+
+    if (spec.chargeNumber) {
+      const minted = auth.transitions[auth.transitions.length - 1].at;
+      auth.state = "completed";
+      auth.transitions.push({ at: minted, kind: "completed", who: "Charge Number Admin",
+                              text: "Completed — charge number " + spec.chargeNumber });
+    }
+
+    if (spec.correction) {
+      auth.correction = {
+        fields: spec.correction.fields,
+        comment: spec.correction.comment,
+        raisedAtStage: spec.correction.raisedAtStage,
+        raisedBy: spec.correction.raisedBy
+      };
+      auth.transitions.push({
+        at: seedDate(spec.correction.daysAgo),
+        kind: "correction-requested",
+        stage: spec.correction.raisedAtStage,
+        who: spec.correction.raisedBy,
+        text: "Correction requested against " + spec.correction.fields.length + " field(s)"
+      });
+    }
+
+    auth.transitions.sort((a, b) => a.at.localeCompare(b.at));
+    return auth;
+  });
+}
+
+function load() {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (Array.isArray(saved.authorizations) && saved.authorizations.length) {
+        state.authorizations = saved.authorizations;
+        state.actingRole = saved.actingRole || "submitter";
+        return;
+      }
+    }
+  } catch (err) {
+    /* Storage unavailable (file:// in some browsers, private windows, blocked
+       site data). The file works exactly the same; it just forgets on reload. */
+  }
+  state.authorizations = buildSeed();
+}
+
+function save() {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      authorizations: state.authorizations,
+      actingRole: state.actingRole
+    }));
+  } catch (err) { /* see load() */ }
+}
+
+function resetToSeed() {
+  state.authorizations = buildSeed();
+  state.openId = null;
+  state.draft = null;
+  state.correctionDraft = null;
+  state.flash = { kind: "good", text: "Reset to the seeded data." };
+  save();
+  render();
+}
+
+function findAuth(id) {
+  return state.authorizations.find(a => a.id === id) || null;
+}
+
+function nextId() {
+  const numbers = state.authorizations
+    .map(a => parseInt(String(a.id).replace(/\D/g, ""), 10))
+    .filter(n => !isNaN(n));
+  return "IWA-" + (Math.max(2040, ...numbers) + 1);
+}
+
+function record(auth, kind, who, text, stageId) {
+  auth.transitions.push({ at: new Date().toISOString(), kind, who, text, stage: stageId });
+}
+
+/* --- The actions a role can take on an authorization -------------------- */
+
+function acknowledge(auth) {
+  const stage = currentStage(auth);
+  if (!stage || auth.correction) return;
+  record(auth, "advanced", stage.label,
+    stage.contributes ? "Performing section supplied, passed forward" : "Acknowledged at " + stage.label,
+    stage.id);
+  save();
+}
+
+function mintChargeNumber(auth, chargeNumber) {
+  const stage = currentStage(auth);
+  if (!stage || !stage.mints) return;
+  auth.chargeNumber = chargeNumber;
+  record(auth, "advanced", "Charge Number Admin", "Charge number minted", stage.id);
+  auth.state = "completed";
+  record(auth, "completed", "Charge Number Admin", "Completed — charge number " + chargeNumber);
+  save();
+}
+
+function raiseCorrection(auth, fields, comment) {
+  const stage = currentStage(auth);
+  if (!stage) return;
+  auth.correction = { fields, comment, raisedAtStage: stage.id, raisedBy: stage.label };
+  record(auth, "correction-requested", stage.label,
+    "Correction requested against " + fields.length + " field(s)", stage.id);
+  save();
+}
+
+function resolveCorrection(auth) {
+  if (!auth.correction) return;
+  const stageId = auth.correction.raisedAtStage;
+  const stage = RELAY.find(s => s.id === stageId);
+  auth.correction = null;
+  record(auth, "corrected", "Submitter",
+    "Correction supplied — returned to " + (stage ? stage.label : "the stage that raised it"), stageId);
+  save();
+}
+
+
+/* ===========================================================================
+   4. RENDER — everything you see
+   ===========================================================================
+   The page is redrawn from state on every change. At this size that is by far
+   the simplest thing that works, and it keeps what you see and what is stored
+   impossible to disagree.
+=========================================================================== */
+
+function esc(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function daysBetween(a, b) {
+  return Math.max(0, Math.round((new Date(b) - new Date(a)) / 86400000));
+}
+
+function deptName(id) {
+  const d = classify(id);
+  return d ? d.name : "—";
+}
+
+function locationLabel(id) {
+  const hit = LOCATION_TYPES.find(l => l.id === id);
+  return hit ? hit.label : "—";
+}
+
+/* --- Header ------------------------------------------------------------- */
+
+function renderRoleSelect() {
+  const select = document.getElementById("role-select");
+  select.innerHTML = ROLES.map(r =>
+    `<option value="${esc(r.id)}"${r.id === state.actingRole ? " selected" : ""}>${esc(r.label)}</option>`
+  ).join("");
+}
+
+function renderTabs() {
+  const waiting = state.authorizations.filter(a => isWaitingOn(a, state.actingRole)).length;
+  const tabs = [
+    { id: "list",     label: "Authorizations", count: waiting },
+    { id: "new",      label: "New authorization" },
+    { id: "insights", label: "Insights" }
+  ];
+  document.getElementById("tabs").innerHTML = tabs.map(t => `
+    <button role="tab" data-tab="${esc(t.id)}" aria-selected="${t.id === state.tab}">
+      ${esc(t.label)}${t.count ? `<span class="count">${t.count}</span>` : ""}
+    </button>`).join("");
+}
+
+/* --- Shared pieces ------------------------------------------------------ */
+
+function stateBadge(auth) {
+  if (auth.state === "completed") return `<span class="badge badge-good">Completed</span>`;
+  if (auth.state === "draft")     return `<span class="badge badge-stage">Draft</span>`;
+  if (auth.correction)            return `<span class="badge badge-warning">Awaiting correction</span>`;
+  const stage = currentStage(auth);
+  return `<span class="badge badge-stage">${esc(stage ? stage.label : "—")}</span>`;
+}
+
+function routeStrip(auth) {
+  const taken = route(auth);
+  const skipped = skippedStages(auth);
+  const closed = closedCount(auth);
+  const here = currentStage(auth);
+
+  /* Render in relay order so a skipped gate keeps its position in the sequence
+     rather than vanishing from it. */
+  const steps = RELAY.map(stage => {
+    if (skipped.includes(stage)) {
+      return `<span class="route-step skipped" title="${esc(GATE_CONDITIONS[stage.gate].describe)}">${esc(stage.label)} — skipped</span>`;
+    }
+    const position = taken.indexOf(stage);
+    let cls = "route-step";
+    if (position < closed) cls += " done";
+    else if (here && here.id === stage.id) cls += " here";
+    return `<span class="${cls}" title="${esc(stage.concern)}">${esc(stage.label)}</span>`;
+  });
+  return `<div class="route" data-testid="route">${steps.join("")}</div>`;
+}
+
+function derivedPanel(deptId) {
+  const rows = derivedFields(deptId);
+  if (!rows) return "";
+  return `
+    <div class="derived">
+      <div class="derived-head">Filled in from the department — no manual lookup</div>
+      <dl>${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+    </div>`;
+}
+
+function flashNotice() {
+  if (!state.flash) return "";
+  const cls = state.flash.kind === "error" ? "notice-error"
+            : state.flash.kind === "good" ? "notice-good" : "notice-info";
+  const role = state.flash.kind === "error" ? "alert" : "status";
+  const html = `<div class="notice ${cls}" role="${role}">${esc(state.flash.text)}</div>`;
+  state.flash = null;   /* shown once */
+  return html;
+}
+
+/* --- The list ----------------------------------------------------------- */
+
+function renderList() {
+  if (state.openId) return renderDetail(findAuth(state.openId));
+
+  const waitingCount = state.authorizations.filter(a => isWaitingOn(a, state.actingRole)).length;
+  const shown = state.onlyMine
+    ? state.authorizations.filter(a => isWaitingOn(a, state.actingRole))
+    : state.authorizations;
+
+  const rows = shown.map(auth => `
+    <button class="row" data-open="${esc(auth.id)}">
+      <span class="id">${esc(auth.id)}</span>
+      <span>
+        <span class="project">${esc(auth.project)}</span><br>
+        <span class="pair">${esc(deptName(auth.requesting.dept))} &rarr; ${esc(deptName(auth.performing.dept))}</span>
+      </span>
+      <span>${stateBadge(auth)}</span>
+      <span>${isWaitingOn(auth, state.actingRole) ? `<span class="badge badge-mine">Waiting on you</span>` : ""}</span>
+    </button>`).join("");
+
+  return `
+    ${flashNotice()}
+    <div class="card-head">
+      <div class="grow">
+        <h2>Authorizations</h2>
+        <p class="muted small">Every authorization in the system, readable in full by anyone. The
+        queue is this same list, filtered to what is waiting on the role you are acting as.</p>
+      </div>
+    </div>
+    <div class="list-controls">
+      <button class="toggle" data-toggle-mine aria-pressed="${state.onlyMine}">
+        Waiting on me${waitingCount ? " (" + waitingCount + ")" : ""}
+      </button>
+      <span class="muted tiny">${shown.length} of ${state.authorizations.length} shown</span>
+    </div>
+    ${rows || `<div class="card"><p class="muted">Nothing is waiting on the
+       ${esc(ROLES.find(r => r.id === state.actingRole).label)} right now. Switch role, or turn
+       the filter off to see everything.</p></div>`}`;
+}
+
+/* --- The detail view ---------------------------------------------------- */
+
+function sideCard(auth, side) {
+  const s = auth[side];
+  const title = side === "requesting" ? "Requesting side" : "Performing side";
+  return `
+    <div class="card">
+      <div class="section-label">${esc(title)}</div>
+      <h3>${esc(deptName(s.dept))}</h3>
+      <dl class="facts" style="margin-top:.7rem">
+        <dt>Location type</dt><dd>${esc(locationLabel(s.locationType))}</dd>
+        <dt>Location</dt><dd>${esc(s.location || "—")}</dd>
+        <dt>Billing contact</dt><dd>${esc(s.billing || "—")}</dd>
+        <dt>Program manager</dt><dd>${esc(s.pm || "—")}</dd>
+        <dt>Finance approver</dt><dd>${esc(s.finance || "—")}</dd>
+      </dl>
+      <div style="margin-top:.8rem">${derivedPanel(s.dept)}</div>
+    </div>`;
+}
+
+function correctionBanner(auth) {
+  if (!auth.correction) return "";
+  const labels = auth.correction.fields.map(fieldLabel).join(", ");
+  const acting = state.actingRole === "submitter";
+  return `
+    <div class="notice notice-warning">
+      <h3>Correction requested at ${esc(auth.correction.raisedBy)}</h3>
+      <p class="small" style="margin:.3rem 0">${esc(auth.correction.comment)}</p>
+      <p class="tiny muted">Fields named: ${esc(labels)}. The authorization has not moved — it is
+      still at ${esc(auth.correction.raisedBy)}, and the clock is still running there.</p>
+      ${acting ? `<div class="actions">
+        ${auth.correction.fields.map(path => `
+          <div class="field" style="min-width:16rem">
+            <label for="c-${fieldId(path)}">${esc(fieldLabel(path))}</label>
+            <input id="c-${fieldId(path)}" data-correct="${esc(path)}" value="${esc(readPath(auth, path) ?? "")}">
+          </div>`).join("")}
+      </div>
+      <div class="actions">
+        <button class="primary" data-resolve-correction="${esc(auth.id)}">Supply correction</button>
+      </div>` : `<p class="tiny muted" style="margin-top:.4rem">Only the submitter can supply this
+      correction. Switch role to Submitter to do it.</p>`}
+    </div>`;
+}
+
+function fieldLabel(path) {
+  const all = [...INTAKE_FIELDS, ...WORK_FIELDS];
+  const hit = all.find(([p]) => p === path);
+  return hit ? hit[1] : path;
+}
+
+function actionsFor(auth) {
+  if (auth.state === "completed") {
+    return `<div class="notice notice-good">
+      <h3>Completed</h3>
+      <p class="small">Charge number <strong>${esc(auth.chargeNumber)}</strong>. Completion is caused
+      by that value existing, not by a final judgement — no stage in this relay refuses.</p>
+    </div>`;
+  }
+  if (auth.correction) return "";
+
+  const stage = currentStage(auth);
+  if (!stage) return "";
+  if (stage.id !== state.actingRole) {
+    return `<div class="card">
+      <p class="muted small">This is waiting on <strong>${esc(stage.label)}</strong>
+      — ${esc(stage.concern)}. Switch role to act on it.</p>
+    </div>`;
+  }
+
+  /* The performing contributor supplies the work section before passing on. */
+  if (stage.contributes) {
+    const w = auth.work || {};
+    return `
+      <div class="card">
+        <div class="section-label">Your stage — ${esc(stage.label)}</div>
+        <p class="muted small" style="margin-bottom:.9rem">${esc(stage.concern)}</p>
+        <div class="grid2">
+          ${textField("work.employee", "Employee performing the work", w.employee, GUIDANCE.employee)}
+          ${textField("work.cna", "Charge Number Admin", w.cna, GUIDANCE.cna)}
+          ${textField("work.hours", "Budget hours", w.hours, GUIDANCE.hours, "number")}
+          ${textField("work.rate", "Labor rate", w.rate, GUIDANCE.rate, "number")}
+          ${textField("work.ga", "G&A %", w.ga, GUIDANCE.ga, "number")}
+        </div>
+        <div class="actions">
+          <button class="primary" data-acknowledge="${esc(auth.id)}">Supply section &amp; pass forward</button>
+          <button class="ghost" data-open-correction="${esc(auth.id)}">Raise correction request</button>
+        </div>
+      </div>`;
+  }
+
+  if (stage.mints) {
+    return `
+      <div class="card">
+        <div class="section-label">Your stage — ${esc(stage.label)}</div>
+        <p class="muted small" style="margin-bottom:.9rem">${esc(stage.concern)}</p>
+        <div class="field">
+          <label for="f-chargeNumber">Charge number</label>
+          <p class="guidance">${esc(GUIDANCE.chargeNumber)}</p>
+          <input id="f-chargeNumber" data-pending-charge value="${esc(state.pendingCharge)}">
+        </div>
+        <div class="actions">
+          <button class="primary" data-mint="${esc(auth.id)}">Mint charge number</button>
+          <button class="ghost" data-open-correction="${esc(auth.id)}">Raise correction request</button>
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="card">
+      <div class="section-label">Your stage — ${esc(stage.label)}</div>
+      <p class="muted small">${esc(stage.concern)}</p>
+      <p class="tiny muted" style="margin-top:.5rem">Acknowledging records that someone in this area
+      knows work is being assigned to them. It is not a judgement on the merits of the ask.</p>
+      <div class="actions">
+        <button class="primary" data-acknowledge="${esc(auth.id)}">Acknowledge</button>
+        <button class="ghost" data-open-correction="${esc(auth.id)}">Raise correction request</button>
+      </div>
+    </div>`;
+}
+
+function correctionComposer(auth) {
+  if (!state.correctionDraft || state.correctionDraft.id !== auth.id) return "";
+  const chosen = state.correctionDraft.fields;
+  const candidates = [...INTAKE_FIELDS, ...(auth.work ? WORK_FIELDS : [])];
+  return `
+    <div class="card">
+      <div class="section-label">Raise a correction request</div>
+      <p class="muted small" style="margin-bottom:.8rem">Name the fields at fault. The authorization
+      does not move — it stays at your stage, and the days it costs stay attached to the stage that
+      found the defect.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:.3rem;margin-bottom:.9rem">
+        ${candidates.map(([path, label]) => `
+          <label class="small" style="display:flex;gap:.45rem;align-items:center">
+            <input type="checkbox" data-correction-field="${esc(path)}"${chosen.includes(path) ? " checked" : ""}>
+            ${esc(label)}
+          </label>`).join("")}
+      </div>
+      <div class="field">
+        <label for="correction-comment">Comment to the owner of those fields <span style="color:var(--error)">*</span></label>
+        <p class="guidance">Mandatory. The person fixing this needs to know why.</p>
+        <textarea id="correction-comment" rows="3" data-correction-comment>${esc(state.correctionDraft.comment)}</textarea>
+      </div>
+      ${state.correctionDraft.error ? `<p class="field-error">${esc(state.correctionDraft.error)}</p>` : ""}
+      <div class="actions">
+        <button class="primary" data-submit-correction="${esc(auth.id)}">Raise correction request</button>
+        <button class="ghost" data-cancel-correction>Cancel</button>
+      </div>
+    </div>`;
+}
+
+function renderDetail(auth) {
+  if (!auth) { state.openId = null; return renderList(); }
+  const ft = fundingType(auth.fundingType);
+  const gt = GATE_CONDITIONS["global-trade"].holds(auth);
+
+  return `
+    ${flashNotice()}
+    <div class="card-head">
+      <div class="grow">
+        <p class="tiny muted">${esc(auth.id)}</p>
+        <h2>${esc(auth.project)}</h2>
+        <p class="muted small" style="margin-top:.2rem">
+          ${esc(deptName(auth.requesting.dept))} &rarr; ${esc(deptName(auth.performing.dept))}
+          &nbsp;·&nbsp; <span data-testid="detail-state">${stateBadge(auth)}</span>
+        </p>
+      </div>
+      <button class="ghost" data-close-detail>Back to list</button>
+    </div>
+
+    ${correctionBanner(auth)}
+
+    <div class="card">
+      <div class="section-label">Route</div>
+      ${routeStrip(auth)}
+      <p class="tiny muted" style="margin-top:.7rem">
+        <strong>Contracts</strong>: ${esc(GATE_CONDITIONS["contracts"].describe)}
+        This authorization is <em>${esc(ft.label)}</em>, so it
+        ${ft.customerContract ? "reaches" : "skips"} the gate.<br>
+        <strong>Global Trade</strong>: ${esc(GATE_CONDITIONS["global-trade"].describe)}
+        Here they are <em>${esc(locationLabel(auth.requesting.locationType))}</em> and
+        <em>${esc(locationLabel(auth.performing.locationType))}</em>, so it ${gt ? "reaches" : "skips"} the gate.
+      </p>
+    </div>
+
+    ${actionsFor(auth)}
+    ${correctionComposer(auth)}
+
+    <div class="card">
+      <div class="section-label">Funding</div>
+      <dl class="facts">
+        <dt>Funding type</dt><dd>${esc(ft.label)}</dd>
+        <dt>Customer contract</dt><dd>${ft.customerContract ? "Yes" : "No — company funded"}</dd>
+      </dl>
+    </div>
+
+    <div class="grid2">
+      ${sideCard(auth, "requesting")}
+      ${sideCard(auth, "performing")}
+    </div>
+
+    ${auth.work ? `
+    <div class="card">
+      <div class="section-label">The work requested</div>
+      <dl class="facts">
+        <dt>Employee performing the work</dt><dd>${esc(auth.work.employee)}</dd>
+        <dt>Charge Number Admin</dt><dd>${esc(auth.work.cna)}</dd>
+        <dt>Budget hours</dt><dd>${esc(auth.work.hours)}</dd>
+        <dt>Labor rate</dt><dd>${esc(auth.work.rate)} <span class="tiny muted">average rate</span></dd>
+        <dt>G&amp;A %</dt><dd>${esc(auth.work.ga)}</dd>
+        <dt>Charge number</dt><dd>${esc(auth.state === "completed" ? auth.chargeNumber : "— not yet minted")}</dd>
+      </dl>
+    </div>` : ""}
+
+    <div class="card">
+      <div class="section-label">History</div>
+      <ol class="history">
+        ${auth.transitions.map(t => `
+          <li>
+            <span class="when">${esc(fmtDate(t.at))}</span>
+            <span>${esc(t.text)}<br><span class="who">${esc(t.who)}</span></span>
+          </li>`).join("")}
+      </ol>
+    </div>`;
+}
+
+/* --- The form ----------------------------------------------------------- */
+
+/* Stable element ids derived from a field's path, so every label is tied to
+   its input — for screen readers, and for anything that drives the page. */
+function fieldId(path) {
+  return "f-" + path.replace(/\./g, "-");
+}
+
+/* Validation messages belong to the draft on the New tab only. */
+function draftProblem(path) {
+  if (state.tab !== "new" || !state.draft) return null;
+  return (state.draft._problems || []).find(p => p.path === path && !p.permissibility) || null;
+}
+
+function textField(path, label, value, guidance, type) {
+  const problem = draftProblem(path);
+  return `
+    <div class="field${problem ? " invalid" : ""}">
+      <label for="${fieldId(path)}">${esc(label)}</label>
+      ${guidance ? `<p class="guidance">${esc(guidance)}</p>` : ""}
+      <input id="${fieldId(path)}" type="${esc(type || "text")}" data-field="${esc(path)}" value="${esc(value ?? "")}">
+      ${problem ? `<p class="field-error">${esc(problem.message)}</p>` : ""}
+    </div>`;
+}
+
+function selectField(path, label, value, options, guidance) {
+  const problem = draftProblem(path);
+  return `
+    <div class="field${problem ? " invalid" : ""}">
+      <label for="${fieldId(path)}">${esc(label)}</label>
+      ${guidance ? `<p class="guidance">${esc(guidance)}</p>` : ""}
+      <select id="${fieldId(path)}" data-field="${esc(path)}">
+        <option value="">— select —</option>
+        ${options.map(o => `<option value="${esc(o.id)}"${o.id === value ? " selected" : ""}>${esc(o.label)}</option>`).join("")}
+      </select>
+      ${problem ? `<p class="field-error">${esc(problem.message)}</p>` : ""}
+    </div>`;
+}
+
+/* The department picker. Narrow by what you are certain of, then search what
+   remains by name. It resolves to a department and derives the levels above
+   it — there is no free text, so you cannot invent a department. */
+function pickerFor(side) {
+  const filters = state.draft._picker[side];
+  const chosen = state.draft[side].dept;
+
+  if (chosen) {
+    return `
+      <div class="picker" data-testid="picker-${esc(side)}">
+        <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:.6rem">
+          <strong style="font-size:.95rem" data-testid="picker-${esc(side)}-chosen">${esc(deptName(chosen))}</strong>
+          <button class="ghost" data-clear-dept="${esc(side)}" style="margin-left:auto;padding:.3rem .7rem;font-size:.8rem">Change</button>
+        </div>
+        ${derivedPanel(chosen)}
+      </div>`;
+  }
+
+  const entities = HIERARCHY.map(e => ({ id: e.id, label: e.name }));
+  const divisions = (filters.entity
+    ? HIERARCHY.find(e => e.id === filters.entity).divisions
+    : HIERARCHY.flatMap(e => e.divisions)).map(d => ({ id: d.id, label: d.name }));
+
+  const results = ALL_DEPARTMENTS.filter(d => {
+    if (filters.entity && d.entity.id !== filters.entity) return false;
+    if (filters.division && d.division.id !== filters.division) return false;
+    if (filters.jurisdiction === "domestic" && d.foreign) return false;
+    if (filters.jurisdiction === "foreign" && !d.foreign) return false;
+    if (filters.search && !d.name.toLowerCase().includes(filters.search.toLowerCase())) return false;
+    return true;
+  });
+
+  return `
+    <div class="picker" data-testid="picker-${esc(side)}">
+      <div class="picker-filters">
+        <select data-picker="${esc(side)}" data-filter="entity" aria-label="Legal entity">
+          <option value="">Any legal entity</option>
+          ${entities.map(e => `<option value="${esc(e.id)}"${e.id === filters.entity ? " selected" : ""}>${esc(e.label)}</option>`).join("")}
+        </select>
+        <select data-picker="${esc(side)}" data-filter="division" aria-label="Division">
+          <option value="">Any division</option>
+          ${divisions.map(d => `<option value="${esc(d.id)}"${d.id === filters.division ? " selected" : ""}>${esc(d.label)}</option>`).join("")}
+        </select>
+        <select data-picker="${esc(side)}" data-filter="jurisdiction" aria-label="Jurisdiction">
+          <option value="">Any jurisdiction</option>
+          <option value="domestic"${filters.jurisdiction === "domestic" ? " selected" : ""}>Domestic</option>
+          <option value="foreign"${filters.jurisdiction === "foreign" ? " selected" : ""}>Foreign</option>
+        </select>
+      </div>
+      <div class="picker-search">
+        <input type="search" placeholder="Search remaining departments by name"
+               aria-label="Search departments by name"
+               data-picker="${esc(side)}" data-filter="search" value="${esc(filters.search)}">
+      </div>
+      <p class="picker-count">${results.length} of ${ALL_DEPARTMENTS.length} departments</p>
+      <div class="picker-results">
+        ${results.length ? results.map(d => `
+          <button data-choose-dept="${esc(d.id)}" data-side="${esc(side)}">
+            <span class="dept-name">${esc(d.name)}</span>
+            <span class="dept-where">${esc(d.entity.name)} · ${esc(d.division.name)} ·
+              ${d.foreign ? "Foreign" : "Domestic"} · ${esc(d.cac)}</span>
+          </button>`).join("")
+        : `<p class="picker-empty">No department matches. Widen a filter — there is no free text,
+           so a department that is not in the hierarchy cannot be typed in.</p>`}
+      </div>
+    </div>`;
+}
+
+function blankDraft() {
+  return {
+    id: null, project: "", fundingType: "",
+    requesting: { dept: "", locationType: "", location: "", billing: "", pm: "", finance: "" },
+    performing: { dept: "", locationType: "", location: "", billing: "", pm: "", finance: "" },
+    work: null, chargeNumber: null, correction: null, state: "draft", transitions: [],
+    _picker: {
+      requesting: { entity: "", division: "", jurisdiction: "", search: "" },
+      performing: { entity: "", division: "", jurisdiction: "", search: "" }
+    },
+    _problems: []
+  };
+}
+
+const LOCATION_TYPES = [{ id: "domestic", label: "Domestic" }, { id: "international", label: "International" }];
+
+function sideForm(side) {
+  const d = state.draft[side];
+  const title = side === "requesting" ? "Requesting side" : "Performing side";
+  const note = side === "requesting"
+    ? "The department asking for the work."
+    : "The department that will do it. Fixed once initiated — a different department is a different request.";
+  return `
+    <div class="card">
+      <div class="section-label">${esc(title)}</div>
+      <p class="muted small" style="margin-bottom:.8rem">${esc(note)}</p>
+      <div class="field">
+        <label>Department</label>
+        <p class="guidance">${esc(GUIDANCE.department)}</p>
+        ${pickerFor(side)}
+        ${(state.draft._problems || []).filter(p => p.path === side + ".dept" && !p.permissibility).map(p =>
+          `<p class="field-error" style="margin-top:.5rem">${esc(p.message)}</p>`).join("")}
+      </div>
+      ${selectField(side + ".locationType", "Location type", d.locationType, LOCATION_TYPES, GUIDANCE.locationType)}
+      ${textField(side + ".location", "Location", d.location, GUIDANCE.location)}
+      ${textField(side + ".billing", "Billing point of contact", d.billing, GUIDANCE.billing)}
+      ${textField(side + ".pm", "Program manager", d.pm, GUIDANCE.pm)}
+      ${textField(side + ".finance", "Finance approver", d.finance, GUIDANCE.finance)}
+    </div>`;
+}
+
+function renderNew() {
+  if (!state.draft) state.draft = blankDraft();
+  if (state.actingRole !== "submitter") {
+    return `<div class="card">
+      <h2>New authorization</h2>
+      <p class="muted small" style="margin-top:.5rem">Only the submitter raises an authorization.
+      Switch the role in the header to Submitter.</p>
+    </div>`;
+  }
+
+  const problems = state.draft._problems || [];
+  const permissibility = problems.find(p => p.permissibility);
+
+  return `
+    ${flashNotice()}
+    <div class="card-head">
+      <div class="grow">
+        <h2>New authorization</h2>
+        <p class="muted small">One authorization is one project. Every field is required — nothing
+        incomplete reaches an approver.</p>
+      </div>
+    </div>
+
+    ${permissibility ? `<div class="notice notice-error" role="alert">${esc(permissibility.message)}</div>` : ""}
+    ${problems.length && !permissibility ? `<div class="notice notice-error" role="alert">
+      ${problems.length} field${problems.length > 1 ? "s" : ""} still needed before this can be initiated.
+      Every field is required — nothing incomplete reaches an approver.
+    </div>` : ""}
+
+    <div class="card">
+      ${textField("project", "Project", state.draft.project, GUIDANCE.project)}
+      ${selectField("fundingType", "Funding type", state.draft.fundingType, FUNDING_TYPES, GUIDANCE.fundingType)}
+    </div>
+
+    <div class="grid2">
+      ${sideForm("requesting")}
+      ${sideForm("performing")}
+    </div>
+
+    <div class="actions">
+      <button class="primary" data-initiate>Initiate into the relay</button>
+      <button class="ghost" data-discard-draft>Discard</button>
+    </div>`;
+}
+
+/* --- Insights ----------------------------------------------------------- */
+
+/* Elapsed days an authorization spent at each closed stage, read off the
+   transition log. Over seeded records this is arithmetic on invented dates —
+   which is exactly why the screen is labelled a mockup. */
+function stageDurations() {
+  const totals = new Map();
+  for (const auth of state.authorizations) {
+    let previous = auth.transitions.find(t => t.kind === "initiated");
+    if (!previous) continue;
+    for (const t of auth.transitions) {
+      if (t.kind !== "advanced") continue;
+      const days = daysBetween(previous.at, t.at);
+      totals.set(t.stage, (totals.get(t.stage) || 0) + days);
+      previous = t;
+    }
+  }
+  return totals;
+}
+
+function renderInsights() {
+  const totals = stageDurations();
+  const durations = RELAY.map(s => ({ stage: s, days: totals.get(s.id) || 0 }));
+  const slowest = Math.max(1, ...durations.map(d => d.days));
+
+  const completed = state.authorizations.filter(a => a.state === "completed");
+  const corrections = state.authorizations.reduce(
+    (n, a) => n + a.transitions.filter(t => t.kind === "correction-requested").length, 0);
+  const clean = state.authorizations.filter(
+    a => !a.transitions.some(t => t.kind === "correction-requested")).length;
+  const cycle = completed.length
+    ? Math.round(completed.reduce((n, a) => n + daysBetween(
+        a.transitions.find(t => t.kind === "initiated").at,
+        a.transitions[a.transitions.length - 1].at), 0) / completed.length)
+    : 0;
+
+  const byFunding = FUNDING_TYPES.map(f => ({
+    label: f.label,
+    count: state.authorizations.filter(a => a.fundingType === f.id).length
+  }));
+  const maxFunding = Math.max(1, ...byFunding.map(f => f.count));
+
+  return `
+    ${flashNotice()}
+    <div class="card-head">
+      <div class="grow">
+        <h2>Insights</h2>
+        <p class="muted small">Restricted to administrators in the full product. Shows no individual:
+        nothing here attributes time or defects to a named person.</p>
+      </div>
+    </div>
+
+    <div class="notice notice-info">
+      <h3>This is a mockup of what a pilot would report — not a measurement</h3>
+      <p class="small" style="margin-top:.3rem">Every figure below is computed from the seeded
+      authorizations in this file, and every one of those is invented. A real baseline can only come
+      from running the process with real users on real authorizations. Read this as
+      <em>the shape of the answer</em>, never as the answer.</p>
+    </div>
+
+    <div class="tiles">
+      <div class="tile">
+        <div class="tile-label">Authorizations in the system</div>
+        <div class="tile-value">${state.authorizations.length}</div>
+        <div class="tile-detail">${completed.length} completed</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Mean cycle time</div>
+        <div class="tile-value">${cycle}<span class="tile-detail"> days</span></div>
+        <div class="tile-detail">Initiation to charge number</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Correction requests</div>
+        <div class="tile-value">${corrections}</div>
+        <div class="tile-detail">Raised at a stage, after entry</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Clean authorizations</div>
+        <div class="tile-value">${clean}</div>
+        <div class="tile-detail">No correction requested</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Where the time goes, by stage</div>
+      <p class="muted small" style="margin-bottom:.9rem">Total days authorizations spent at each
+      stage before it closed, across every authorization. Darker means more. A gate an
+      authorization skipped contributes nothing, and early stages accumulate most simply because
+      every authorization passes through them.</p>
+      <div class="heat">
+        ${durations.map(d => {
+          const level = d.days === 0 ? 0 : Math.min(4, Math.round((d.days / slowest) * 4));
+          return `<div class="heat-cell heat-${level}">
+            <div class="heat-stage">${esc(d.stage.label)}</div>
+            <div class="heat-days">${d.days}<span style="font-size:.72rem;font-weight:500"> days</span></div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Authorizations by funding type</div>
+      <p class="muted small" style="margin-bottom:.9rem">Company-funded work skips the Contracts
+      stage entirely — one of the controls does not run at all for that class of work.</p>
+      ${byFunding.map(f => `
+        <div class="bar-row">
+          <span>${esc(f.label)}</span>
+          <span class="bar-track"><span class="bar-fill" style="width:${(f.count / maxFunding) * 100}%"></span></span>
+          <span class="bar-num">${f.count}</span>
+        </div>`).join("")}
+    </div>`;
+}
+
+/* --- Footer ------------------------------------------------------------- */
+
+function renderFooter() {
+  document.getElementById("footer").innerHTML = `
+    <p>A single HTML file — no server, no database, no build step. Everything you change is kept in
+    this browser only and is never sent anywhere.
+    <button class="ghost" data-reset style="margin-left:.6rem;padding:.3rem .7rem;font-size:.78rem">Reset to seeded data</button></p>
+    <p style="margin-top:.5rem">All organisations, people, numbers and figures are fictional. Not a
+    real system, and not affiliated with or endorsed by any company.</p>`;
+}
+
+/* --- The one render entry point ----------------------------------------- */
+
+function render() {
+  renderRoleSelect();
+  renderTabs();
+  const view = document.getElementById("view");
+  if (state.tab === "list")          view.innerHTML = renderList();
+  else if (state.tab === "new")      view.innerHTML = renderNew();
+  else                               view.innerHTML = renderInsights();
+  renderFooter();
+}
+
+
+/* ===========================================================================
+   EVENTS — one delegated listener per kind, reading data- attributes
+=========================================================================== */
+
+document.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-tab], [data-open], [data-toggle-mine], [data-close-detail], " +
+    "[data-acknowledge], [data-mint], [data-open-correction], [data-submit-correction], " +
+    "[data-cancel-correction], [data-resolve-correction], [data-choose-dept], [data-clear-dept], " +
+    "[data-initiate], [data-discard-draft], [data-reset]");
+  if (!target) return;
+  const d = target.dataset;
+
+  if (d.tab)          { state.tab = d.tab; state.openId = null; return render(); }
+  if (d.open)         { state.openId = d.open; state.pendingCharge = ""; return render(); }
+  if ("toggleMine" in d)   { state.onlyMine = !state.onlyMine; return render(); }
+  if ("closeDetail" in d)  { state.openId = null; state.correctionDraft = null; state.pendingCharge = ""; return render(); }
+  if ("reset" in d)        { return resetToSeed(); }
+
+  if (d.acknowledge) {
+    const auth = findAuth(d.acknowledge);
+    const stage = currentStage(auth);
+    if (stage && stage.contributes) {
+      const missing = missingFields(auth, WORK_FIELDS);
+      if (missing.length) {
+        state.flash = { kind: "error", text: missing.map(m => m[1]).join(", ") + " still needed." };
+        return render();
+      }
+    }
+    acknowledge(auth);
+    state.flash = { kind: "good", text: "Acknowledged. " +
+      (currentStage(auth) ? "Now with " + currentStage(auth).label + "." : "Every stage has acknowledged.") };
+    return render();
+  }
+
+  if (d.mint) {
+    const auth = findAuth(d.mint);
+    const value = state.pendingCharge.trim();
+    if (!value) {
+      state.flash = { kind: "error", text: "A charge number is required to complete the authorization." };
+      return render();
+    }
+    mintChargeNumber(auth, value);
+    state.pendingCharge = "";
+    state.flash = { kind: "good", text: "Charge number minted. The authorization is complete." };
+    return render();
+  }
+
+  if (d.openCorrection)   { state.correctionDraft = { id: d.openCorrection, fields: [], comment: "", error: "" }; return render(); }
+  if ("cancelCorrection" in d) { state.correctionDraft = null; return render(); }
+
+  if (d.submitCorrection) {
+    const draft = state.correctionDraft;
+    if (!draft.fields.length)        { draft.error = "Name at least one field at fault."; return render(); }
+    if (!draft.comment.trim())       { draft.error = "A comment is mandatory — the person fixing this needs to know why."; return render(); }
+    raiseCorrection(findAuth(d.submitCorrection), draft.fields, draft.comment.trim());
+    state.correctionDraft = null;
+    state.flash = { kind: "good", text: "Correction requested. The authorization has not moved." };
+    return render();
+  }
+
+  if (d.resolveCorrection) {
+    const auth = findAuth(d.resolveCorrection);
+    const blank = auth.correction.fields.filter(path => {
+      const v = readPath(auth, path);
+      return v == null || String(v).trim() === "";
+    });
+    if (blank.length) {
+      state.flash = { kind: "error", text: blank.map(fieldLabel).join(", ") + " cannot be left empty." };
+      return render();
+    }
+    resolveCorrection(auth);
+    state.flash = { kind: "good", text: "Correction supplied. Back with " +
+      (currentStage(auth) ? currentStage(auth).label : "the relay") + "." };
+    return render();
+  }
+
+  if (d.chooseDept) {
+    state.draft[d.side].dept = d.chooseDept;
+    /* Permissibility is checked the moment both departments are known — at
+       entry, not days later at a gate. */
+    state.draft._problems = (state.draft._problems || [])
+      .filter(p => p.path !== d.side + ".dept" && !p.permissibility);
+    const rule = permissibilityFailure(state.draft.requesting.dept, state.draft.performing.dept);
+    if (rule) state.draft._problems.push(intakeProblems(state.draft).find(p => p.permissibility));
+    return render();
+  }
+
+  if (d.clearDept) {
+    state.draft[d.clearDept].dept = "";
+    state.draft._problems = (state.draft._problems || []).filter(p => !p.permissibility);
+    return render();
+  }
+
+  if ("initiate" in d) {
+    const problems = intakeProblems(state.draft);
+    state.draft._problems = problems;
+    if (problems.length) return render();
+    const auth = {
+      id: nextId(),
+      project: state.draft.project,
+      fundingType: state.draft.fundingType,
+      requesting: { ...state.draft.requesting },
+      performing: { ...state.draft.performing },
+      work: null, chargeNumber: null, correction: null,
+      state: "initiated", transitions: []
+    };
+    record(auth, "created",   "Submitter", "Draft created");
+    record(auth, "initiated", "Submitter", "Initiated into the relay");
+    state.authorizations.unshift(auth);
+    state.draft = null;
+    state.tab = "list";
+    state.openId = auth.id;
+    save();
+    state.flash = { kind: "good", text: auth.id + " initiated. Now with " + currentStage(auth).label + "." };
+    return render();
+  }
+
+  if ("discardDraft" in d) { state.draft = null; state.flash = { kind: "info", text: "Draft discarded." }; return render(); }
+});
+
+/* Typing never re-renders — it writes straight to state, so focus is never
+   stolen mid-field. The page redraws only when something structural changes. */
+document.addEventListener("input", (event) => {
+  const el = event.target;
+  const d = el.dataset;
+
+  if (d.field) {
+    const container = state.draft && state.tab === "new" ? state.draft : findAuth(state.openId);
+    if (container) writePath(container, d.field, el.value);
+    if (container && container !== state.draft) save();
+    return;
+  }
+  if (d.correct) {
+    const auth = findAuth(state.openId);
+    if (auth) { writePath(auth, d.correct, el.value); save(); }
+    return;
+  }
+  if ("pendingCharge" in d) {
+    state.pendingCharge = el.value;
+    return;
+  }
+  if ("correctionComment" in d && state.correctionDraft) {
+    state.correctionDraft.comment = el.value;
+    return;
+  }
+  if (d.picker && d.filter === "search") {
+    state.draft._picker[d.picker].search = el.value;
+    /* Re-render only the results, so the search box keeps focus and caret. */
+    const wrapper = el.closest(".picker");
+    const fresh = document.createElement("div");
+    fresh.innerHTML = pickerFor(d.picker);
+    wrapper.querySelector(".picker-count").replaceWith(fresh.querySelector(".picker-count"));
+    wrapper.querySelector(".picker-results").replaceWith(fresh.querySelector(".picker-results"));
+  }
+});
+
+document.addEventListener("change", (event) => {
+  const el = event.target;
+  const d = el.dataset;
+
+  if (el.id === "role-select") {
+    state.actingRole = el.value;
+    state.correctionDraft = null;
+    save();
+    return render();
+  }
+  if (d.picker && d.filter !== "search") {
+    const filters = state.draft._picker[d.picker];
+    filters[d.filter] = el.value;
+    if (d.filter === "entity") filters.division = "";   /* divisions belong to one entity */
+    return render();
+  }
+  if (d.field && el.tagName === "SELECT") {
+    const container = state.draft && state.tab === "new" ? state.draft : findAuth(state.openId);
+    if (container) writePath(container, d.field, el.value);
+    return render();
+  }
+  if (d.correctionField && state.correctionDraft) {
+    const set = new Set(state.correctionDraft.fields);
+    el.checked ? set.add(d.correctionField) : set.delete(d.correctionField);
+    state.correctionDraft.fields = [...set];
+  }
+});
+
+load();
+render();
+</script>
+</body>
+</html>
