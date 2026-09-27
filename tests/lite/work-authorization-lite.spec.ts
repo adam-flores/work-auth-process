@@ -107,11 +107,12 @@ test("choosing a department fills in the lookup fields", async ({ page }) => {
 test("narrowing by attribute and then searching by name reaches a department", async ({ page }) => {
   await page.getByRole("tab", { name: "New authorization" }).click();
   const picker = page.getByTestId("picker-performing");
+  const filters = picker.getByRole("group", { name: "Department filters" });
 
   await expect(picker).toContainText("32 of 32 departments");
-  await picker.getByLabel("Jurisdiction").selectOption({ label: "Foreign" });
+  await filters.getByLabel("Jurisdiction").selectOption({ label: "Foreign" });
   await expect(picker).toContainText("9 of 32 departments");
-  await picker.getByLabel("Legal entity").selectOption({ label: "Calderis Aerospace" });
+  await filters.getByLabel("Legal entity").selectOption({ label: "Calderis Aerospace" });
   await expect(picker).toContainText("4 of 32 departments");
   await picker.getByLabel("Search departments by name").fill("Canada");
   await expect(picker).toContainText("1 of 32 departments");

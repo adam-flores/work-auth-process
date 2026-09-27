@@ -256,6 +256,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 
 /* --- The department picker ---------------------------------------------- */
 .picker { border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); padding: .85rem; }
+.picker-heading { font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: .4rem; }
 .picker-filters { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin-bottom: .5rem; }
 @media (max-width: 600px) { .picker-filters { grid-template-columns: 1fr; } }
 .picker-filters select, .picker-search input {
@@ -1492,7 +1493,8 @@ function pickerFor(side) {
 
   return `
     <div class="picker" data-testid="picker-${esc(side)}">
-      <div class="picker-filters">
+      <p class="picker-heading" id="picker-${esc(side)}-filters">Department filters</p>
+      <div class="picker-filters" role="group" aria-labelledby="picker-${esc(side)}-filters">
         <select data-picker="${esc(side)}" data-filter="entity" aria-label="Legal entity">
           <option value="">Any legal entity</option>
           ${entities.map(e => `<option value="${esc(e.id)}"${e.id === filters.entity ? " selected" : ""}>${esc(e.label)}</option>`).join("")}
