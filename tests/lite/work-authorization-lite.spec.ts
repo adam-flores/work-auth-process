@@ -85,6 +85,12 @@ test("every role has something waiting on it in the seed", async ({ page }) => {
   }
 });
 
+test("the form names both departments in the glossary's terms", async ({ page }) => {
+  await page.getByRole("tab", { name: "New authorization" }).click();
+  await expect(page.getByText("Requesting department", { exact: true })).toBeVisible();
+  await expect(page.getByText("Performing department", { exact: true })).toBeVisible();
+});
+
 test("choosing a department fills in the lookup fields", async ({ page }) => {
   await page.getByRole("tab", { name: "New authorization" }).click();
   await pickDepartment(page, "requesting", "Vibration Lab");

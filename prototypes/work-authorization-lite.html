@@ -1544,7 +1544,7 @@ const LOCATION_TYPES = [{ id: "domestic", label: "Domestic" }, { id: "internatio
 
 function sideForm(side) {
   const d = state.draft[side];
-  const title = side === "requesting" ? "Requesting side" : "Performing side";
+  const title = side === "requesting" ? "Requesting department" : "Performing department";
   const note = side === "requesting"
     ? "The department asking for the work."
     : "The department that will do it. Fixed once initiated — a different department is a different request.";
