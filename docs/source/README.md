@@ -26,6 +26,10 @@ centers, CAGE codes, site locations, and CAS/FAR disclosure classifications. The
 disk. The repository's root `.gitignore` excludes them by extension (`*.xlsx`, `*.doc*`,
 `*.ppt*`, `*.pdf`).
 
+The course's assignment brief and rubric (`ai-enabled-presentation-instructions-rubric.md`)
+also sits here as local reference. It isn't sensitive, but it belongs to the course rather than
+the project, so `.gitignore` excludes it by name.
+
 **If you add a source document in a format the root `.gitignore` does not already cover, add
 the pattern before you save the file here.** That file list is the only thing standing between
 these documents and a public repository.
