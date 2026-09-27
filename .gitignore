@@ -75,6 +75,11 @@ data/private/
 *.ppt
 *.pdf
 
+# ---- Course material ----
+# The instructor's assignment brief and rubric. It belongs to the course, not the project,
+# so it stays on local disk as reference and out of this public repo.
+docs/source/ai-enabled-presentation-instructions-rubric.md
+
 # ---- Build / misc ----
 *.log
 tmp/
