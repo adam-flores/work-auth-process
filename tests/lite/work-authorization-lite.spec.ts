@@ -91,6 +91,12 @@ test("the form names both departments in the glossary's terms", async ({ page })
   await expect(page.getByText("Performing department", { exact: true })).toBeVisible();
 });
 
+test("an opened authorization names both departments in the glossary's terms", async ({ page }) => {
+  await openAuthorization(page, "IWA-2041");
+  await expect(page.getByText("Requesting department", { exact: true })).toBeVisible();
+  await expect(page.getByText("Performing department", { exact: true })).toBeVisible();
+});
+
 test("choosing a department fills in the lookup fields", async ({ page }) => {
   await page.getByRole("tab", { name: "New authorization" }).click();
   await pickDepartment(page, "requesting", "Vibration Lab");
